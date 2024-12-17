@@ -1,13 +1,15 @@
-import Nav from "./Component/Nav";
+import Nav from "./Component/Nav";  // Assuming Nav is your navbar component
+import Footer from "./Component/Footer";
 
-const App=()=>{
+const App = () => {
   return (
     <>
-    <div className="bg-slate-900">
-      <Nav/>
+      <div>
+        <Nav/>
+        <Footer/>    
       </div>
-      </>
-  )
+    </>
+  );
 }
 
 export default App;
