@@ -1,9 +1,9 @@
 import React from 'react';
-import { FaFacebook, FaTwitter, FaInstagram, FaLinkedin } from 'react-icons/fa';
+import { FaFacebook, FaInstagram, FaLinkedin } from 'react-icons/fa';
 
 export default function Footer() {
   return (
-    <footer className="bg-neutral-100 text-center text-neutral-600 dark:bg-neutral-600 dark:text-neutral-200 lg:text-left">
+    <footer className="bg-slate-900 text-center text-slate-100 dark:bg-neutral-600 dark:text-neutral-100 lg:text-left">
       {/* Footer Content Section */}
       <div className="mx-6 py-10 text-center md:text-left">
         {/* Footer Grid Layout */}
@@ -25,16 +25,16 @@ export default function Footer() {
           <div>
             <h6 className="mb-4 flex justify-center font-semibold uppercase md:justify-start">Vehicle Tickets System</h6>
             <p className="mb-4">
-              <a href="#" className="text-neutral-600 dark:text-neutral-200">How to Book</a>
+              <a href="/how-to-book" className="text-slate-100 dark:text-neutral-200 hover:text-blue-500 dark:hover:text-blue-400">How to Book</a>
             </p>
             <p className="mb-4">
-              <a href="#" className="text-neutral-600 dark:text-neutral-200">Contact Us</a>
+              <a href="/contact-us" className="text-slate-100 dark:text-neutral-200 hover:text-blue-500 dark:hover:text-blue-400">Contact Us</a>
             </p>
             <p className="mb-4">
-              <a href="#" className="text-neutral-600 dark:text-neutral-200">Help Center</a>
+              <a href="/help-center" className="text-neutral-100 dark:text-neutral-200 hover:text-blue-500 dark:hover:text-blue-400">Help Center</a>
             </p>
             <p className="mb-4">
-              <a href="#" className="text-neutral-600 dark:text-neutral-200">About Us</a>
+              <a href="/about-us" className="text-neutral-100 dark:text-neutral-200 hover:text-blue-500 dark:hover:text-blue-400">About Us</a>
             </p>
           </div>
 
@@ -42,33 +42,34 @@ export default function Footer() {
           <div>
             <h6 className="mb-4 flex justify-center font-semibold uppercase md:justify-start">Others</h6>
             <p className="mb-4">
-              <a href="#" className="text-neutral-600 dark:text-neutral-200">Terms and Conditions</a>
+              <a href="/terms-and-conditions" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400">Terms and Conditions</a>
             </p>
             <p className="mb-4">
-              <a href="#" className="text-neutral-600 dark:text-neutral-200">Blog</a>
+              <a href="/blog" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400">Blog</a>
             </p>
             <p className="mb-4">
-              <a href="#" className="text-neutral-600 dark:text-neutral-200">Register Your Experience</a>
+              <a href="/register-your-experience" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400">Register Your Experience</a>
             </p>
             <p className="mb-4">
-              <a href="#" className="text-neutral-600 dark:text-neutral-200">Most Visited Places</a>
+              <a href="/most-visited-places" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400">Most Visited Places</a>
             </p>
           </div>
-          {/* Social Media Section */}
-          <div>
-            <h6 className="mb-4 flex justify-center font-semibold uppercase md:justify-start">Follow us on</h6>
-            <p className="mb-4 flex items-center">
-              <FaFacebook size={20} className="mr-2 text-blue-600" />
-              <a href="#" className="text-neutral-600 dark:text-neutral-200">Facebook</a>
-            </p>
-            <p className="mb-4 flex items-center">
-              <FaInstagram size={20} className="mr-2 text-blue-700" />
-              <a href="#" className="text-neutral-600 dark:text-neutral-200">Instagram</a>
-            </p>
-            <p className="mb-4 flex items-center">
-              <FaLinkedin size={20} className="mr-2 text-blue-700" />
-              <a href="#" className="text-neutral-600 dark:text-neutral-200">LinkedIn</a>
-            </p>
+          <div className="flex flex-col items-center justify-center">
+            <h6 className="mb-4 font-semibold uppercase">Follow us on</h6>
+            <div className="flex flex-col items-center space-y-4">
+              <p className="flex items-center">
+                <FaFacebook size={20} className="mr-2 text-blue-100 hover:text-blue-500" />
+                <a href="https://facebook.com" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400" target="_blank" rel="noopener noreferrer">Facebook</a>
+              </p>
+              <p className="flex items-center">
+                <FaInstagram size={20} className="mr-2 text-blue-100 hover:text-blue-500" />
+                <a href="https://instagram.com" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400" target="_blank" rel="noopener noreferrer">Instagram</a>
+              </p>
+              <p className="flex items-center">
+                <FaLinkedin size={20} className="mr-2 text-blue-100 hover:text-blue-500" />
+                <a href="https://linkedin.com" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+              </p>
+            </div>
           </div>
         </div>
       </div>
