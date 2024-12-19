@@ -2,6 +2,8 @@ import Nav from "./Component/Nav";
 import Footer from "./Component/Footer";
 import Login from "./Component/Login";
 import HomePage from "./Pages/Homepage";
+import AboutUs from "./Component/About";
+import Registration from "./Component/Registration";
 
 
 const App = () => {
@@ -9,10 +11,8 @@ const App = () => {
     <>
       <div>
         <Nav/>
-        <HomePage/>
-        <Login/>
-        <Footer/>
-        
+        <Registration/>
+        <Footer/>  
       </div>
     </>
   );

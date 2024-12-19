@@ -34,7 +34,7 @@ const HomePage = () => {
   };
 
   return (
-    <div className="w-full h-[80vh] mx-auto mt-0 p-0 relative overflow-hidden shadow-lg">
+    <div className="w-full h-[60vh] mx-auto mt-0 p-0 relative overflow-hidden shadow-lg">
       {/* Background Image */}
       <img
         src={Hill}
@@ -78,7 +78,7 @@ const HomePage = () => {
         </div>
       </div>
       {/* Optional Overlay Text */}
-      <div className="absolute inset-0 flex items-center justify-center top-[10%] sm:top-[100px]">
+      <div className="absolute inset-0 flex items-center justify-center top-[10%] sm:top-[-180px]">
         <h2 className="text-white text-xl sm:text-2xl md:text-4xl font-bold text-center px-4">
           Ride your Future with TickXplore
         </h2>
