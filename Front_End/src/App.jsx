@@ -11,8 +11,8 @@ const App = () => {
     <>
       <div>
         <Nav/>
-        <Registration/>
-        <Footer/>  
+        <HomePage/>
+         <Footer/>
       </div>
     </>
   );
