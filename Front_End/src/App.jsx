@@ -12,7 +12,6 @@ const App = () => {
       <div>
         <Nav/>
         <HomePage/>
-         <Footer/>
       </div>
     </>
   );
