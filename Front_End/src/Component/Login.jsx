@@ -49,7 +49,7 @@ export default function Login() {
   };
 
   return (
-    <section className="h-screen bg-gradient-to-r bg-slate-900 flex items-center justify-center">
+    <section className="h-screen bg-gradient-to-r bg-slate-100 flex items-center justify-center">
       <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-lg">
         <h2 className="text-4xl font-bold text-center text-slate-900 mb-6">Sign In</h2>
         

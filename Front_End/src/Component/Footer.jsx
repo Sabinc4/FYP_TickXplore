@@ -7,7 +7,7 @@ export default function Footer() {
       {/* Footer Content Section */}
       <div className="mx-6 py-10 text-center md:text-left">
         {/* Footer Grid Layout */}
-        <div className="grid-1 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
 
           {/* Branding Section */}
           <div>
@@ -17,66 +17,113 @@ export default function Footer() {
               </svg>
               TickXplore
             </h6>
-            <p>"TickXplore - Your One-Stop Solution for Seamless Ticket Booking.
-               Explore Nepal with ease, whether it's buses, tourist spots, or 4x4 rides. Travel Made Simple!"</p>
+            <p className="text-sm">
+              "TickXplore - Your One-Stop Solution for Seamless Ticket Booking.
+               Explore Nepal with ease, whether it's buses, tourist spots, or 4x4 rides. Travel Made Simple!"
+            </p>
           </div>
 
           {/* Quick Links Section */}
           <div>
-            <h6 className="mb-4 flex justify-center font-semibold uppercase md:justify-start">Vehicle Tickets System</h6>
-            <p className="mb-4">
-              <a href="/how-to-book" className="text-slate-100 dark:text-neutral-200 hover:text-blue-500 dark:hover:text-blue-400">How to Book</a>
-            </p>
-            <p className="mb-4">
-              <a href="/contact-us" className="text-slate-100 dark:text-neutral-200 hover:text-blue-500 dark:hover:text-blue-400">Contact Us</a>
-            </p>
-            <p className="mb-4">
-              <a href="/help-center" className="text-neutral-100 dark:text-neutral-200 hover:text-blue-500 dark:hover:text-blue-400">Help Center</a>
-            </p>
-            <p className="mb-4">
-              <a href="/about-us" className="text-neutral-100 dark:text-neutral-200 hover:text-blue-500 dark:hover:text-blue-400">About Us</a>
-            </p>
+            <h6 className="mb-4 font-semibold uppercase text-center md:text-left">Vehicle Tickets System</h6>
+            <ul className="space-y-2">
+              <li>
+                <a href="/how-to-book" className="text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+                  How to Book
+                </a>
+              </li>
+              <li>
+                <a href="/contact-us" className="text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+                  Contact Us
+                </a>
+              </li>
+              <li>
+                <a href="/help-center" className="text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+                  Help Center
+                </a>
+              </li>
+              <li>
+                <a href="/about-us" className="text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+                  About Us
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Vehicle Bookings Section */}
+          <div>
+            <h6 className="mb-4 font-semibold uppercase text-center md:text-left">Vehicle Bookings</h6>
+            <ul className="space-y-2">
+              <li>
+                <a href="/4x4-jeeps" className="text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+                  4x4 Jeeps
+                </a>
+              </li>
+              <li>
+                <a href="/scorpio" className="text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+                  Scorpio
+                </a>
+              </li>
+              <li>
+                <a href="/e-vans" className="text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+                  E-vans
+                </a>
+              </li>
+            </ul>
           </div>
 
           {/* Miscellaneous Section */}
           <div>
-            <h6 className="mb-4 flex justify-center font-semibold uppercase md:justify-start">Others</h6>
-            <p className="mb-4">
-              <a href="/terms-and-conditions" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400">Terms and Conditions</a>
-            </p>
-            <p className="mb-4">
-              <a href="/blog" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400">Blog</a>
-            </p>
-            <p className="mb-4">
-              <a href="/register-your-experience" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400">Register Your Experience</a>
-            </p>
-            <p className="mb-4">
-              <a href="/most-visited-places" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400">Most Visited Places</a>
-            </p>
+            <h6 className="mb-4 font-semibold uppercase text-center md:text-left">Miscellaneous</h6>
+            <ul className="space-y-2">
+              <li>
+                <a href="/terms-and-conditions" className="text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+                  Terms and Conditions
+                </a>
+              </li>
+              <li>
+                <a href="/blog" className="text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+                  Blog
+                </a>
+              </li>
+              <li>
+                <a href="/register-your-experience" className="text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+                  Register Your Experience
+                </a>
+              </li>
+              <li>
+                <a href="/most-visited-places" className="text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+                  Most Visited Places
+                </a>
+              </li>
+            </ul>
           </div>
-          <div className="flex flex-col items-center justify-center">
-            <h6 className="mb-4 font-semibold uppercase">Follow us on</h6>
-            <div className="flex flex-col items-center space-y-4">
-              <p className="flex items-center">
-                <FaFacebook size={20} className="mr-2 text-blue-100 hover:text-blue-500" />
-                <a href="https://facebook.com" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400" target="_blank" rel="noopener noreferrer">Facebook</a>
-              </p>
-              <p className="flex items-center">
-                <FaInstagram size={20} className="mr-2 text-blue-100 hover:text-blue-500" />
-                <a href="https://instagram.com" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400" target="_blank" rel="noopener noreferrer">Instagram</a>
-              </p>
-              <p className="flex items-center">
-                <FaLinkedin size={20} className="mr-2 text-blue-100 hover:text-blue-500" />
-                <a href="https://linkedin.com" className="text-neutral-100 dark:text-neutral-100 hover:text-blue-500 dark:hover:text-blue-400" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-              </p>
-            </div>
-          </div>
+
+        </div>
+      </div>
+
+      {/* Social Media Section - Centered */}
+      <div className="text-center py-6 bg-slate-800">
+        <h6 className="font-semibold uppercase mb-4">Follow Us On</h6>
+        <div className="flex justify-center gap-8">
+          <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="flex items-center text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+            <FaFacebook size={25} />
+            <span className="ml-2">Facebook</span>
+          </a>
+          <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="flex items-center text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+            <FaInstagram size={25} />
+            <span className="ml-2">Instagram</span>
+          </a>
+          <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="flex items-center text-slate-100 hover:text-blue-500 dark:hover:text-blue-400">
+            <FaLinkedin size={25} />
+            <span className="ml-2">LinkedIn</span>
+          </a>
         </div>
       </div>
 
       {/* Footer Bottom Section */}
-      <div className="text-center p-4">
-        <span>© 2023 Copyright:</span> TickXplore
+      <div className="bg-slate-800 text-center p-4 text-slate-300">
+        <span>© 2023 TickXplore - All Rights Reserved</span>
       </div>
     </footer>
   );

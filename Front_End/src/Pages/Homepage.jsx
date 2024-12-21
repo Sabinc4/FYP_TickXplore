@@ -81,19 +81,6 @@ const HomePage = () => {
           alt="Homepage Background"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gray-900 bg-opacity-40 flex items-center justify-center">
-          <nav className="absolute top-5 left-5 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6 lg:space-x-8 text-white z-10">
-            {["Bus Tickets", "Scorpio", "E-Vans", "4x4 Jeeps", "Things to Do"].map((item) => (
-              <a
-                key={item}
-                href={`#${item.toLowerCase().replace(/\s+/g, "-")}`}
-                className="text-sm sm:text-base lg:text-lg font-semibold hover:text-slate-400 cursor-pointer py-2 px-4"
-              >
-                {item}
-              </a>
-            ))}
-          </nav>
-        </div>
         <div className="absolute inset-x-0 top-[30%] px-4 text-center">
           <h2 className="text-white text-xl sm:text-2xl md:text-4xl font-bold">
             Ride your Future with TickXplore
