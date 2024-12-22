@@ -97,9 +97,9 @@ const Registration = () => {
   };
 
   return (
-    <div className="min-h-screen py-12 bg-slate-800">
+    <div className="min-h-screen py-12 bg-slate-900">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col lg:flex-row w-full lg:w-12/12 bg-white rounded-2xl mx-auto shadow-lg overflow-hidden">
+        <div className="flex flex-col lg:flex-row w-full bg-white rounded-2xl mx-auto shadow-lg overflow-hidden">
           {/* Left Side: Background */}
           <div
             className="w-full lg:w-1/2 flex items-center justify-center bg-no-repeat bg-cover bg-center"
@@ -107,16 +107,17 @@ const Registration = () => {
           ></div>
 
           {/* Right Side: Registration Form */}
-          <div className="w-full lg:w-1/2 py-14 px-10 sm:px-16 flex flex-col items-center">
-            <h2 className="text-4xl sm:text-5xl font-bold mb-6 text-center">
-              Register
+          <div className="w-full lg:w-1/2 py-14 px-8 sm:px-12 flex flex-col items-center space-y-6">
+            <h2 className="text-4xl sm:text-5xl font-extrabold mb-4 text-center text-slate-900">
+              Create Account
             </h2>
-            <p className="mb-6 font-bold text-gray-700 text-sm sm:text-base text-center">
-              Create your account. It's free and only takes a minute.
+            <p className="mb-4 font-semibold text-gray-700 text-sm sm:text-base text-center">
+              Join us to explore more and enjoy seamless ticket bookings.
             </p>
 
             {/* Error Message */}
             {error && <p className="text-red-500 mb-4 text-sm">{error}</p>}
+
             {/* Success Message */}
             {success && <p className="text-green-500 mb-4 text-sm">{success}</p>}
 
@@ -128,16 +129,16 @@ const Registration = () => {
                   name="firstname"
                   value={formData.firstname}
                   onChange={handleInputChange}
-                  placeholder="Firstname"
-                  className="border border-gray-900 py-2 px-3 w-full rounded-lg"
+                  placeholder="First Name"
+                  className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
                 <input
                   type="text"
                   name="lastname"
                   value={formData.lastname}
                   onChange={handleInputChange}
-                  placeholder="Lastname"
-                  className="border border-gray-900 py-2 px-3 w-full rounded-lg"
+                  placeholder="Last Name"
+                  className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
               </div>
 
@@ -148,8 +149,8 @@ const Registration = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  placeholder="Email"
-                  className="border border-gray-900 py-2 px-3 w-full rounded-lg"
+                  placeholder="Email Address"
+                  className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
               </div>
 
@@ -161,7 +162,7 @@ const Registration = () => {
                   value={formData.password}
                   onChange={handleInputChange}
                   placeholder="Password"
-                  className="border border-gray-900 py-2 px-3 w-full rounded-lg"
+                  className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
                 <button
                   type="button"
@@ -180,7 +181,7 @@ const Registration = () => {
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
                   placeholder="Confirm Password"
-                  className="border border-gray-900 py-2 px-3 w-full rounded-lg"
+                  className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
               </div>
 
