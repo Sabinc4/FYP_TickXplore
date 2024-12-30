@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import registerBackground from '../Pictures/Bus.jpg';
+import { Link } from 'react-router-dom';
+import axios from 'axios';
+
 
 const Registration = () => {
   const [formData, setFormData] = useState({
@@ -52,8 +55,11 @@ const Registration = () => {
     return '';
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
+    axios.post('',{name,email,password})
+    .then (result =>console .log (result))
+    .catch (err=> console.log(err))
 
     const validationError = validateForm();
     if (validationError) {
@@ -62,38 +68,17 @@ const Registration = () => {
       return;
     }
 
-    try {
-      const formDataToSubmit = new FormData();
-      formDataToSubmit.append('firstname', formData.firstname);
-      formDataToSubmit.append('lastname', formData.lastname);
-      formDataToSubmit.append('email', formData.email);
-      formDataToSubmit.append('password', formData.password);
-      formDataToSubmit.append('photo', formData.photo);
-
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        body: formDataToSubmit,
-      });
-
-      if (response.ok) {
-        setSuccess('Registration successful!');
-        setError('');
-        setFormData({
-          firstname: '',
-          lastname: '',
-          email: '',
-          password: '',
-          confirmPassword: '',
-          photo: null,
-        });
-      } else {
-        setError('Registration failed. Please try again.');
-        setSuccess('');
-      }
-    } catch (error) {
-      setError('Something went wrong. Please try again.');
-      setSuccess('');
-    }
+    setError('');
+    setSuccess('Registration successful! (No API call performed)');
+    // Reset form after successful validation
+    setFormData({
+      firstname: '',
+      lastname: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      photo: null,
+    });
   };
 
   return (
@@ -128,7 +113,7 @@ const Registration = () => {
                   type="text"
                   name="firstname"
                   value={formData.firstname}
-                  onChange={handleInputChange}
+                  onChange={(e)=> setName (e.target.value)}
                   placeholder="First Name"
                   className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
@@ -136,7 +121,7 @@ const Registration = () => {
                   type="text"
                   name="lastname"
                   value={formData.lastname}
-                  onChange={handleInputChange}
+                  onChange={(e)=> setName (e.target.value)}
                   placeholder="Last Name"
                   className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
@@ -148,7 +133,7 @@ const Registration = () => {
                   type="email"
                   name="email"
                   value={formData.email}
-                  onChange={handleInputChange}
+                  onChange={(e)=> setEmail (e.target.value)}
                   placeholder="Email Address"
                   className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
@@ -160,7 +145,7 @@ const Registration = () => {
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
-                  onChange={handleInputChange}
+                  onChange={(e)=> setPassword (e.target.value)}
                   placeholder="Password"
                   className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
@@ -179,7 +164,7 @@ const Registration = () => {
                   type={showPassword ? 'text' : 'password'}
                   name="confirmPassword"
                   value={formData.confirmPassword}
-                  onChange={handleInputChange}
+                  onChange={(e)=> setPassword (e.target.value)}
                   placeholder="Confirm Password"
                   className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
@@ -206,12 +191,12 @@ const Registration = () => {
 
               {/* Submit Button */}
               <div>
-                <button
+                <Link to='/Login'
                   type="submit"
                   className="w-full bg-slate-900 py-3 text-center text-white rounded-lg hover:bg-purple-600 transition duration-300"
                 >
                   Register Now
-                </button>
+                </Link>
               </div>
             </form>
           </div>

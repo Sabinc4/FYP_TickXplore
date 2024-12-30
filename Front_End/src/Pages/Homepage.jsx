@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Hill from "../Pictures/Hill.jpg";
 import { AiOutlineCalendar } from "react-icons/ai";
-import {  FaMapMarkerAlt, FaCaretDown, FaSearch } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaCaretDown, FaSearch } from 'react-icons/fa';
 
 // Reusable Card Component
 const Card = ({ icon: Icon, title, description }) => (
@@ -42,8 +42,8 @@ const HomePage = () => {
   };
 
   return (
-    <div className="min-h-screen">
-      <div className="w-full h-[80vh] relative overflow-hidden shadow-lg">
+    <div className="min-h-screen flex flex-col">
+      <div className="w-full h-[80vh] min-h-screen relative overflow-hidden shadow-lg">
         <img
           src={Hill}
           alt="Homepage Background"
