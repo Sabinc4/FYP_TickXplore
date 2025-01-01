@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { FaGoogle } from "react-icons/fa";
-import { Navigate } from "react-router-dom"; // Ensure React Router is being used
+import { Navigate } from "react-router-dom"; 
 
 export default function Login() {
   const [email, setEmail] = useState("");

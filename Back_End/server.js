@@ -1,16 +1,21 @@
 const express=require("express");
-const app=express();
+const mongoose=express('mongoose');
 const cors=require("cors");
-const corsOptions={
-    origin: ["http://localhost:5173"],
-};
+const UsersModel=require('./models/Users')
 
-app.use(cors(corsOptions));
+const app=express()
+app.use(express.json())
+app.use(cors())
 
-app.get("/api",(req,res) => {
-    res.json({ fruits: ["apple","orange","banana"] });
-});
+mongoose.connect("mongodb+srv://TickXplore:Kaushaltar%4015@tickxplorefyp.jhlpo.mongodb.net/");
 
-app.listen(8080,() => {
-    console.log("Server started on port 8080");
-});
+app.post('/register',(req,res)=> {
+    UsersModel.create(req.body)
+    .then(users=> res.json(users))
+    .catch(err => res.json(err))
+
+})
+
+app.listen(3001,()=>{
+    console.log("server is running")
+})

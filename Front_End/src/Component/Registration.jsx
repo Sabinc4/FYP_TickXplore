@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import registerBackground from '../Pictures/Bus.jpg';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-
+import registerBackground from '../Pictures/Bus.jpg';
 
 const Registration = () => {
   const [formData, setFormData] = useState({
@@ -11,25 +10,19 @@ const Registration = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    photo: null,
   });
 
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const navigate = useNavigate();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
       [name]: value,
-    });
-  };
-
-  const handlePhotoChange = (e) => {
-    setFormData({
-      ...formData,
-      photo: e.target.files[0],
     });
   };
 
@@ -42,12 +35,6 @@ const Registration = () => {
       return 'Please provide a valid email address.';
     }
 
-    const strongPasswordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,15}$/;
-    if (!strongPasswordRegex.test(formData.password)) {
-      return 'Password must include 8-15 characters, at least one uppercase, one lowercase, one number, and one special character.';
-    }
-
     if (formData.password !== formData.confirmPassword) {
       return 'Passwords do not match.';
     }
@@ -55,11 +42,8 @@ const Registration = () => {
     return '';
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    axios.post('',{name,email,password})
-    .then (result =>console .log (result))
-    .catch (err=> console.log(err))
 
     const validationError = validateForm();
     if (validationError) {
@@ -68,17 +52,23 @@ const Registration = () => {
       return;
     }
 
-    setError('');
-    setSuccess('Registration successful! (No API call performed)');
-    // Reset form after successful validation
-    setFormData({
-      firstname: '',
-      lastname: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      photo: null,
-    });
+    try {
+      setLoading(true);
+      setError('');
+      const response = await axios.post('http://localhost:3001/register', {
+        firstname: formData.firstname,
+        lastname: formData.lastname,
+        email: formData.email,
+        password: formData.password,
+      });
+      setSuccess('Registration successful! Redirecting to login...');
+      setTimeout(() => navigate('/login'), 2000); // Redirect to login after 2 seconds
+    } catch (err) {
+      setError(err.response?.data?.message || 'An error occurred during registration.');
+      setSuccess('');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -100,10 +90,7 @@ const Registration = () => {
               Join us to explore more and enjoy seamless ticket bookings.
             </p>
 
-            {/* Error Message */}
             {error && <p className="text-red-500 mb-4 text-sm">{error}</p>}
-
-            {/* Success Message */}
             {success && <p className="text-green-500 mb-4 text-sm">{success}</p>}
 
             <form onSubmit={handleSubmit} className="space-y-6 w-full">
@@ -113,7 +100,7 @@ const Registration = () => {
                   type="text"
                   name="firstname"
                   value={formData.firstname}
-                  onChange={(e)=> setName (e.target.value)}
+                  onChange={handleInputChange}
                   placeholder="First Name"
                   className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
@@ -121,54 +108,41 @@ const Registration = () => {
                   type="text"
                   name="lastname"
                   value={formData.lastname}
-                  onChange={(e)=> setName (e.target.value)}
+                  onChange={handleInputChange}
                   placeholder="Last Name"
                   className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
               </div>
 
               {/* Email */}
-              <div>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={(e)=> setEmail (e.target.value)}
-                  placeholder="Email Address"
-                  className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
-                />
-              </div>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="Email Address"
+                className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+              />
 
               {/* Password */}
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={formData.password}
-                  onChange={(e)=> setPassword (e.target.value)}
-                  placeholder="Password"
-                  className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2 text-sm text-gray-600"
-                >
-                  {showPassword ? 'Hide' : 'Show'}
-                </button>
-              </div>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                placeholder="Password"
+                className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+              />
 
               {/* Confirm Password */}
-              <div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={(e)=> setPassword (e.target.value)}
-                  placeholder="Confirm Password"
-                  className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
-                />
-              </div>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                placeholder="Confirm Password"
+                className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+              />
 
               {/* Terms and Conditions */}
               <div className="flex items-start gap-x-3">
@@ -190,14 +164,13 @@ const Registration = () => {
               </div>
 
               {/* Submit Button */}
-              <div>
-                <Link to='/Login'
-                  type="submit"
-                  className="w-full bg-slate-900 py-3 text-center text-white rounded-lg hover:bg-purple-600 transition duration-300"
-                >
-                  Register Now
-                </Link>
-              </div>
+              <button
+                type="submit"
+                className="w-full bg-slate-900 py-3 text-center text-white rounded-lg hover:bg-purple-600 transition duration-300"
+                disabled={loading}
+              >
+                {loading ? 'Registering...' : 'Register Now'}
+              </button>
             </form>
           </div>
         </div>
