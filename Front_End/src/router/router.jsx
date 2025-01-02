@@ -3,6 +3,9 @@ import Main from "../layout/Main";
 import Home from "../home/Home";
 import AboutUs from "../Component/About";
 import ScrollToTop from "../Component/ScrollToTop";
+import Tourist_Areas from "../Pages/Tourist_Areas";
+import Login from "../Component/Login";
+import Registration from "../Component/Registration";
 
 const router = createBrowserRouter([
     {
@@ -25,6 +28,19 @@ const router = createBrowserRouter([
             path: '/about-us',
             element: <AboutUs/>,
           },
+        {
+            path:'/tourist-areas',
+            element: <Tourist_Areas/>
+        },
+        {
+          path:'/sign-in',
+          element: <Login/>
+      },
+      {
+        path:'/signup',
+        element: <Registration/>
+    },
+
  
 
 

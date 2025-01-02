@@ -15,22 +15,22 @@ const Nav = () => {
   const mobileMenu = (
     <div className="lg:hidden absolute top-16 left-0 right-0 bg-slate-100 transition">
       <ul className="text-center text-xl p-10">
-        <Link to="" className={isActive("/")}>
+        <Link to="/" className={isActive("/")}>
           <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
             Home
           </li>
         </Link>
-        <Link to="" className={isActive("/bus-tickets")}>
+        <Link to="/bus-tickets" className={isActive("/bus-tickets")}>
           <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
             Bus Tickets
           </li>
         </Link>
-        <Link to="" className={isActive("/tourist-areas")}>
+        <Link to="/tourist-areas" className={isActive("/tourist-areas")}>
           <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
             Tourist Areas
           </li>
         </Link>
-        <Link to="/aboutus" className={isActive("/aboutus")}>
+        <Link to="/aboutus" className={isActive("/about-us")}>
           <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
             About Us
           </li>
@@ -57,6 +57,11 @@ const Nav = () => {
             </Link>
           </ul>
         </div>
+        <Link to="/sign-in" className={isActive("/sign-in")}>
+          <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
+            Sign In
+          </li>
+        </Link>
         <li
           className="mt-4 py-2 bg-blue-600 text-white rounded-full cursor-pointer hover:bg-blue-700"
           onClick={() => navigate("/book-now")}
@@ -99,6 +104,21 @@ const Nav = () => {
           </Link>
         </div>
       </div>
+
+      {/* "Sign In" button placed here */}
+      <Link to="/sign-in" className={isActive("/sign-in")}>
+        <li className="cursor-pointer">Sign In</li>
+      </Link>
+
+      <div className="ml-6">
+        <a
+          href="#"
+          className="bg-blue-600 text-white px-6 py-4 rounded-full hover:bg-green-700 transition"
+          onClick={() => navigate("/book-now")}
+        >
+          Book Now
+        </a>
+      </div>
     </ul>
   );
 
@@ -110,15 +130,6 @@ const Nav = () => {
         </div>
         <div className="hidden lg:flex items-center justify-end">
           {desktopMenu}
-          <div className="ml-6">
-            <a
-              href="#"
-              className="bg-blue-600 text-white px-6 py-4 rounded-full hover:bg-green-700 transition"
-              onClick={() => navigate("/book-now")}
-            >
-              Book Now
-            </a>
-          </div>
         </div>
         <div className="lg:hidden">
           <button onClick={handleClick} className="text-3xl transition">

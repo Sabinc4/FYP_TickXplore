@@ -1,96 +1,62 @@
 import React, { useState } from "react";
 import { FaGoogle } from "react-icons/fa";
-import { Navigate } from "react-router-dom"; 
+import { NavLink } from 'react-router-dom';
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [isSigningIn, setIsSigningIn] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [userLoggedIn, setUserLoggedIn] = useState(false); // Local state to track login status
+  const [rememberMe, setRememberMe] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // Mock sign-in function
-  const doSignInWithEmailAndPassword = async (email, password) => {
-    if (email === "test@example.com" && password === "password") {
-      setUserLoggedIn(true);
-      return;
-    }
-    throw new Error("Invalid email or password.");
-  };
-
-  // Mock Google sign-in function
-  const doSignInWithGoogle = async () => {
-    setUserLoggedIn(true);
-  };
-
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    // Validate form inputs
-    const formErrors = {};
-    if (!email) formErrors.email = "Email is required.";
-    if (!password) formErrors.password = "Password is required.";
-
-    if (Object.keys(formErrors).length > 0) {
-      setErrors(formErrors);
-      return;
-    }
-
-    try {
-      setErrors({});
-      setLoading(true);
-      await doSignInWithEmailAndPassword(email, password);
-      alert("Login successful!");
-    } catch (error) {
-      setErrors({ general: error.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle Google Sign-In
-  const onGoogleSignIn = async (e) => {
-    e.preventDefault();
-    if (isSigningIn) return;
-
-    try {
-      setIsSigningIn(true);
-      await doSignInWithGoogle();
-      alert("Google Sign-In successful!");
-    } catch (error) {
-      setErrors({ general: error.message });
-    } finally {
-      setIsSigningIn(false);
-    }
-  };
-
-  // Toggle password visibility
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
-
-  // Redirect if already logged in
-  if (userLoggedIn) {
-    return <Navigate to="/home" replace={true} />;
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Reset error message
+    setErrorMessage("");
+    // Validate email and password
+    if (!email || !password) {
+      setErrorMessage("Please fill in both fields.");
+      return;
+    }
+    // Email format validation (simple regex)
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
+    if (!emailRegex.test(email)) {
+      setErrorMessage("Please enter a valid email address.");
+      return;
+    }
+    // Password validation
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]{8,15}$/;
+  if (!passwordRegex.test(password)) {
+    setErrorMessage(
+      "8-15 character and there should be uppercase,lowercase and symbol"
+    );
+    return;
   }
+    // Proceed with form submission (e.g., API call)
+    console.log("Form submitted successfully");
+  };
 
   return (
     <section className="h-screen bg-gradient-to-r bg-slate-100 flex items-center justify-center">
       <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-lg">
-        <h2 className="text-4xl font-bold text-center text-slate-900 mb-6">Sign In</h2>
+        <h2 className="text-4xl font-bold text-center text-slate-900 mb-6">
+          Sign In
+        </h2>
 
-        {/* Display general errors */}
-        {errors.general && (
-          <div className="text-red-500 text-sm text-center mb-4">{errors.general}</div>
+        {errorMessage && (
+          <div className="text-red-500 text-center mb-4">{errorMessage}</div>
         )}
 
         <form className="space-y-6" onSubmit={handleSubmit}>
           {/* Email input */}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Email address
             </label>
             <input
@@ -99,16 +65,16 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email"
-              className={`w-full p-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.email ? "border-red-500" : ""
-              }`}
+              className="w-full p-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {errors.email && <span className="text-red-500 text-sm">{errors.email}</span>}
           </div>
 
           {/* Password input */}
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Password
             </label>
             <div className="relative">
@@ -118,9 +84,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
-                className={`w-full p-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.password ? "border-red-500" : ""
-                }`}
+                className="w-full p-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="button"
@@ -130,13 +94,17 @@ export default function Login() {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
-            {errors.password && <span className="text-red-500 text-sm">{errors.password}</span>}
           </div>
 
           {/* Remember me checkbox */}
           <div className="flex items-center justify-between">
             <label className="flex items-center">
-              <input type="checkbox" className="form-checkbox h-5 w-5 text-blue-500" />
+              <input
+                type="checkbox"
+                className="form-checkbox h-5 w-5 text-blue-500"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
               <span className="ml-2 text-sm text-gray-600">Remember me</span>
             </label>
             <a href="#!" className="text-sm text-blue-500 hover:text-blue-700">
@@ -148,9 +116,8 @@ export default function Login() {
           <button
             type="submit"
             className="w-full py-3 bg-slate-700 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
-            disabled={loading}
           >
-            {loading ? "Signing In..." : "Sign In"}
+            Sign In
           </button>
         </form>
 
@@ -163,11 +130,7 @@ export default function Login() {
 
         {/* Social login buttons */}
         <div className="flex space-x-4">
-          <button
-            onClick={onGoogleSignIn}
-            className="flex items-center justify-center w-full py-3 bg-slate-700 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-500"
-            disabled={isSigningIn}
-          >
+          <button className="flex items-center justify-center w-full py-3 bg-slate-700 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-500">
             <FaGoogle className="mr-2 text-xl text-red-500" />
             Continue with Google
           </button>
@@ -175,12 +138,16 @@ export default function Login() {
 
         {/* Create new account */}
         <div className="mt-4">
-          <a
-            href="#!"
-            className="flex items-center justify-center w-full py-3 bg-slate-700 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-700"
+          <NavLink
+            to="/signup"  // Path for the signup page (change as needed)
+            className={({ isActive }) =>
+              `flex items-center justify-center w-full py-3 bg-slate-700 text-white font-semibold rounded-lg shadow-md ${
+                isActive ? "bg-blue-700 hover:bg-blue-700" : "hover:bg-blue-600"
+              } focus:ring-2 focus:ring-blue-700`
+            }
           >
             Create New Account
-          </a>
+          </NavLink>
         </div>
       </div>
     </section>
