@@ -4,8 +4,8 @@ import Home from "../home/Home";
 import AboutUs from "../Component/About";
 import ScrollToTop from "../Component/ScrollToTop";
 import Tourist_Areas from "../Pages/Tourist_Areas";
-import Login from "../Component/Login";
 import Registration from "../Component/Registration";
+import Login from "../Component/Login";
 
 const router = createBrowserRouter([
     {
@@ -40,6 +40,7 @@ const router = createBrowserRouter([
         path:'/signup',
         element: <Registration/>
     },
+
 
  
 

@@ -57,7 +57,7 @@ const Nav = () => {
             </Link>
           </ul>
         </div>
-        <Link to="/sign-in" className={isActive("/Book-now")}>
+        <Link to="/Book-now" className={isActive("/Book-now")}>
           <li className="my-2 py-2 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
             Book-Now
           </li>

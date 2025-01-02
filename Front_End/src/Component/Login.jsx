@@ -1,42 +1,43 @@
 import React, { useState } from "react";
 import { FaGoogle } from "react-icons/fa";
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [error, setError] = useState(""); // Added error state
+  const navigate = useNavigate(); // To navigate after successful login
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Reset error message
-    setErrorMessage("");
-    // Validate email and password
+
+    // Form Validation
     if (!email || !password) {
-      setErrorMessage("Please fill in both fields.");
+      setError("Email and Password are required.");
       return;
     }
-    // Email format validation (simple regex)
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
-    if (!emailRegex.test(email)) {
-      setErrorMessage("Please enter a valid email address.");
-      return;
-    }
-    // Password validation
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]{8,15}$/;
-  if (!passwordRegex.test(password)) {
-    setErrorMessage(
-      "8-15 character and there should be uppercase,lowercase and symbol"
-    );
-    return;
-  }
-    // Proceed with form submission (e.g., API call)
-    console.log("Form submitted successfully");
+
+    // Send data to backend
+    axios
+      .post("http://localhost:3001/sign-in", { email, password })
+      .then((result) => {
+        // Handle success - You can save token or redirect to dashboard
+        console.log(result); 
+        if(result.data ==='Success'){
+        navigate("/"); // Redirect to the dashboard page or wherever you want
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+        setError("Invalid credentials. Please try again.");
+      });
   };
 
   return (
@@ -46,9 +47,8 @@ export default function Login() {
           Sign In
         </h2>
 
-        {errorMessage && (
-          <div className="text-red-500 text-center mb-4">{errorMessage}</div>
-        )}
+        {/* Error message */}
+        {error && <p className="text-red-500 mb-4">{error}</p>}
 
         <form className="space-y-6" onSubmit={handleSubmit}>
           {/* Email input */}
@@ -139,7 +139,7 @@ export default function Login() {
         {/* Create new account */}
         <div className="mt-4">
           <NavLink
-            to="/signup"  // Path for the signup page (change as needed)
+            to="/signup"
             className={({ isActive }) =>
               `flex items-center justify-center w-full py-3 bg-slate-700 text-white font-semibold rounded-lg shadow-md ${
                 isActive ? "bg-blue-700 hover:bg-blue-700" : "hover:bg-blue-600"
