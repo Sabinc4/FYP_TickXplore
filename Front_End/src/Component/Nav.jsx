@@ -57,16 +57,16 @@ const Nav = () => {
             </Link>
           </ul>
         </div>
-        <Link to="/sign-in" className={isActive("/sign-in")}>
-          <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
-            Sign In
+        <Link to="/sign-in" className={isActive("/Book-now")}>
+          <li className="my-2 py-2 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
+            Book-Now
           </li>
         </Link>
         <li
           className="mt-4 py-2 bg-blue-600 text-white rounded-full cursor-pointer hover:bg-blue-700"
-          onClick={() => navigate("/book-now")}
+          onClick={() => navigate("/sign-in")}
         >
-          Book Now
+          Sign In
         </li>
       </ul>
     </div>
@@ -106,17 +106,17 @@ const Nav = () => {
       </div>
 
       {/* "Sign In" button placed here */}
-      <Link to="/sign-in" className={isActive("/sign-in")}>
-        <li className="cursor-pointer">Sign In</li>
+      <Link to="/Book-now" className={isActive("/Book-Now")}>
+        <li className="cursor-pointer">Book Now</li>
       </Link>
 
-      <div className="ml-6">
+      <div className="ml-0">
         <a
           href="#"
-          className="bg-blue-600 text-white px-6 py-4 rounded-full hover:bg-green-700 transition"
-          onClick={() => navigate("/book-now")}
+          className="bg-blue-600 text-white px-6 py-4 text-lg rounded-full hover:bg-green-700 transition"
+          onClick={() => navigate("/sign-in")}
         >
-          Book Now
+          Sign In
         </a>
       </div>
     </ul>
