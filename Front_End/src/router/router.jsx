@@ -6,6 +6,8 @@ import ScrollToTop from "../Component/ScrollToTop";
 import Tourist_Areas from "../Pages/Tourist_Areas";
 import Registration from "../Component/Registration";
 import Login from "../Component/Login";
+import Bus from "../Bus_Tickets/Bus";
+import Vehicle_Booking from "../Pages/Vehicle_Booking";
 
 const router = createBrowserRouter([
     {
@@ -40,12 +42,25 @@ const router = createBrowserRouter([
         path:'/signup',
         element: <Registration/>
     },
-
-
- 
+    {
+      path: "/bus-tickets",
+      element: (
+          <>
+          <ScrollToTop/>
+          <Bus/>
+          </>    
+    )
+    },
+    {
+      path:'/vehicle-bookings',
+      element: <Vehicle_Booking/>
+  }
 
 
       ]
     }
 ]);
+
+
 export default router;
+

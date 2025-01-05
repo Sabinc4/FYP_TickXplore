@@ -5,12 +5,13 @@ import { CiMenuBurger } from "react-icons/ci";
 
 const Nav = () => {
   const [click, setClick] = useState(false);
-  const location = useLocation(); // To determine the current route
+  const location = useLocation();
   const navigate = useNavigate();
 
   const handleClick = () => setClick(!click);
 
-  const isActive = (path) => location.pathname === path ? "text-white font-bold" : "hover:text-slate-100";
+  const isActive = (path) =>
+    location.pathname === path ? "text-white font-bold" : "hover:text-slate-100";
 
   const mobileMenu = (
     <div className="lg:hidden absolute top-16 left-0 right-0 bg-slate-100 transition">
@@ -30,15 +31,17 @@ const Nav = () => {
             Tourist Areas
           </li>
         </Link>
-        <Link to="/aboutus" className={isActive("/about-us")}>
+        <Link to="/about-us" className={isActive("/about-us")}>
           <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
             About Us
           </li>
         </Link>
         <div className="relative">
-          <li className="my-4 py-4 border-b border-gray-600 hover:bg-slate-600 hover:rounded cursor-pointer">
-            Vehicle Bookings
-          </li>
+          <Link to="/vehicle-bookings" className={isActive("/vehicle-bookings")}>
+            <li className="my-4 py-4 border-b border-gray-600 hover:bg-slate-600 hover:rounded cursor-pointer">
+              Vehicle Bookings
+            </li>
+          </Link>
           <ul className="text-left ml-4">
             <Link to="/4x4-jeeps" className={isActive("/4x4-jeeps")}>
               <li className="my-4 py-4 border-b border-gray-600 hover:bg-slate-600 hover:rounded cursor-pointer">
@@ -57,11 +60,6 @@ const Nav = () => {
             </Link>
           </ul>
         </div>
-        <Link to="/Book-now" className={isActive("/Book-now")}>
-          <li className="my-2 py-2 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
-            Book-Now
-          </li>
-        </Link>
         <li
           className="mt-4 py-2 bg-blue-600 text-white rounded-full cursor-pointer hover:bg-blue-700"
           onClick={() => navigate("/sign-in")}
@@ -87,7 +85,9 @@ const Nav = () => {
         <li className="cursor-pointer">About Us</li>
       </Link>
       <div className="relative group">
-        <li className="cursor-pointer">Vehicle Bookings</li>
+        <Link to="/vehicle-bookings" className={isActive("/vehicle-bookings")}>
+          <li className="cursor-pointer">Vehicle Bookings</li>
+        </Link>
         <div className="absolute left-0 top-full bg-slate-800 text-white rounded shadow-md w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition">
           <Link to="/4x4-jeeps" className={isActive("/4x4-jeeps")}>
             <a className="block px-4 py-2 hover:bg-slate-700 border-b border-slate-700">
@@ -104,11 +104,6 @@ const Nav = () => {
           </Link>
         </div>
       </div>
-
-      {/* "Sign In" button placed here */}
-      <Link to="/Book-now" className={isActive("/Book-Now")}>
-        <li className="cursor-pointer">Book Now</li>
-      </Link>
 
       <div className="ml-0">
         <a

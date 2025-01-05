@@ -1,4 +1,3 @@
-
 import React from "react";
 import aboutusimage from "../Pictures/Bus.jpg"; // Adjust the path as needed
 import busImage from "../Pictures/bus1.jpg"; // Example image for bus
