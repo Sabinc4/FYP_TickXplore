@@ -1,8 +1,8 @@
 import React from "react";
 import bus1 from "../Pictures/Bus_Tickets.jpg";
-import bus2 from "../Pictures/bus.jpg";
-import bus3 from "../Pictures/bus1.jpg";
-import bus4 from "../Pictures/Chitwan.jpg";
+import bus2 from "../Pictures/vehicle.jpg";
+import bus3 from "../Pictures/download.jpeg";
+import bus4 from "../Pictures/E_vans.jpg";
 
 const HomePage = () => {
   return (
