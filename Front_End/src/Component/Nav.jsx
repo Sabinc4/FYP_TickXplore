@@ -21,9 +21,9 @@ const Nav = () => {
             Home
           </li>
         </Link>
-        <Link to="/bus-tickets" className={isActive("/bus-tickets")}>
+        <Link to="/vehicle-bookings" className={isActive("/vehicle-bookings")}>
           <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
-            Bus Tickets
+            Vehicle Bookings
           </li>
         </Link>
         <Link to="/tourist-areas" className={isActive("/tourist-areas")}>
@@ -36,36 +36,19 @@ const Nav = () => {
             About Us
           </li>
         </Link>
+        <Link to="/faqs" className={isActive("/faqs")}>
+          <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
+            FAQs
+          </li>
+        </Link>
         <div className="relative">
-          <Link to="/vehicle-bookings" className={isActive("/vehicle-bookings")}>
-            <li className="my-4 py-4 border-b border-gray-600 hover:bg-slate-600 hover:rounded cursor-pointer">
-              Vehicle Bookings
-            </li>
-          </Link>
-          <ul className="text-left ml-4">
-            <Link to="/4x4-jeeps" className={isActive("/4x4-jeeps")}>
-              <li className="my-4 py-4 border-b border-gray-600 hover:bg-slate-600 hover:rounded cursor-pointer">
-                4x4 Jeeps
-              </li>
-            </Link>
-            <Link to="/scorpio" className={isActive("/scorpio")}>
-              <li className="my-4 py-4 border-b border-gray-600 hover:bg-slate-600 hover:rounded cursor-pointer">
-                Scorpio
-              </li>
-            </Link>
-            <Link to="/e-vans" className={isActive("/e-vans")}>
-              <li className="my-4 py-4 border-b border-gray-600 hover:bg-slate-600 hover:rounded cursor-pointer">
-                E-vans
-              </li>
-            </Link>
-          </ul>
+          <li
+            className="mt-4 py-2 bg-blue-600 text-white rounded-full cursor-pointer hover:bg-blue-700"
+            onClick={() => navigate("/sign-in")}
+          >
+            Sign In
+          </li>
         </div>
-        <li
-          className="mt-4 py-2 bg-blue-600 text-white rounded-full cursor-pointer hover:bg-blue-700"
-          onClick={() => navigate("/sign-in")}
-        >
-          Sign In
-        </li>
       </ul>
     </div>
   );
@@ -75,8 +58,8 @@ const Nav = () => {
       <Link to="/" className={isActive("/")}>
         <li className="cursor-pointer">Home</li>
       </Link>
-      <Link to="/bus-tickets" className={isActive("/bus-tickets")}>
-        <li className="cursor-pointer">Bus Tickets</li>
+      <Link to="/vehicle-bookings" className={isActive("/vehicle-bookings")}>
+        <li className="cursor-pointer">Vehicle Bookings</li>
       </Link>
       <Link to="/tourist-areas" className={isActive("/tourist-areas")}>
         <li className="cursor-pointer">Tourist Areas</li>
@@ -84,27 +67,9 @@ const Nav = () => {
       <Link to="/about-us" className={isActive("/about-us")}>
         <li className="cursor-pointer">About Us</li>
       </Link>
-      <div className="relative group">
-        <Link to="/vehicle-bookings" className={isActive("/vehicle-bookings")}>
-          <li className="cursor-pointer">Vehicle Bookings</li>
-        </Link>
-        <div className="absolute left-0 top-full bg-slate-800 text-white rounded shadow-md w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition">
-          <Link to="/4x4-jeeps" className={isActive("/4x4-jeeps")}>
-            <a className="block px-4 py-2 hover:bg-slate-700 border-b border-slate-700">
-              4x4 Jeeps
-            </a>
-          </Link>
-          <Link to="/scorpio" className={isActive("/scorpio")}>
-            <a className="block px-4 py-2 hover:bg-slate-700 border-b border-slate-700">
-              Scorpio
-            </a>
-          </Link>
-          <Link to="/e-vans" className={isActive("/e-vans")}>
-            <a className="block px-4 py-2 hover:bg-slate-700">E-vans</a>
-          </Link>
-        </div>
-      </div>
-
+      <Link to="/faqs" className={isActive("/faqs")}>
+        <li className="cursor-pointer">FAQs</li>
+      </Link>
       <div className="ml-0">
         <a
           href="#"

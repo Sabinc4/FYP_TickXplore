@@ -18,10 +18,6 @@ const AboutUs = () => (
           backgroundRepeat: "no-repeat",
         }}
       >
-        {/* Text Overlay */}
-        <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold bg-opacity-50 px-4 py-2 rounded-md">
-          About Us
-        </h1>
       </div>
     </section>
 
