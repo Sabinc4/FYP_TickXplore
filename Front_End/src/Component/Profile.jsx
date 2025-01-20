@@ -9,14 +9,12 @@ const Profile = () => {
     // Simulate fetching user data (for example, from a backend or localStorage)
     const userData = localStorage.getItem("userLoggedIn");
     
-    if (userData) {
-      // If user is logged in, fetch or retrieve the profile info
-      setUser({
-        email: "user@example.com",  // Replace this with real user data
-        name: "John Doe",           // Replace with real user name
-      });
+    if (userData === "true") {
+      // If user is logged in, retrieve user data from localStorage
+      const storedUserData = JSON.parse(localStorage.getItem("userData"));
+      setUser(storedUserData);
     } else {
-      // If not logged in, redirect to the home page or sign-in page
+      // If not logged in, redirect to the sign-in page
       navigate("/sign-in");
     }
   }, [navigate]);
@@ -24,6 +22,7 @@ const Profile = () => {
   const handleLogout = () => {
     // Remove login status from localStorage and redirect to home
     localStorage.removeItem("userLoggedIn");
+    localStorage.removeItem("userData");
     navigate("/");
   };
 
