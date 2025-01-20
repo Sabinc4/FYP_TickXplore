@@ -17,21 +17,20 @@ export default function Login() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
+  
     // Form Validation
     if (!email || !password) {
       setError("Email and Password are required.");
       return;
     }
-
+  
     // Send data to backend
     axios
       .post("http://localhost:3001/sign-in", { email, password })
       .then((result) => {
-        // Handle success - You can save token or redirect to dashboard
-        console.log(result); 
-        if(result.data ==='Success'){
-        navigate("/"); // Redirect to the dashboard page or wherever you want
+        if (result.data === "Success") {
+          localStorage.setItem("userLoggedIn", "true"); // Store login status
+          navigate("/"); // Redirect to home page
         }
       })
       .catch((err) => {
@@ -39,6 +38,7 @@ export default function Login() {
         setError("Invalid credentials. Please try again.");
       });
   };
+  
 
   return (
     <section className="h-screen bg-gradient-to-r bg-slate-100 flex items-center justify-center">

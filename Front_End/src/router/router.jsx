@@ -8,6 +8,7 @@ import Registration from "../Component/Registration";
 import Login from "../Component/Login";
 import Vehicle_Booking from "../Pages/Vehicle_Booking";
 import FAQs from "../Pages/FAQs";
+import Profile from "../Component/Profile";
 
 const router = createBrowserRouter([
     {
@@ -48,7 +49,12 @@ const router = createBrowserRouter([
   {
     path:'/faqs',
     element: <FAQs/>
+  },
+  {
+    path:'/profile',
+    element: <Profile/>
   }
+
       ]
     }
 ]);

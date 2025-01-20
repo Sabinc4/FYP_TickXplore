@@ -1,85 +1,97 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FaTimes } from "react-icons/fa";
 import { CiMenuBurger } from "react-icons/ci";
 
 const Nav = () => {
   const [click, setClick] = useState(false);
+  const [userLoggedIn, setUserLoggedIn] = useState(false); // track login state
+  const [userInitials, setUserInitials] = useState(""); // Store initials
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if user is logged in based on localStorage
+    const isLoggedIn = localStorage.getItem("userLoggedIn");
+    if (isLoggedIn === "true") {
+      setUserLoggedIn(true);
+    }
+
+    // Get the user's full name from localStorage
+    const userName = localStorage.getItem("userName"); // Assuming you stored the user's full name
+
+    if (userName) {
+      // Split the name into first and last name and extract the initials
+      const nameParts = userName.split(" ");
+      const firstInitial = nameParts[0].charAt(0).toUpperCase();
+      const lastInitial = nameParts.length > 1 ? nameParts[1].charAt(0).toUpperCase() : "";
+
+      setUserInitials(firstInitial + lastInitial); // Combine initials
+    }
+
+    // Check if refresh is needed (after successful sign-in)
+    const needsRefresh = localStorage.getItem("needsRefresh");
+    if (needsRefresh === "true") {
+      window.location.reload(); // Trigger page refresh
+      localStorage.removeItem("needsRefresh"); // Remove flag after refresh
+    }
+  }, [location]);
 
   const handleClick = () => setClick(!click);
 
   const isActive = (path) =>
     location.pathname === path ? "text-white font-bold" : "hover:text-slate-100";
 
-  const mobileMenu = (
-    <div className="lg:hidden absolute top-16 left-0 right-0 bg-slate-100 transition">
-      <ul className="text-center text-xl p-10">
-        <Link to="/" className={isActive("/")}>
-          <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
-            Home
-          </li>
-        </Link>
-        <Link to="/vehicle-bookings" className={isActive("/vehicle-bookings")}>
-          <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
-            Vehicle Bookings
-          </li>
-        </Link>
-        <Link to="/tourist-areas" className={isActive("/tourist-areas")}>
-          <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
-            Tourist Areas
-          </li>
-        </Link>
-        <Link to="/about-us" className={isActive("/about-us")}>
-          <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
-            About Us
-          </li>
-        </Link>
-        <Link to="/faqs" className={isActive("/faqs")}>
-          <li className="my-4 py-4 border-b border-gray-500 hover:bg-slate-600 hover:rounded cursor-pointer">
-            FAQs
-          </li>
-        </Link>
-        <div className="relative">
-          <li
-            className="mt-4 py-2 bg-blue-600 text-white rounded-full cursor-pointer hover:bg-blue-700"
-            onClick={() => navigate("/sign-in")}
-          >
-            Sign In
-          </li>
-        </div>
-      </ul>
-    </div>
-  );
-
-  const desktopMenu = (
-    <ul className="flex gap-12 text-[18px]">
+  const menuItems = (
+    <>
       <Link to="/" className={isActive("/")}>
-        <li className="cursor-pointer">Home</li>
+        <li className="cursor-pointer py-4">Home</li>
       </Link>
       <Link to="/vehicle-bookings" className={isActive("/vehicle-bookings")}>
-        <li className="cursor-pointer">Vehicle Bookings</li>
+        <li className="cursor-pointer py-4">Vehicle Bookings</li>
       </Link>
       <Link to="/tourist-areas" className={isActive("/tourist-areas")}>
-        <li className="cursor-pointer">Tourist Areas</li>
+        <li className="cursor-pointer py-4">Tourist Areas</li>
       </Link>
       <Link to="/about-us" className={isActive("/about-us")}>
-        <li className="cursor-pointer">About Us</li>
+        <li className="cursor-pointer py-4">About Us</li>
       </Link>
       <Link to="/faqs" className={isActive("/faqs")}>
-        <li className="cursor-pointer">FAQs</li>
+        <li className="cursor-pointer py-4">FAQs</li>
       </Link>
-      <div className="ml-0">
-        <a
-          href="#"
-          className="bg-blue-600 text-white px-6 py-4 text-lg rounded-full hover:bg-green-700 transition"
-          onClick={() => navigate("/sign-in")}
-        >
-          Sign In
-        </a>
-      </div>
-    </ul>
+
+      {userLoggedIn ? (
+        <div className="relative">
+          <button
+            className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center"
+            onClick={() => setClick(!click)}
+          >
+            <span className="text-xl">{userInitials}</span> {/* Display initials */}
+          </button>
+          {click && (
+            <div className="absolute right-0 top-full bg-white shadow-lg rounded-md p-4">
+              <Link to="/profile" className="block py-2 px-4">Profile</Link>
+              <button
+                className="block py-2 px-4 w-full text-left"
+                onClick={() => {
+                  localStorage.removeItem("userLoggedIn");
+                  setUserLoggedIn(false);
+                  navigate("/"); // Redirect to home after logout
+                }}
+              >
+                Log Out
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <Link to="/sign-in">
+          <button className="cursor-pointer py-4 px-6 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition">
+            Sign In
+          </button>
+        </Link>
+      )}
+    </>
   );
 
   return (
@@ -89,7 +101,7 @@ const Nav = () => {
           <span className="text-3xl font-bold">TickXplore</span>
         </div>
         <div className="hidden lg:flex items-center justify-end">
-          {desktopMenu}
+          <ul className="flex gap-12 text-[18px]">{menuItems}</ul>
         </div>
         <div className="lg:hidden">
           <button onClick={handleClick} className="text-3xl transition">
@@ -97,7 +109,11 @@ const Nav = () => {
           </button>
         </div>
       </div>
-      {click && mobileMenu}
+      {click && (
+        <div className="lg:hidden absolute top-16 left-0 right-0 bg-slate-100 transition">
+          <ul className="text-center text-xl p-10">{menuItems}</ul>
+        </div>
+      )}
     </nav>
   );
 };
