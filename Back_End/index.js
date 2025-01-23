@@ -1,19 +1,19 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const EmployeeModel = require('./models/Employee');
+const UserModel = require('./models/Users');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-mongoose.connect("mongodb+srv://TickXplore:Kaushaltar%4015@tickxplorefyp.jhlpo.mongodb.net/employee");
+mongoose.connect("mongodb+srv://TickXplore:Kaushaltar%4015@tickxplorefyp.jhlpo.mongodb.net/user");
 
 app.post("/sign-in", (req, res) => {
     const { email, password } = req.body;
     
     // Find the user by email
-    EmployeeModel.findOne({ email: email })
+    UserModel.findOne({ email: email })
         .then(user => {
             if (user) {
                 // Check if the password matches
@@ -35,8 +35,8 @@ app.post("/sign-in", (req, res) => {
 
 
 app.post('/signup', (req, res) => {
-    EmployeeModel.create(req.body) // Correcting to use req.body
-        .then(employee => res.json(employee)) // Changed employees to employee, since you are creating a single record
+    UserModel.create(req.body) 
+        .then(user => res.json(user)) 
         .catch(err => res.json(err));
 });
 
