@@ -1,94 +1,148 @@
+// Load environment variables
+require('dotenv').config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
-const UserModel = require('./models/Users');
+
+// Import models
+const UserModel = require("./models/Users");
+const VendorModel = require("./models/Vendor");
+const AdminModel = require("./models/Admin");
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// MongoDB connection
-mongoose.connect("mongodb+srv://TickXplore:Kaushaltar%4015@tickxplorefyp.jhlpo.mongodb.net/user")
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.log("MongoDB connection error:", err));
+// Debug: Check if MONGO_URI is loaded correctly
+console.log("MongoDB URI:", process.env.MONGO_URI);
+
+// Connect to MongoDB
+mongoose
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log("MongoDB connected successfully"))
+  .catch((err) => console.error("MongoDB connection error:", err));
+
 
 // Sign-in route
-app.post("/sign-in", (req, res) => {
-    const { email, password } = req.body;
-    
-    // Find the user by email
-    UserModel.findOne({ email: email })
-        .then(user => {
-            if (user) {
-                // Check if the password matches
-                if (user.password === password) {
-                    res.json("Success");
-                } else {
-                    res.json("Password is incorrect");
-                }
-            } else {
-                res.json("No record existed");
-            }
-        })
-        .catch(err => {
-            // Handle error if any
-            console.error(err);
-            res.status(500).json("Server error");
-        });
+app.post("/sign-in", async (req, res) => {
+  const { email, password, role } = req.body;
+
+  try {
+    let user, vendor, admin;
+    let isUserMatch = false, isVendorMatch = false, isAdminMatch = false;
+
+    if (role === "user") {
+      user = await UserModel.findOne({ email });
+      if (user) {
+        isUserMatch = await bcrypt.compare(password, user.password);
+      }
+    } else if (role === "vendor") {
+      vendor = await VendorModel.findOne({ email });
+      if (vendor) {
+        isVendorMatch = await bcrypt.compare(password, vendor.password);
+      }
+    } else if (role === "admin") {
+      admin = await AdminModel.findOne({ email });
+      if (admin) {
+        isAdminMatch = await bcrypt.compare(password, admin.password);
+      }
+    }
+
+    // Check if any user found and password matches
+    if ((!user && !vendor && !admin) || (!isUserMatch && !isVendorMatch && !isAdminMatch)) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    let loggedInUser;
+    if (isUserMatch) {
+      loggedInUser = user;
+    } else if (isVendorMatch) {
+      loggedInUser = vendor;
+    } else if (isAdminMatch) {
+      loggedInUser = admin;
+    }
+
+    return res.json({
+      message: `${role.charAt(0).toUpperCase() + role.slice(1)} login successful`,
+      user: loggedInUser,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
-// Sign-up route with location field handling
-app.post('/signup', (req, res) => {
-    const { name, email, password, confirmPassword, location } = req.body;
-
-    // Basic validation (can be expanded based on further requirements)
-    if (!name || !email || !password || !confirmPassword || !location) {
-        return res.status(400).json("All fields are required.");
+app.post("/signup", async (req, res) => {
+    const { name, email, password, confirmPassword, location, role, vendorName, vendorLocation } = req.body;
+  
+    if (!name || !email || !password || !confirmPassword || !location || !role) {
+      return res.status(400).json("All fields are required.");
     }
-
+  
     if (password !== confirmPassword) {
-        return res.status(400).json("Passwords do not match.");
+      return res.status(400).json("Passwords do not match.");
     }
-
-    // Email format validation
+  
     const emailRegex = /\S+@\S+\.\S+/;
     if (!emailRegex.test(email)) {
-        return res.status(400).json("Invalid email format.");
+      return res.status(400).json("Invalid email format.");
     }
-
-    // Check if the email already exists in the database
-    UserModel.findOne({ email: email })
-        .then(existingUser => {
-            if (existingUser) {
-                // If the email already exists, send an error response
-                return res.status(400).json("Email already exists. Please use a different email.");
-            } else {
-                // Hash the password before saving it
-                bcrypt.hash(password, 10, (err, hashedPassword) => {
-                    if (err) {
-                        return res.status(500).json("Error hashing password.");
-                    }
-
-                    // Create a new user with the hashed password
-                    UserModel.create({
-                        name,
-                        email,
-                        password: hashedPassword,  // Save the hashed password
-                        location,  // Store location here
-                    })
-                    .then(user => res.json(user))  // Send back the created user object
-                    .catch(err => res.status(500).json("Error creating user: " + err.message));  // Error handling
-                });
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            res.status(500).json("Error checking email availability.");
+  
+    try {
+      let existingUser;
+      if (role === "user") {
+        existingUser = await UserModel.findOne({ email });
+      } else if (role === "vendor") {
+        existingUser = await VendorModel.findOne({ email });
+      } else if (role === "admin") {
+        existingUser = await AdminModel.findOne({ email });
+      }
+  
+      if (existingUser) {
+        return res.status(400).json("Email already exists.");
+      }
+  
+      const hashedPassword = await bcrypt.hash(password, 10);
+  
+      let newUser;
+      if (role === "user") {
+        newUser = await UserModel.create({ name, email, password: hashedPassword, location, role: 'user' });
+      } else if (role === "vendor") {
+        if (!vendorName || !vendorLocation) {
+          return res.status(400).json("Vendor name and location required.");
+        }
+        newUser = await VendorModel.create({
+          vendorName,
+          vendorLocation,
+          email,
+          password: hashedPassword,
+          isActive: false,
+          role: 'vendor' 
         });
-});
+      } else if (role === "admin") {
+        newUser = await AdminModel.create({
+          name,
+          location,
+          email,
+          password: hashedPassword,
+          role: 'admin'
+        });
+      }
+  
+      return res.status(201).json({ message: `${role.charAt(0).toUpperCase() + role.slice(1)} created successfully`, user: newUser });
+  
+    } catch (err) {
+      console.error(err);
+      res.status(500).json("Error creating user: " + err.message);
+    }
+  });  
 
-// Start the server
-app.listen(3001, () => {
-    console.log("Server is running on port 3001");
+// Start server
+const port = process.env.PORT || 3001;
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });

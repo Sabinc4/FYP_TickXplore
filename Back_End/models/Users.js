@@ -1,39 +1,52 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
+const uniqueValidator = require("mongoose-unique-validator");
+const AutoIncrement = require("mongoose-sequence")(mongoose);
 
-const UsersSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true,
-    lowercase: true,
-    match: /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/,
-  },
-  password: {
-    type: String,
-    required: true, // Password is required
-    minlength: 6, // Minimum password length
-  },
-  confirmPassword: {
-    type: String,
-    required: true, // Confirm password is required
-    validate: {
-      validator: function (value) {
-        return value === this.password; // Ensure confirmPassword matches password
-      },
-      message: 'Passwords do not match',
+const UserSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: Number,
+      unique: true,
     },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    location: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+      match: /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/,
+    },
+    password: {
+      type: String,
+      required: true,
+      minlength: 6,
+    },
+    role: {
+      type: String,
+      required: true,
+      enum: ["user", "vendor", "admin"], // Ensure role is one of these values
+    }
   },
-  location: {
-    type: String,
-    required: true, // Location is required
-    trim: true, // Clean the location input
-  },
-});
+  { timestamps: true }
+);
 
-const UserModel = mongoose.model('employees', UsersSchema);
+// Apply unique validator plugin
+UserSchema.plugin(uniqueValidator, { message: "{PATH} must be unique." });
+
+// Auto-increment userId with a starting sequence
+UserSchema.plugin(AutoIncrement, { inc_field: "userId", start_seq: 0 });
+
+// Create User model
+const UserModel = mongoose.model("User", UserSchema);
+
 module.exports = UserModel;

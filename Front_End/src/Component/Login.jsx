@@ -6,6 +6,7 @@ import axios from "axios";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState(""); // Default role is 'user'
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState(""); // Added error state
@@ -18,34 +19,38 @@ export default function Login() {
   const handleSubmit = (e) => {
     e.preventDefault();
   
+    // Reset error on each submission attempt
+    setError("");
+  
     // Form Validation
-    if (!email || !password) {
-      setError("Email and Password are required.");
+    if (!email || !password || !role) {
+      setError("Email, Password, and Role are required.");
       return;
     }
   
     // Send data to backend
     axios
-      .post("http://localhost:3001/sign-in", { email, password })
+      .post("http://localhost:3001/sign-in", { email, password, role }) // Send role along with email and password
       .then((result) => {
-        if (result.data === "Success") {
-          localStorage.setItem("userLoggedIn", "true"); // Store login status
+        if (result.data.message.includes("login successful")) {
+          // Store login status and user role in localStorage
+          localStorage.setItem("userLoggedIn", "true");
+          localStorage.setItem("userRole", role); 
           navigate("/"); // Redirect to home page
+        } else {
+          setError("Invalid credentials. Please try again.");
         }
       })
       .catch((err) => {
-        console.log(err);
-        setError("Invalid credentials. Please try again.");
+        console.error(err);
+        setError("An error occurred. Please try again later.");
       });
   };
-  
 
   return (
     <section className="h-screen bg-gradient-to-r bg-slate-100 flex items-center justify-center">
       <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-lg">
-        <h2 className="text-4xl font-bold text-center text-slate-900 mb-6">
-          Sign In
-        </h2>
+        <h2 className="text-4xl font-bold text-center text-slate-900 mb-6">Sign In</h2>
 
         {/* Error message */}
         {error && <p className="text-red-500 mb-4">{error}</p>}
@@ -53,10 +58,7 @@ export default function Login() {
         <form className="space-y-6" onSubmit={handleSubmit}>
           {/* Email input */}
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               Email address
             </label>
             <input
@@ -71,10 +73,7 @@ export default function Login() {
 
           {/* Password input */}
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
               Password
             </label>
             <div className="relative">
@@ -94,6 +93,25 @@ export default function Login() {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
+          </div>
+          <div>
+            <label
+              htmlFor="role"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Select your role
+            </label>
+            <select
+              id="role"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full p-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select Role</option>
+              <option value="user">User</option>
+              <option value="vendor">Vendor</option>
+              <option value="admin">Admin</option>
+            </select>
           </div>
 
           {/* Remember me checkbox */}

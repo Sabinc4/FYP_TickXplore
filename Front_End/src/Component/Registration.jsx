@@ -8,6 +8,9 @@ const Registration = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState("user");  // Default role is 'user'
+  const [vendorName, setVendorName] = useState("");
+  const [vendorLocation, setVendorLocation] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -26,6 +29,8 @@ const Registration = () => {
     const cleanedEmail = cleanInput(email);
     const cleanedPassword = cleanInput(password);
     const cleanedConfirmPassword = cleanInput(confirmPassword);
+    const cleanedVendorName = cleanInput(vendorName);
+    const cleanedVendorLocation = cleanInput(vendorLocation);
 
     // Form Validation
     if (!cleanedName || !cleanedLocation || !cleanedEmail || !cleanedPassword || !cleanedConfirmPassword) {
@@ -52,6 +57,11 @@ const Registration = () => {
       return;
     }
 
+    if (role === "vendor" && (!cleanedVendorName || !cleanedVendorLocation)) {
+      setError("Vendor name and location are required for vendors.");
+      return;
+    }
+
     // Start loading indicator
     setIsLoading(true);
 
@@ -63,6 +73,9 @@ const Registration = () => {
         email: cleanedEmail,
         password: cleanedPassword,
         confirmPassword: cleanedConfirmPassword,
+        role: role,
+        vendorName: role === "vendor" ? cleanedVendorName : undefined,
+        vendorLocation: role === "vendor" ? cleanedVendorLocation : undefined,
       })
       .then((result) => {
         console.log("Registered successfully:", result);
@@ -137,7 +150,75 @@ const Registration = () => {
             />
           </div>
 
-          {/* Email */}
+          {/* Role */}
+          <div>
+            <label
+              htmlFor="role"
+              className="block text-sm font-medium text-gray-700"
+            >
+              I am a:
+            </label>
+            <select
+              id="role"
+              name="role"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600 mt-2"
+              disabled={isLoading}
+            >
+              <option value="user">User</option>
+              <option value="vendor">Vendor</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+
+          {/* Vendor Name (only shown if role is vendor) */}
+          {role === "vendor" && (
+            <>
+              <div>
+                <label
+                  htmlFor="vendorName"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Vendor Name
+                </label>
+                <input
+                  type="text"
+                  id="vendorName"
+                  name="vendorName"
+                  value={vendorName}
+                  onChange={(e) => setVendorName(e.target.value)}
+                  placeholder="Enter your vendor name"
+                  className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600 mt-2"
+                  aria-label="Vendor Name"
+                  autoComplete="off"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="vendorLocation"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Vendor Location
+                </label>
+                <input
+                  type="text"
+                  id="vendorLocation"
+                  name="vendorLocation"
+                  value={vendorLocation}
+                  onChange={(e) => setVendorLocation(e.target.value)}
+                  placeholder="Enter your vendor location"
+                  className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600 mt-2"
+                  aria-label="Vendor Location"
+                  autoComplete="off"
+                  disabled={isLoading}
+                />
+              </div>
+            </>
+          )}
+
           <div>
             <label
               htmlFor="email"
@@ -150,8 +231,8 @@ const Registration = () => {
               id="email"
               name="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email address"
+              onChange={(e) => setEmail(e.target.value)}  // This should update the email state
+              placeholder="Enter your email"
               className="border border-gray-300 py-3 px-4 w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600 mt-2"
               aria-label="Email Address"
               autoComplete="off"
