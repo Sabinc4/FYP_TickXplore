@@ -6,44 +6,48 @@ import axios from "axios";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState(""); // Default role is 'user'
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState(""); // Added error state
-  const navigate = useNavigate(); // To navigate after successful login
+  const [error, setError] = useState(""); // Error handling state
+  const navigate = useNavigate(); // Navigation hook
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-  
-    setError(""); // Reset error
-  
-    if (!email || !password || !role) {
-      setError("Email, Password, and Role are required.");
+    setError(""); // Reset error before making request
+
+    if (!email || !password) {
+      setError("⚠️ Email and Password are required.");
       return;
     }
-  
-    axios
-      .post("http://localhost:3001/sign-in", { email, password, role }) // Send role
-      .then((result) => {
-        if (result.data.redirectURL) {
-          // Store login status and user role
-          localStorage.setItem("userLoggedIn", "true");
-          localStorage.setItem("userRole", result.data.user.role); // Store role from backend
-  
-          console.log("Navigating to:", result.data.redirectURL); // Debugging log
-          navigate(result.data.redirectURL); // Use backend's redirect URL
-        } else {
-          setError("Invalid credentials. Please try again.");
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("An error occurred. Please try again later.");
+
+    try {
+      const response = await axios.post("http://localhost:3001/auth/sign-in", {
+        email,
+        password,
       });
+
+      if (response.data.redirectURL) {
+        // Store login status and user role
+        localStorage.setItem("userLoggedIn", "true");
+        localStorage.setItem("userRole", response.data.user.role);
+
+        console.log("Navigating to:", response.data.redirectURL); // Debugging log
+        navigate(response.data.redirectURL);
+      } else {
+        setError("❌ Invalid credentials. Please try again.");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      if (err.response) {
+        setError(err.response.data.message || "❌ An error occurred. Try again.");
+      } else {
+        setError("❌ Server is unreachable. Please try again later.");
+      }
+    }
   };
 
   return (
@@ -92,25 +96,6 @@ export default function Login() {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
-          </div>
-          <div>
-            <label
-              htmlFor="role"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Select your role
-            </label>
-            <select
-              id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full p-3 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select Role</option>
-              <option value="user">User</option>
-              <option value="vendor">Vendor</option>
-              <option value="admin">Admin</option>
-            </select>
           </div>
 
           {/* Remember me checkbox */}

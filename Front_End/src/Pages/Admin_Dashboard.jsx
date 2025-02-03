@@ -12,7 +12,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     // Fetch Users
-    axios.get("http://localhost:3001/admin/get-user")
+    axios.get("http://localhost:3001/admin/get-users")
       .then(res => setUsers(res.data.users))
       .catch(() => setUsers([]));
 
@@ -21,22 +21,14 @@ const AdminDashboard = () => {
       .then(res => setVendors(res.data.vendors))
       .catch(() => setVendors([]));
 
-    // Fetch Admins
+    // ✅ Corrected Fetch Admins
     axios.get("http://localhost:3001/admin/get-admins")
       .then(res => setAdmins(res.data.admins))
       .catch(() => setAdmins([]));
 
     // Fetch Stats
     axios.get("http://localhost:3001/admin/get-stats")
-      .then(res => {
-        setStats({
-          users: res.data.users ?? null,
-          vendors: res.data.vendors ?? null,
-          admins: res.data.admins ?? null,
-          buses: res.data.buses ?? null,
-          vehicles: res.data.vehicles ?? null,
-        });
-      })
+      .then(res => setStats(res.data))
       .catch(() => setStats({ users: null, vendors: null, admins: null, buses: null, vehicles: null }));
   }, []);
 
@@ -111,31 +103,6 @@ const AdminDashboard = () => {
                   <p className="text-gray-600">{key.charAt(0).toUpperCase() + key.slice(1)}</p>
                 </div>
               ))}
-            </div>
-
-            {/* Charts */}
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className="bg-white p-4 shadow rounded-lg">
-                <h3 className="text-lg font-semibold mb-2">User Roles Distribution</h3>
-                <Pie data={{
-                  labels: ["Users", "Vendors", "Admins"],
-                  datasets: [{
-                    data: [stats.users ?? 0, stats.vendors ?? 0, stats.admins ?? 0],
-                    backgroundColor: ["#4CAF50", "#FFC107", "#F44336"]
-                  }]
-                }} />
-              </div>
-              <div className="bg-white p-4 shadow rounded-lg">
-                <h3 className="text-lg font-semibold mb-2">Yearly User Growth</h3>
-                <Bar data={{
-                  labels: ["2019", "2020", "2021", "2022", "2023"],
-                  datasets: [{
-                    label: "Users",
-                    data: stats.users !== null ? [stats.users * 0.4, stats.users * 0.5, stats.users * 0.6, stats.users * 0.7, stats.users] : [0, 0, 0, 0, 0],
-                    backgroundColor: "#3B82F6"
-                  }]
-                }} />
-              </div>
             </div>
           </>
         )}

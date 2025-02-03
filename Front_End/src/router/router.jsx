@@ -10,6 +10,7 @@ import Vehicle_Booking from "../Pages/Vehicle_Booking";
 import FAQs from "../Pages/FAQs";
 import Profile from "../Component/Profile";
 import Admin_Dashboard from "../Pages/Admin_Dashboard";
+import Vendor_Dashboard from "../Pages/Vendor_Dashboard";
 
 const router = createBrowserRouter([
     {
@@ -58,6 +59,10 @@ const router = createBrowserRouter([
   {
     path:'/Admin_Dashboard',
     element: <Admin_Dashboard/>
+  },
+  {
+    path: '/Vendor_Dashboard',
+    element: <Vendor_Dashboard/>
   }
 
       ]
