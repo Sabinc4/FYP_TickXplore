@@ -19,24 +19,23 @@ export default function Login() {
   const handleSubmit = (e) => {
     e.preventDefault();
   
-    // Reset error on each submission attempt
-    setError("");
+    setError(""); // Reset error
   
-    // Form Validation
     if (!email || !password || !role) {
       setError("Email, Password, and Role are required.");
       return;
     }
   
-    // Send data to backend
     axios
-      .post("http://localhost:3001/sign-in", { email, password, role }) // Send role along with email and password
+      .post("http://localhost:3001/sign-in", { email, password, role }) // Send role
       .then((result) => {
-        if (result.data.message.includes("login successful")) {
-          // Store login status and user role in localStorage
+        if (result.data.redirectURL) {
+          // Store login status and user role
           localStorage.setItem("userLoggedIn", "true");
-          localStorage.setItem("userRole", role); 
-          navigate("/"); // Redirect to home page
+          localStorage.setItem("userRole", result.data.user.role); // Store role from backend
+  
+          console.log("Navigating to:", result.data.redirectURL); // Debugging log
+          navigate(result.data.redirectURL); // Use backend's redirect URL
         } else {
           setError("Invalid credentials. Please try again.");
         }
