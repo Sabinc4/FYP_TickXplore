@@ -1,54 +1,112 @@
-const Booking = require("../models/Booking");
+const mongoose = require("mongoose");
 const Vehicle = require("../models/Vehicle");
+const Booking = require("../models/Booking");
+const multer = require("multer");
 
+// Configure Multer for File Uploads
+const storage = multer.diskStorage({
+  destination: "./uploads/",
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
+const upload = multer({ storage });
 
-// Controller to get vehicles for a specific vendor
-exports.getVehicles = async (req, res) => {
+// Add a New Vehicle
+const addVehicle = async (req, res) => {
+  upload.single("image")(req, res, async (err) => {
+    if (err) return res.status(400).json({ message: "File upload error: " + err.message });
+
     try {
-      const { vendorId } = req.params;
-      const vehicles = await Vehicle.find({ vendorId });  // Fetch vehicles based on vendorId
-      
-      if (!vehicles || vehicles.length === 0) {
-        return res.status(404).json({ message: "No vehicles found for this vendor." });
+      const { name, type, pricePerDay, vendorId } = req.body;
+      if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+        return res.status(400).json({ message: "Invalid Vendor ID format." });
       }
-      
-      res.json({ vehicles });
-    } catch (error) {
-      res.status(500).json({ message: "Error fetching vehicles", error });
-    }
-  };
+      if (!req.file) {
+        return res.status(400).json({ message: "Vehicle image is required." });
+      }
+      if (pricePerDay <= 0) {
+        return res.status(400).json({ message: "Price per day must be greater than 0." });
+      }
 
-// Fetch bookings for a vendor
-exports.getBookings = async (req, res) => {
-    try {
-      const { vendorId } = req.params;
-      // Assuming you have a Booking model
-      const bookings = await Booking.find({ vendorId });
-      res.json({ bookings });
-    } catch (error) {
-      res.status(500).json({ message: "Error fetching bookings", error });
-    }
-  };
+      const imageUrl = `/uploads/${req.file.filename}`;
+      const newVehicle = new Vehicle({ name, type, pricePerDay, image: imageUrl, vendorId });
+      await newVehicle.save();
 
-// ✅ Get Vendor Stats
-exports.getStats = async (req, res) => {
+      res.status(201).json({ message: " Vehicle added successfully!", vehicle: newVehicle });
+    } catch (error) {
+      console.error(" Error adding vehicle:", error);
+      res.status(500).json({ message: "Error adding vehicle", error: error.message });
+    }
+  });
+};
+
+// Get All Vehicles for a Vendor
+const getVehicles = async (req, res) => {
   try {
     const { vendorId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+      return res.status(400).json({ message: "Invalid Vendor ID format." });
+    }
 
-    const totalVehicles = await Vehicle.countDocuments({ vendorId });
-    const totalBookings = await Booking.countDocuments({ vendorId });
+    const vehicles = await Vehicle.find({ vendorId });
+    res.status(200).json({ vehicles });
+  } catch (error) {
+    console.error(" Error fetching vehicles:", error);
+    res.status(500).json({ message: "Error fetching vehicles", error: error.message });
+  }
+};
+
+// Get Bookings for a Vendor
+const getBookings = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+      return res.status(400).json({ message: "Invalid Vendor ID format." });
+    }
+
+    const bookings = await Booking.find({ vendorId })
+      .populate("vehicleId", "name type pricePerDay")
+      .populate("userId", "name email");
+
+    res.status(200).json({ bookings });
+  } catch (error) {
+    console.error(" Error fetching bookings:", error);
+    res.status(500).json({ message: "Error fetching bookings", error: error.message });
+  }
+};
+
+//Get Vendor Stats
+const getVendorStats = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+      return res.status(400).json({ message: "Invalid Vendor ID format." });
+    }
+
+    const vehiclesCount = await Vehicle.countDocuments({ vendorId });
+    const bookingsCount = await Booking.countDocuments({ vendorId });
+
     const totalEarnings = await Booking.aggregate([
-      { $match: { vendorId: vendorId } },
-      { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+      { $match: { vendorId: new mongoose.Types.ObjectId(vendorId), status: "Completed" } },
+      { $group: { _id: null, total: { $sum: { $toDouble: "$price" } } } },
     ]);
 
-    res.json({
-      vehicles: totalVehicles,
-      bookings: totalBookings,
-      earnings: totalEarnings[0]?.total || 0,
+    res.status(200).json({
+      vehicles: vehiclesCount,
+      bookings: bookingsCount,
+      earnings: totalEarnings.length > 0 ? totalEarnings[0].total : 0,
     });
   } catch (error) {
-    console.error("❌ Error fetching stats:", error);
-    res.status(500).json({ message: "Error fetching stats", error });
+    console.error(" Error fetching stats:", error);
+    res.status(500).json({ message: "Error fetching stats", error: error.message });
   }
+};
+
+//Export Functions Properly
+module.exports = {
+  addVehicle,
+  getVehicles,
+  getBookings,
+  getVendorStats,
 };

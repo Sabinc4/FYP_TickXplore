@@ -1,14 +1,10 @@
-const express = require('express');
+const express = require("express");
+const vendorController = require("../controllers/vendorController");
 const router = express.Router();
-const vendorController = require('../controllers/vendorController');
 
-// GET vehicles by vendor ID
+router.post("/add-vehicle", vendorController.addVehicle);
 router.get("/get-vehicles/:vendorId", vendorController.getVehicles);
-
-// GET bookings for the vendor
-router.get("/get-bookings/:vendorId", vendorController.getBookings);  // Add this in controller
-
-// GET stats for the vendor
-router.get("/get-stats/:vendorId", vendorController.getStats);  // Add this in controller
+router.get("/get-bookings/:vendorId", vendorController.getBookings);
+router.get("/get-stats/:vendorId", vendorController.getVendorStats);
 
 module.exports = router;

@@ -1,8 +1,18 @@
 const express = require("express");
-const router = express.Router();
-const vehicleController = require("../controllers/vehicleController");
+const {
+  createVehicle,
+  getVehicles,
+  getVehicleById,
+  updateVehicle,
+  deleteVehicle,
+} = require("../controllers/vehicleController");
 
-// ✅ Add a Vehicle
-router.post("/add-vehicle", vehicleController.upload.single("image"), vehicleController.addVehicle);
+const router = express.Router();
+
+router.post("/add-vehicle", createVehicle); 
+router.get("/", getVehicles); 
+router.get("/:id", getVehicleById); 
+router.put("/:id", updateVehicle); 
+router.delete("/:id", deleteVehicle);
 
 module.exports = router;

@@ -3,23 +3,30 @@ const UserModel = require("../models/User");
 const VendorModel = require("../models/Vendor");
 const AdminModel = require("../models/Admin");
 
-// ✅ SIGN-IN Controller
+//SIGN-IN Controller
 exports.signIn = async (req, res) => {
-  const { email, password } = req.body;
+  let { email, password } = req.body;
 
   try {
-    let user = await UserModel.findOne({ email }) ||
-               await VendorModel.findOne({ email }) ||
-               await AdminModel.findOne({ email });
+    email = email.trim();
+    password = password.trim();
+
+    // Find the user in any of the models
+    const models = [UserModel, VendorModel, AdminModel];
+    let user = null;
+    for (const model of models) {
+      user = await model.findOne({ email });
+      if (user) break;
+    }
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: "User not found. Please check your email." });
     }
 
     // Validate password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      return res.status(400).json({ message: "Incorrect password. Please try again." });
     }
 
     // Redirect URL based on role
@@ -36,31 +43,46 @@ exports.signIn = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Sign-in error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
-// ✅ SIGN-UP Controller
+// SIGN-UP Controller
 exports.signUp = async (req, res) => {
-  const { name, email, password, confirmPassword, location, role, vendorName, vendorLocation } = req.body;
-
-  if (!name || !email || !password || !confirmPassword || !location || !role) {
-    return res.status(400).json({ message: "All fields are required." });
-  }
-
-  if (password !== confirmPassword) {
-    return res.status(400).json({ message: "Passwords do not match." });
-  }
+  let { name, email, password, confirmPassword, location, role, vendorName, vendorLocation } = req.body;
 
   try {
-    let existingUser = await UserModel.findOne({ email }) ||
-                       await VendorModel.findOne({ email }) ||
-                       await AdminModel.findOne({ email });
+    // 🔹 Trim inputs
+    email = email.trim();
+    password = password.trim();
+    confirmPassword = confirmPassword.trim();
+    name = name ? name.trim() : "";
+    location = location ? location.trim() : "";
+    vendorName = vendorName ? vendorName.trim() : "";
+    vendorLocation = vendorLocation ? vendorLocation.trim() : "";
 
-    if (existingUser) {
-      return res.status(400).json({ message: "Email already exists." });
+    //Validate required fields
+    if (!name || !email || !password || !confirmPassword || !location || !role) {
+      return res.status(400).json({ message: "All fields are required." });
     }
 
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match." });
+    }
+
+    // Ensure email is unique across all models
+    const models = [UserModel, VendorModel, AdminModel];
+    let existingUser = null;
+    for (const model of models) {
+      existingUser = await model.findOne({ email });
+      if (existingUser) break;
+    }
+
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already exists. Please use a different email." });
+    }
+
+    // Hash password securely
     const hashedPassword = await bcrypt.hash(password, 12);
 
     let newUser;
@@ -68,7 +90,7 @@ exports.signUp = async (req, res) => {
       newUser = await UserModel.create({ name, email, password: hashedPassword, location, role: "user" });
     } else if (role === "vendor") {
       if (!vendorName || !vendorLocation) {
-        return res.status(400).json({ message: "Vendor name and location required." });
+        return res.status(400).json({ message: "Vendor name and location are required." });
       }
       newUser = await VendorModel.create({
         vendorName,
@@ -86,10 +108,13 @@ exports.signUp = async (req, res) => {
         password: hashedPassword,
         role: "admin",
       });
+    } else {
+      return res.status(400).json({ message: "Invalid role. Allowed values: user, vendor, admin." });
     }
 
     res.status(201).json({ message: `${role} created successfully`, user: newUser });
   } catch (err) {
-    res.status(500).json({ message: "Error creating user: " + err.message });
+    console.error("❌ Sign-up error:", err);
+    res.status(500).json({ message: "Error creating user", error: err.message });
   }
 };

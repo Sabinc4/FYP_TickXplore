@@ -7,7 +7,6 @@ const AdminSchema = new mongoose.Schema(
     adminId: {
       type: Number,
       unique: true,
-      primaryKey: true,
     },
     name: {
       type: String,
@@ -28,24 +27,22 @@ const AdminSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      required: true
+      required: true,
     },
     password: {
       type: String,
       required: true,
-      minlength: 6,
+      minlength: 6, 
     },
   },
   { timestamps: true }
 );
 
-// Apply unique validator plugin
-AdminSchema.plugin(uniqueValidator, { message: '{PATH} must be unique.' });
+//Apply unique validator plugin
+AdminSchema.plugin(uniqueValidator, { message: "{PATH} must be unique." });
 
-// Auto-increment adminId
-AdminSchema.plugin(AutoIncrement, { inc_field: 'adminId', start_seq: 0 });
+//Auto-increment adminId (Uses _id as reference)
+AdminSchema.plugin(AutoIncrement, { inc_field: "adminId", start_seq: 0 });
 
-// No password hashing now
-
-const AdminModel = mongoose.model('admins', AdminSchema);
+const AdminModel = mongoose.model("Admin", AdminSchema);
 module.exports = AdminModel;

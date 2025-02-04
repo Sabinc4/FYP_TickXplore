@@ -1,15 +1,17 @@
 import React, { useState } from "react";
-import { FaGoogle } from "react-icons/fa";
 import { NavLink, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState(""); // Error handling state
-  const navigate = useNavigate(); // Navigation hook
+  const [error, setError] = useState(""); // Error state
+  const [loading, setLoading] = useState(false); // Loading state
+  const navigate = useNavigate();
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
@@ -17,10 +19,12 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(""); // Reset error before making request
+    setError("");
+    setLoading(true); 
 
     if (!email || !password) {
-      setError("⚠️ Email and Password are required.");
+      setError("Email and Password are required.");
+      setLoading(false);
       return;
     }
 
@@ -31,32 +35,47 @@ export default function Login() {
       });
 
       if (response.data.redirectURL) {
-        // Store login status and user role
+        // Store user details in localStorage
         localStorage.setItem("userLoggedIn", "true");
         localStorage.setItem("userRole", response.data.user.role);
 
-        console.log("Navigating to:", response.data.redirectURL); // Debugging log
+        //Store Vendor or User ID properly
+        if (response.data.user.role === "vendor") {
+          localStorage.setItem("vendorId", response.data.user._id);
+        } else {
+          localStorage.setItem("userId", response.data.user._id);
+        }
+
+        // Store login success status for Vendor Dashboard
+        if (response.data.user.role === "vendor") {
+          localStorage.setItem("showLoginSuccess", "true");
+        }
+
+        // Redirect to the appropriate dashboard
         navigate(response.data.redirectURL);
       } else {
-        setError("❌ Invalid credentials. Please try again.");
+        setError(" Incorrect email or password. Try again.");
       }
     } catch (err) {
       console.error("Login error:", err);
       if (err.response) {
-        setError(err.response.data.message || "❌ An error occurred. Try again.");
+        setError(err.response.data.message || " Incorrect email or password. Try again.");
       } else {
-        setError("❌ Server is unreachable. Please try again later.");
+        setError(" Server unreachable. Please check your connection.");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <section className="h-screen bg-gradient-to-r bg-slate-100 flex items-center justify-center">
+      <ToastContainer />
       <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-lg">
         <h2 className="text-4xl font-bold text-center text-slate-900 mb-6">Sign In</h2>
 
         {/* Error message */}
-        {error && <p className="text-red-500 mb-4">{error}</p>}
+        {error && <p className="text-red-500 mb-4 text-center">{error}</p>}
 
         <form className="space-y-6" onSubmit={handleSubmit}>
           {/* Email input */}
@@ -117,9 +136,12 @@ export default function Login() {
           {/* Submit button */}
           <button
             type="submit"
-            className="w-full py-3 bg-slate-700 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
+            disabled={loading}
+            className={`w-full py-3 text-white font-semibold rounded-lg shadow-md focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 ${
+              loading ? "bg-gray-500 cursor-not-allowed" : "bg-slate-700 hover:bg-blue-600"
+            }`}
           >
-            Sign In
+            {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 
@@ -128,14 +150,6 @@ export default function Login() {
           <hr className="flex-1 border-gray-300" />
           <span className="mx-4 text-gray-600">OR</span>
           <hr className="flex-1 border-gray-300" />
-        </div>
-
-        {/* Social login buttons */}
-        <div className="flex space-x-4">
-          <button className="flex items-center justify-center w-full py-3 bg-slate-700 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 focus:ring-2 focus:ring-blue-500">
-            <FaGoogle className="mr-2 text-xl text-red-500" />
-            Continue with Google
-          </button>
         </div>
 
         {/* Create new account */}

@@ -24,7 +24,7 @@ const UserSchema = new mongoose.Schema(
       unique: true,
       trim: true,
       lowercase: true,
-      match: /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/,
+      match: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/,
     },
     password: {
       type: String,
@@ -35,18 +35,17 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: ["user", "vendor", "admin"], // Ensure role is one of these values
-    }
+      default: "user", //default role
+    },
   },
   { timestamps: true }
 );
 
-// Apply unique validator plugin
+//Apply unique validator plugin
 UserSchema.plugin(uniqueValidator, { message: "{PATH} must be unique." });
 
 // Auto-increment userId with a starting sequence
-UserSchema.plugin(AutoIncrement, { inc_field: "userId", start_seq: 0 });
+UserSchema.plugin(AutoIncrement, { inc_field: "userId", start_seq: 1 });
 
-// Create User model
-const UserModel = mongoose.model("Users", UserSchema);
-
+const UserModel = mongoose.model("User", UserSchema);
 module.exports = UserModel;

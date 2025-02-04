@@ -1,89 +1,118 @@
-const Vehicle = require("../models/Vehicle");
 const multer = require("multer");
+const path = require("path");
+const Vehicle = require("../models/Vehicle");
 
-// ✅ Set up image storage for uploads
+//for File Uploads
 const storage = multer.diskStorage({
-  destination: "./uploads/",
+  destination: "./uploads/", 
   filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
+    cb(null, Date.now() + "-" + file.originalname);
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({ storage }).single("image");
 
-// ✅ Add a New Vehicle
-exports.addVehicle = async (req, res) => {
-  try {
-    const { name, type, pricePerDay, vendorId } = req.body;
+//Create a Vehicle
+exports.createVehicle = async (req, res) => {
+  upload(req, res, async (err) => {
+    if (err) return res.status(500).json({ error: "File upload error." });
 
-    if (!req.file) {
-      return res.status(400).json({ message: "Vehicle image is required" });
+    try {
+      const { name, type, pricePerDay, vendorId, registrationNumber } = req.body;
+      if (!name || !type || !pricePerDay || !vendorId) {
+        return res.status(400).json({ message: "Missing required fields." });
+      }
+
+      const imagePath = req.file ? `/uploads/${req.file.filename}` : "";
+
+      const vehicle = new Vehicle({
+        name,
+        type,
+        pricePerDay,
+        image: imagePath,
+        registrationNumber,
+        vendorId,
+      });
+
+      await vehicle.save();
+      res.status(201).json({ message: " Vehicle added successfully!", vehicle });
+    } catch (error) {
+      console.error(" Vehicle Add Error:", error);
+      res.status(500).json({ error: error.message });
     }
-
-    const imageUrl = `/uploads/${req.file.filename}`;
-    const newVehicle = new Vehicle({ name, type, pricePerDay, image: imageUrl, vendorId });
-
-    await newVehicle.save();
-    res.status(201).json({ message: "Vehicle added successfully!", vehicle: newVehicle });
-  } catch (error) {
-    console.error("❌ Error adding vehicle:", error);
-    res.status(500).json({ message: "Error adding vehicle", error });
-  }
+  });
 };
 
-// ✅ Get All Vehicles for a Vendor
+//Get All Available Vehicles
 exports.getVehicles = async (req, res) => {
   try {
-    const { vendorId } = req.params;
-    const vehicles = await Vehicle.find({ vendorId });
-
-    if (!vehicles.length) {
-      return res.status(404).json({ message: "No vehicles found for this vendor." });
-    }
-
-    res.json({ vehicles });
+    const vehicles = await Vehicle.find({ isAvailable: true }).populate("vendorId", "name");
+    res.status(200).json(vehicles);
   } catch (error) {
-    console.error("❌ Error fetching vehicles:", error);
-    res.status(500).json({ message: "Error fetching vehicles", error });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// ✅ Toggle Vehicle Availability
-exports.toggleVehicleAvailability = async (req, res) => {
+// Get Vehicle by ID
+exports.getVehicleById = async (req, res) => {
   try {
-    const { vehicleId } = req.params;
-    const vehicle = await Vehicle.findById(vehicleId);
+    const vehicle = await Vehicle.findById(req.params.id).populate("vendorId", "name");
+    if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
 
-    if (!vehicle) {
-      return res.status(404).json({ message: "Vehicle not found" });
-    }
-
-    vehicle.isAvailable = !vehicle.isAvailable;
-    await vehicle.save();
-
-    res.json({ message: `Vehicle ${vehicle.isAvailable ? "Available" : "Unavailable"} now` });
+    res.status(200).json(vehicle);
   } catch (error) {
-    console.error("❌ Error updating availability:", error);
-    res.status(500).json({ message: "Error updating vehicle availability", error });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// ✅ Delete a Vehicle
+//Update Vehicle
+exports.updateVehicle = async (req, res) => {
+  upload(req, res, async (err) => {
+    if (err) return res.status(500).json({ error: "File upload error." });
+
+    try {
+      const { vendorId, name, type, pricePerDay, registrationNumber } = req.body;
+      if (!vendorId) return res.status(400).json({ message: "Vendor ID is required." });
+
+      const vehicle = await Vehicle.findById(req.params.id);
+      if (!vehicle) return res.status(404).json({ message: "Vehicle not found." });
+
+      if (vehicle.vendorId.toString() !== vendorId) {
+        return res.status(403).json({ message: "Unauthorized: Vendor ID mismatch." });
+      }
+
+      const imagePath = req.file ? `/uploads/${req.file.filename}` : vehicle.image;
+
+      const updatedVehicle = await Vehicle.findByIdAndUpdate(
+        req.params.id,
+        { name, type, pricePerDay, image: imagePath, registrationNumber },
+        { new: true }
+      );
+
+      res.status(200).json({ message: " Vehicle updated successfully!", updatedVehicle });
+    } catch (error) {
+      console.error(" Vehicle Update Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+};
+
+//Delete Vehicle
 exports.deleteVehicle = async (req, res) => {
   try {
-    const { vehicleId } = req.params;
-    const deletedVehicle = await Vehicle.findByIdAndDelete(vehicleId);
+    const { vendorId } = req.body;
+    if (!vendorId) return res.status(400).json({ message: "Vendor ID is required." });
 
-    if (!deletedVehicle) {
-      return res.status(404).json({ message: "Vehicle not found" });
+    const vehicle = await Vehicle.findById(req.params.id);
+    if (!vehicle) return res.status(404).json({ message: "Vehicle not found." });
+
+    if (vehicle.vendorId.toString() !== vendorId) {
+      return res.status(403).json({ message: "Unauthorized: Vendor ID mismatch." });
     }
 
-    res.json({ message: "Vehicle deleted successfully" });
+    await vehicle.deleteOne();
+    res.status(200).json({ message: "Vehicle deleted successfully!" });
   } catch (error) {
-    console.error("❌ Error deleting vehicle:", error);
-    res.status(500).json({ message: "Error deleting vehicle", error });
+    res.status(500).json({ error: error.message });
   }
 };
-
-// ✅ Export Upload Middleware
-module.exports.upload = upload;
