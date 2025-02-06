@@ -1,21 +1,24 @@
 const mongoose = require("mongoose");
 
-const VehicleSchema = new mongoose.Schema(
+const BusSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    type: { type: String, enum: ["4x4 Car", "Jeep", "Scorpio"], required: true },
-    pricePerDay: { type: Number, required: true, min: 1 }, // Price per day
+    type: { type: String, enum: ["Bus"], default: "Bus" },
+    pricePerSeat: { type: Number, required: true, min: 1 },
     image: { type: String, required: true },
     vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor", required: true },
 
     pickupPoint: { type: String, required: true, trim: true },
     dropPoint: { type: String, required: true, trim: true },
-    capacity: { type: Number, required: true, min: 1 },
-    available: { type: Boolean, default: true },
+    totalSeats: { type: Number, required: true, min: 1 }, 
+    bookedSeats: [{ type: Number }], 
+    tripDate: { type: Date, required: true }, 
+
+    // New Field: Departure Date
     takeOffDate: { type: Date, required: true }, // Departure Date
 
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Vehicle", VehicleSchema);
+module.exports = mongoose.model("Bus", BusSchema);

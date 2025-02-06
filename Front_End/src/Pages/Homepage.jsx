@@ -1,135 +1,196 @@
 import React, { useState, useEffect } from "react";
-import Hill from "../Pictures/Bus_Tickets.jpg";
+import axios from "axios";
+import { FaMapMarkerAlt, FaCaretDown, FaSearch } from "react-icons/fa";
 import { AiOutlineCalendar } from "react-icons/ai";
-import { FaMapMarkerAlt, FaCaretDown, FaSearch } from 'react-icons/fa';
-
-// Reusable Card Component
-const Card = ({ icon: Icon, title, description }) => (
-  <div className="bg-slate-900 shadow-xl rounded-md p-8 text-center flex flex-col items-center justify-between min-h-[250px] hover:scale-105 transition-transform duration-300">
-    <Icon className="text-5xl text-white mb-4" />
-    <h2 className="font-bold text-lg text-white mb-4">{title}</h2>
-    <p className="text-sm text-white">{description}</p>
-  </div>
-);
+import Hill from "../Pictures/Bus_Tickets.jpg";
 
 const Bus_Tickets = () => {
   const [formData, setFormData] = useState({
     pickupPoint: "",
     droppingPoint: "",
-    date: "",
+    date: new Date().toISOString().split("T")[0], // Default to today
   });
 
-  // Set today's date as the default when the component mounts
+  const [pickupLocations, setPickupLocations] = useState([]);
+  const [dropLocations, setDropLocations] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [fetchingLocations, setFetchingLocations] = useState(true);
+
+  // Fetch pickup and drop locations from buses & vehicles (WITHOUT fetching dates)
   useEffect(() => {
-    const today = new Date();
-    const formattedDate = today.toISOString().split("T")[0]; // Format as yyyy-mm-dd
-    setFormData((prevData) => ({ ...prevData, date: formattedDate }));
+    const fetchLocations = async () => {
+      try {
+        const [busResponse, vehicleResponse] = await Promise.all([
+          axios.get("http://localhost:3001/api/buses"),
+          axios.get("http://localhost:3001/api/vehicles"),
+        ]);
+
+        const busData = Array.isArray(busResponse.data) ? busResponse.data : busResponse.data.buses || [];
+        const vehicleData = Array.isArray(vehicleResponse.data) ? vehicleResponse.data : vehicleResponse.data.vehicles || [];
+
+        const busLocations = busData.map((bus) => ({
+          pickup: bus.pickupPoint,
+          drop: bus.dropPoint,
+        }));
+
+        const vehicleLocations = vehicleData.map((vehicle) => ({
+          pickup: vehicle.pickupPoint,
+          drop: vehicle.dropPoint,
+        }));
+
+        // Merge locations and remove duplicates
+        const allPickupPoints = [...new Set([...busLocations.map((b) => b.pickup), ...vehicleLocations.map((v) => v.pickup)])];
+        const allDropPoints = [...new Set([...busLocations.map((b) => b.drop), ...vehicleLocations.map((v) => v.drop)])];
+
+        setPickupLocations(allPickupPoints);
+        setDropLocations(allDropPoints);
+      } catch (error) {
+        console.error("Error fetching locations:", error);
+      } finally {
+        setFetchingLocations(false);
+      }
+    };
+
+    fetchLocations();
   }, []);
 
   // Handle input changes
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Searching tickets with data:", formData);
-    alert(
-      `Searching tickets from ${formData.pickupPoint} to ${formData.droppingPoint} on ${formData.date}`
-    );
+    setLoading(true);
+
+    setTimeout(() => {
+      alert(`Searching from ${formData.pickupPoint} to ${formData.droppingPoint} on ${formData.date}`);
+      setLoading(false);
+    }, 2000);
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="w-full h-[80vh] min-h-screen relative overflow-hidden shadow-lg">
-        <img
-          src={Hill}
-          alt="Homepage Background"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-x-0 top-[30%] px-4 text-center">
-          <h2 className="text-white text-xl sm:text-2xl md:text-4xl font-bold">
-            Ride your Future with TickXplore
+    <div className="min-h-screen flex flex-col bg-gray-100">
+      {/* Hero Section */}
+      <div className="relative w-full h-screen">
+        {/* Background Image */}
+        <img src={Hill} alt="Background" className="absolute inset-0 w-full h-full object-cover" />
+
+        {/* Dark Overlay for Better Visibility */}
+        <div className="absolute inset-0 bg-black opacity-40"></div>
+
+        {/* Title */}
+        <div className="absolute inset-x-0 top-[25%] px-4 text-center">
+          <h2 className="text-white text-3xl sm:text-4xl md:text-5xl font-bold drop-shadow-lg">
+            Ride Your Future with <span className="text-blue-400">TickXplore</span>
           </h2>
         </div>
-        <div className="absolute inset-x-0 top-[40%] px-4">
-          <div className="max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-lg border border-gray-200">
+
+        {/* Search Box */}
+        <div className="absolute inset-x-0 top-[35%] px-4 flex justify-center">
+          <div className="w-full max-w-4xl p-5 bg-white shadow-lg rounded-lg border border-gray-200 ">
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+                
+                {/* Pickup Point */}
                 <div className="relative">
-                  <label
-                    htmlFor="pickupPoint"
-                    className="block text-sm font-medium text-gray-600 mb-2"
-                  >
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Pickup Point
                   </label>
-                  <div className="relative">
-                    <FaMapMarkerAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-2xl" />
-                    <input
-                      type="text"
-                      id="pickupPoint"
+                  <div className="relative flex items-center">
+                    <FaMapMarkerAlt className="absolute left-3 text-gray-400 text-2xl" />
+                    <select
                       name="pickupPoint"
                       value={formData.pickupPoint}
                       onChange={handleChange}
-                      placeholder="Pickup point"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring focus:ring-blue-300 focus:outline-none"
+                      className="w-full pl-10 pr-8 py-2 border rounded-md appearance-none focus:ring-2 focus:ring-blue-300"
                       required
-                    />
-                    <FaCaretDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-2xl" />
+                      disabled={fetchingLocations}
+                    >
+                      {fetchingLocations ? (
+                        <option>Loading locations...</option>
+                      ) : pickupLocations.length === 0 ? (
+                        <option>No locations available</option>
+                      ) : (
+                        <>
+                          <option value="" disabled>Select Pickup Point</option>
+                          {pickupLocations.map((location, index) => (
+                            <option key={index} value={location}>
+                              {location}
+                            </option>
+                          ))}
+                        </>
+                      )}
+                    </select>
+                    <FaCaretDown className="absolute right-3 text-gray-400 text-2xl" />
                   </div>
                 </div>
+
+                {/* Dropping Point */}
                 <div className="relative">
-                  <label
-                    htmlFor="droppingPoint"
-                    className="block text-sm font-medium text-gray-600 mb-2"
-                  >
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Dropping Point
                   </label>
-                  <div className="relative">
-                    <FaMapMarkerAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-2xl" />
-                    <input
-                      type="text"
-                      id="droppingPoint"
+                  <div className="relative flex items-center">
+                    <FaMapMarkerAlt className="absolute left-3 text-gray-400 text-2xl" />
+                    <select
                       name="droppingPoint"
                       value={formData.droppingPoint}
                       onChange={handleChange}
-                      placeholder="Dropping point"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring focus:ring-blue-300 focus:outline-none"
+                      className="w-full pl-10 pr-8 py-2 border rounded-md appearance-none focus:ring-2 focus:ring-blue-300"
                       required
-                    />
-                    <FaCaretDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-2xl" />
+                      disabled={fetchingLocations}
+                    >
+                      {fetchingLocations ? (
+                        <option>Loading locations...</option>
+                      ) : dropLocations.length === 0 ? (
+                        <option>No locations available</option>
+                      ) : (
+                        <>
+                          <option value="" disabled>Select Dropping Point</option>
+                          {dropLocations.map((location, index) => (
+                            <option key={index} value={location}>
+                              {location}
+                            </option>
+                          ))}
+                        </>
+                      )}
+                    </select>
+                    <FaCaretDown className="absolute right-3 text-gray-400 text-2xl" />
                   </div>
                 </div>
+
+                {/* Date Selection (No API fetching) */}
                 <div className="relative">
-                  <label
-                    htmlFor="date"
-                    className="block text-sm font-medium text-gray-600 mb-2"
-                  >
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Date
                   </label>
                   <div className="relative">
                     <AiOutlineCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-2xl" />
                     <input
                       type="date"
-                      id="date"
                       name="date"
                       value={formData.date}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring focus:ring-blue-300 focus:outline-none"
+                      min={new Date().toISOString().split("T")[0]} // Prevent selecting past dates
+                      className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-300"
                       required
                     />
                   </div>
                 </div>
                 <div className="flex justify-end sm:col-span-2 md:col-span-1">
-                  <button
-                    type="submit"
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  <button 
+                    type="submit" 
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 text-white font-semibold rounded-md bg-blue-600 hover:bg-blue-700 transition-all duration-300 shadow-md"
                   >
-                    <FaSearch className="text-2xl" /> Find Tickets
+                    <FaSearch className="text-lg" /> 
+                    <span>Find Tickets</span>
                   </button>
                 </div>
+
+                
+
               </div>
             </form>
           </div>

@@ -1,86 +1,46 @@
-require("dotenv").config();
 const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const morgan = require("morgan");
-const helmet = require("helmet");
-const path = require("path");
+const axios = require("axios");
+const multer = require("multer");
+require("dotenv").config(); // Load environment variables
 
-//Import Routes
-const authRoutes = require("./routes/authRoutes");
-const adminRoutes = require("./routes/adminRoutes");
-const vendorRoutes = require("./routes/vendorRoutes");
-const vehicleRoutes = require("./routes/vehicleRoutes");
-const bookingRoutes = require("./routes/bookingRoutes");
+const router = express.Router();
+const IMGBB_API_KEY = process.env.IMGBB_API_KEY; // Use API key from .env
 
-const app = express();
+if (!IMGBB_API_KEY) {
+  console.error("❌ ERROR: Missing IMGBB API Key! Add it to your .env file.");
+}
 
-//Middleware
-app.use(express.json()); // Parse JSON requests
-app.use(helmet()); // Secure HTTP headers
+// ✅ Configure Multer for Image Uploads (Memory Storage)
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
-//Configure CORS
-const corsOptions = {
-  origin: ["http://localhost:5173", "https://your-production-url.com"], 
-  credentials: true,
-};
-app.use(cors(corsOptions));
-app.use(morgan("dev")); 
-
-// Serve Uploaded Images
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
-// MongoDB Connection with Auto-Retry
-const connectDB = async () => {
+// ✅ API Route to Upload Images to imgbb
+router.post("/upload-image", upload.single("image"), async (req, res) => {
   try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No image provided" });
+    }
+
+    console.log("✅ File received:", req.file.originalname); // Debugging
+
+    // Convert Image to Base64
+    const base64Image = req.file.buffer.toString("base64");
+
+    // Upload Image to imgbb
+    const response = await axios.post("https://api.imgbb.com/1/upload", null, {
+      params: {
+        key: IMGBB_API_KEY,
+        image: base64Image,
+      },
     });
 
-    console.log("MongoDB connected successfully");
+    console.log("✅ Image uploaded successfully:", response.data.data.url);
 
-    // Listen for DB disconnection & attempt reconnection
-    mongoose.connection.on("disconnected", () => {
-      console.log("MongoDB disconnected. Reconnecting...");
-      setTimeout(connectDB, 5000);
-    });
-  } catch (err) {
-    console.error("MongoDB connection error:", err);
-    setTimeout(connectDB, 5000); // Retry after 5 sec
+    return res.status(200).json({ success: true, url: response.data.data.url });
+  } catch (error) {
+    console.error("❌ Image Upload Error:", error.response?.data || error.message);
+    return res.status(500).json({ success: false, message: "Image upload failed" });
   }
-};
-
-connectDB();
-
-//API Routes
-app.use("/auth", authRoutes);
-app.use("/admin", adminRoutes);
-app.use("/vendor", vendorRoutes);
-app.use("/vehicle", vehicleRoutes);
-app.use("/booking", bookingRoutes);
-
-// Global Error Handler
-app.use((err, req, res, next) => {
-  console.error(" Error:", err.stack);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || "Internal Server Error",
-  });
 });
 
-// Graceful Shutdown Handling
-const shutdown = () => {
-  console.log(" Server shutting down...");
-  mongoose.connection.close(() => {
-    console.log(" MongoDB connection closed.");
-    process.exit(0);
-  });
-};
-
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
-
-//Start Server
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(` Server running on port ${PORT}`));
+module.exports = router;
