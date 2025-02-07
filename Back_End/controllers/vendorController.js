@@ -1,112 +1,69 @@
-const mongoose = require("mongoose");
-const Vehicle = require("../models/Vehicle");
-const Booking = require("../models/Booking");
-const multer = require("multer");
+const Vendor = require("../models/Vendor");
 
-// Configure Multer for File Uploads
-const storage = multer.diskStorage({
-  destination: "./uploads/",
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-const upload = multer({ storage });
-
-// Add a New Vehicle
-const addVehicle = async (req, res) => {
-  upload.single("image")(req, res, async (err) => {
-    if (err) return res.status(400).json({ message: "File upload error: " + err.message });
-
-    try {
-      const { name, type, pricePerDay, vendorId } = req.body;
-      if (!mongoose.Types.ObjectId.isValid(vendorId)) {
-        return res.status(400).json({ message: "Invalid Vendor ID format." });
-      }
-      if (!req.file) {
-        return res.status(400).json({ message: "Vehicle image is required." });
-      }
-      if (pricePerDay <= 0) {
-        return res.status(400).json({ message: "Price per day must be greater than 0." });
-      }
-
-      const imageUrl = `/uploads/${req.file.filename}`;
-      const newVehicle = new Vehicle({ name, type, pricePerDay, image: imageUrl, vendorId });
-      await newVehicle.save();
-
-      res.status(201).json({ message: " Vehicle added successfully!", vehicle: newVehicle });
-    } catch (error) {
-      console.error(" Error adding vehicle:", error);
-      res.status(500).json({ message: "Error adding vehicle", error: error.message });
-    }
-  });
-};
-
-// Get All Vehicles for a Vendor
-const getVehicles = async (req, res) => {
+// ✅ Create Vendor
+exports.createVendor = async (req, res) => {
   try {
-    const { vendorId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(vendorId)) {
-      return res.status(400).json({ message: "Invalid Vendor ID format." });
-    }
+    const { name, email, phone, address } = req.body;
 
-    const vehicles = await Vehicle.find({ vendorId });
-    res.status(200).json({ vehicles });
+    const newVendor = new Vendor({ name, email, phone, address });
+    await newVendor.save();
+
+    res.status(201).json({ success: true, message: "Vendor created successfully", vendor: newVendor });
   } catch (error) {
-    console.error(" Error fetching vehicles:", error);
-    res.status(500).json({ message: "Error fetching vehicles", error: error.message });
+    console.error("❌ Error creating vendor:", error.message);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 
-// Get Bookings for a Vendor
-const getBookings = async (req, res) => {
+// ✅ Get All Vendors
+exports.getAllVendors = async (req, res) => {
   try {
-    const { vendorId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(vendorId)) {
-      return res.status(400).json({ message: "Invalid Vendor ID format." });
-    }
-
-    const bookings = await Booking.find({ vendorId })
-      .populate("vehicleId", "name type pricePerDay")
-      .populate("userId", "name email");
-
-    res.status(200).json({ bookings });
+    const vendors = await Vendor.find();
+    res.status(200).json({ success: true, vendors });
   } catch (error) {
-    console.error(" Error fetching bookings:", error);
-    res.status(500).json({ message: "Error fetching bookings", error: error.message });
+    console.error("❌ Error fetching vendors:", error.message);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 
-//Get Vendor Stats
-const getVendorStats = async (req, res) => {
+// ✅ Get Single Vendor
+exports.getVendorById = async (req, res) => {
   try {
-    const { vendorId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(vendorId)) {
-      return res.status(400).json({ message: "Invalid Vendor ID format." });
+    const vendor = await Vendor.findById(req.params.id);
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: "Vendor not found" });
     }
-
-    const vehiclesCount = await Vehicle.countDocuments({ vendorId });
-    const bookingsCount = await Booking.countDocuments({ vendorId });
-
-    const totalEarnings = await Booking.aggregate([
-      { $match: { vendorId: new mongoose.Types.ObjectId(vendorId), status: "Completed" } },
-      { $group: { _id: null, total: { $sum: { $toDouble: "$price" } } } },
-    ]);
-
-    res.status(200).json({
-      vehicles: vehiclesCount,
-      bookings: bookingsCount,
-      earnings: totalEarnings.length > 0 ? totalEarnings[0].total : 0,
-    });
+    res.status(200).json({ success: true, vendor });
   } catch (error) {
-    console.error(" Error fetching stats:", error);
-    res.status(500).json({ message: "Error fetching stats", error: error.message });
+    console.error("❌ Error fetching vendor:", error.message);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 
-//Export Functions Properly
-module.exports = {
-  addVehicle,
-  getVehicles,
-  getBookings,
-  getVendorStats,
+// ✅ Update Vendor
+exports.updateVendor = async (req, res) => {
+  try {
+    const updatedVendor = await Vendor.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!updatedVendor) {
+      return res.status(404).json({ success: false, message: "Vendor not found" });
+    }
+    res.status(200).json({ success: true, message: "Vendor updated successfully", vendor: updatedVendor });
+  } catch (error) {
+    console.error("❌ Error updating vendor:", error.message);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+// ✅ Delete Vendor
+exports.deleteVendor = async (req, res) => {
+  try {
+    const vendor = await Vendor.findByIdAndDelete(req.params.id);
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: "Vendor not found" });
+    }
+    res.status(200).json({ success: true, message: "Vendor deleted successfully" });
+  } catch (error) {
+    console.error("❌ Error deleting vendor:", error.message);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
 };

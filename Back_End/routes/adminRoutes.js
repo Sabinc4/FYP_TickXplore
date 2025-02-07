@@ -7,12 +7,12 @@ const {
   getStats,
   toggleVendorStatus,
   deleteUser,
-  deleteVendor
+  deleteVendor,
 } = require("../controllers/adminController");
 
 const router = express.Router();
 
-//Validate ObjectId Middleware
+// Middleware to validate ObjectId
 const validateObjectId = (req, res, next) => {
   if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
     return res.status(400).json({ message: "⚠️ Invalid ID format" });
@@ -20,12 +20,12 @@ const validateObjectId = (req, res, next) => {
   next();
 };
 
-//Routes (with ID validation)
+// ✅ Routes
 router.get("/get-users", getUsers);
 router.get("/get-vendors", getVendors);
 router.get("/get-admins", getAdmins);
 router.get("/get-stats", getStats);
-router.patch("/toggle-vendor/:id", validateObjectId, toggleVendorStatus);
+router.put("/toggle-vendor/:id", validateObjectId, toggleVendorStatus); // 🔄 Changed to PUT
 router.delete("/delete-user/:id", validateObjectId, deleteUser);
 router.delete("/delete-vendor/:id", validateObjectId, deleteVendor);
 

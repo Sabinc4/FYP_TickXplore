@@ -1,46 +1,75 @@
 const express = require("express");
-const axios = require("axios");
-const multer = require("multer");
-require("dotenv").config(); // Load environment variables
+const mongoose = require("mongoose");
+const cors = require("cors");
+const morgan = require("morgan");
+const helmet = require("helmet");
+const path = require("path");
+require("dotenv").config();
 
-const router = express.Router();
-const IMGBB_API_KEY = process.env.IMGBB_API_KEY; // Use API key from .env
+// ✅ Initialize Express App
+const app = express();
 
-if (!IMGBB_API_KEY) {
-  console.error("❌ ERROR: Missing IMGBB API Key! Add it to your .env file.");
-}
+// ✅ Middleware Configuration
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// ✅ Configure Multer for Image Uploads (Memory Storage)
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+// ✅ Security Middleware (Fixed Helmet Configuration)
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }, // ✅ Allows cross-origin resource sharing
+    crossOriginEmbedderPolicy: false, // ✅ Fix for CORS blocking
+  })
+);
+app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
-// ✅ API Route to Upload Images to imgbb
-router.post("/upload-image", upload.single("image"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: "No image provided" });
-    }
+// ✅ CORS Configuration (Fully Allow Frontend URL)
+const corsOptions = {
+  origin: ["http://localhost:5174"], // ✅ Allow only frontend domain
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], // ✅ Added PUT and OPTIONS
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true, // ✅ Allow credentials (if needed)
+};
+app.use(cors(corsOptions));
 
-    console.log("✅ File received:", req.file.originalname); // Debugging
+// ✅ Handle Preflight Requests for CORS (Important for PUT Requests)
+app.options("*", cors(corsOptions));
 
-    // Convert Image to Base64
-    const base64Image = req.file.buffer.toString("base64");
+// ✅ Serve Static Files (Uploaded Images)
+app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // ✅ Ensure images are accessible
 
-    // Upload Image to imgbb
-    const response = await axios.post("https://api.imgbb.com/1/upload", null, {
-      params: {
-        key: IMGBB_API_KEY,
-        image: base64Image,
-      },
-    });
+// ✅ MongoDB Connection with Improved Error Handling
+mongoose
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log("✅ MongoDB connected successfully"))
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err.message);
+    process.exit(1); // Exit if connection fails
+  });
 
-    console.log("✅ Image uploaded successfully:", response.data.data.url);
+// ✅ Import Routes
+const authRoutes = require("./routes/authRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const vendorRoutes = require("./routes/vendorRoutes");
+const vehicleRoutes = require("./routes/vehicleRoutes");
+const bookingRoutes = require("./routes/bookingRoutes");
+const busRoutes = require("./routes/busRoutes");
 
-    return res.status(200).json({ success: true, url: response.data.data.url });
-  } catch (error) {
-    console.error("❌ Image Upload Error:", error.response?.data || error.message);
-    return res.status(500).json({ success: false, message: "Image upload failed" });
-  }
+// ✅ API Routes
+app.use("/auth", authRoutes);
+app.use("/admin", adminRoutes);
+app.use("/vendor", vendorRoutes);
+app.use("/booking", bookingRoutes);
+app.use("/api/vehicles", vehicleRoutes);
+app.use("/api/buses", busRoutes);
+
+// ✅ Test Route to Check Image Serving
+app.get("/test-image", (req, res) => {
+  res.send(`<img src="http://localhost:3001/uploads/sample.jpg" alt="Test Image"/>`);
 });
 
-module.exports = router;
+// ✅ Start Server
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

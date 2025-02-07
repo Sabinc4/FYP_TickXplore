@@ -11,14 +11,23 @@ const BusSchema = new mongoose.Schema(
     pickupPoint: { type: String, required: true, trim: true },
     dropPoint: { type: String, required: true, trim: true },
     totalSeats: { type: Number, required: true, min: 1 }, 
-    bookedSeats: [{ type: Number }], 
+    
+    // Array to store seat numbers that have been booked
+    bookedSeats: [{ type: Number, min: 1 }], 
+
     tripDate: { type: Date, required: true }, 
-
-    // New Field: Departure Date
     takeOffDate: { type: Date, required: true }, // Departure Date
-
   },
   { timestamps: true }
 );
+
+// 🎯 Virtual field to calculate remaining seats dynamically
+BusSchema.virtual("remainingSeats").get(function () {
+  return this.totalSeats - this.bookedSeats.length;
+});
+
+// Ensure virtuals are included in JSON output
+BusSchema.set("toJSON", { virtuals: true });
+BusSchema.set("toObject", { virtuals: true });
 
 module.exports = mongoose.model("Bus", BusSchema);
