@@ -6,14 +6,17 @@ import "react-toastify/dist/ReactToastify.css";
 const VendorDashboard = () => {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [vehicles, setVehicles] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [stats, setStats] = useState({ vehicles: 0, bookings: 0, earnings: 0 });
+  const [buses, setBuses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [selectedBus, setSelectedBus] = useState(null);
+  const [isAdding, setIsAdding] = useState(false);
   const vendorId = localStorage.getItem("vendorId");
 
   useEffect(() => {
     if (!vendorId) {
-      toast.error("Vendor ID is missing. Please log in again.");
+      toast.error("❌ Vendor ID is missing. Please log in again.");
       return;
     }
     fetchData();
@@ -22,66 +25,144 @@ const VendorDashboard = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [vehiclesRes, bookingsRes, statsRes] = await Promise.all([
-        axios.get(`http://localhost:3001/api/vehicles/vendor/${vendorId}`),
-        axios.get(`http://localhost:3001/api/bookings/vendor/${vendorId}`),
-        axios.get(`http://localhost:3001/api/vendor-stats/${vendorId}`),
+      const [vehiclesRes, busesRes] = await Promise.all([
+        axios.get(`http://localhost:3001/api/vehicles?vendorId=${vendorId}`),
+        axios.get(`http://localhost:3001/api/buses?vendorId=${vendorId}`),
       ]);
+
       setVehicles(vehiclesRes.data.vehicles || []);
-      setBookings(bookingsRes.data.bookings || []);
-      setStats(statsRes.data || {});
+      setBuses(busesRes.data.data || []);
     } catch (error) {
       console.error("❌ Error fetching data:", error);
-      toast.error("Error fetching data. Please try again.");
+      toast.error("❌ Unable to fetch data. Please check your network.");
     }
     setLoading(false);
   };
 
+  const handleAddNew = () => {
+    setIsAdding(true);
+    setEditMode(true);
+    setSelectedVehicle(null);
+    setSelectedBus(null);
+  };
+
+  const handleEditVehicle = (vehicle) => {
+    setIsAdding(false);
+    setEditMode(true);
+    setSelectedVehicle(vehicle);
+  };
+
+  const handleEditBus = (bus) => {
+    setIsAdding(false);
+    setEditMode(true);
+    setSelectedBus(bus);
+  };
+
+  const handleDeleteVehicle = async (vehicleId) => {
+    if (window.confirm("Are you sure you want to delete this vehicle?")) {
+      try {
+        await axios.delete(`http://localhost:3001/api/vehicles/${vehicleId}`);
+        toast.success("✅ Vehicle deleted successfully!");
+        fetchData();
+      } catch (error) {
+        toast.error("❌ Error deleting vehicle.");
+      }
+    }
+  };
+
+  const handleDeleteBus = async (busId) => {
+    if (window.confirm("Are you sure you want to delete this bus?")) {
+      try {
+        await axios.delete(`http://localhost:3001/api/buses/${busId}`);
+        toast.success("✅ Bus deleted successfully!");
+        fetchData();
+      } catch (error) {
+        toast.error("❌ Error deleting bus.");
+      }
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-100">
-      <ToastContainer />
+      <ToastContainer position="top-right" autoClose={3000} />
 
       {/* Sidebar */}
-      <aside className="w-64 bg-white p-5 border-r">
-        <h2 className="text-xl font-bold mb-4">Vendor Dashboard</h2>
-        <ul>
-          {["dashboard", "vehicles", "bookings"].map((section) => (
+      <aside className="w-64 bg-gray-800 text-white p-5 border-r border-gray-700">
+        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          Vendor Portal
+        </h2>
+        <ul className="space-y-2">
+          {[
+            { id: "dashboard", icon: "🏠" },
+            { id: "vehicles", icon: "🚗" },
+            { id: "buses", icon: "🚌" },
+          ].map(({ id, icon }) => (
             <li
-              key={section}
-              className={`p-3 cursor-pointer rounded-md ${
-                activeSection === section ? "bg-blue-500 text-white" : "hover:bg-gray-300"
+              key={id}
+              className={`p-3 cursor-pointer rounded-md flex items-center gap-3 transition-colors ${
+                activeSection === id ? "bg-blue-600 text-white" : "hover:bg-gray-700"
               }`}
-              onClick={() => setActiveSection(section)}
+              onClick={() => setActiveSection(id)}
             >
-              {section.charAt(0).toUpperCase() + section.slice(1)}
+              <span className="text-lg">{icon}</span>
+              <span>{id.charAt(0).toUpperCase() + id.slice(1)}</span>
             </li>
           ))}
         </ul>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-6 overflow-y-auto">
         {loading ? (
-          <p className="text-center text-lg">Loading...</p>
+          <div className="flex justify-center items-center h-full">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
         ) : (
           <>
-            {/* Dashboard Section */}
             {activeSection === "dashboard" && (
-              <div className="grid grid-cols-3 gap-4">
-                <StatCard title="Total Vehicles" value={stats.vehicles} />
-                <StatCard title="Total Bookings" value={stats.bookings} />
-                <StatCard title="Total Earnings" value={`$${stats.earnings}`} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <StatCard title="Total Vehicles" value={vehicles.length} icon="🚗" />
+                <StatCard title="Total Buses" value={buses.length} icon="🚌" />
               </div>
             )}
 
-            {/* Vehicles Section */}
             {activeSection === "vehicles" && (
-              <VehicleList vehicles={vehicles} />
+              <TransportSection
+                title="Vehicles"
+                items={vehicles}
+                type="vehicle"
+                onEdit={handleEditVehicle}
+                onDelete={handleDeleteVehicle}
+                onAddNew={handleAddNew}
+              />
             )}
 
-            {/* Bookings Section */}
-            {activeSection === "bookings" && (
-              <BookingList bookings={bookings} />
+            {activeSection === "buses" && (
+              <TransportSection
+                title="Buses"
+                items={buses}
+                type="bus"
+                onEdit={handleEditBus}
+                onDelete={handleDeleteBus}
+                onAddNew={handleAddNew}
+              />
+            )}
+
+            {(editMode || isAdding) && (
+              <AddEditForm
+                vehicle={selectedVehicle}
+                bus={selectedBus}
+                isAdding={isAdding}
+                type={activeSection}
+                onClose={() => {
+                  setEditMode(false);
+                  setIsAdding(false);
+                }}
+                onFetchData={fetchData}
+              />
             )}
           </>
         )}
@@ -90,85 +171,250 @@ const VendorDashboard = () => {
   );
 };
 
-// ✅ Reusable Dashboard Card
-const StatCard = ({ title, value }) => (
-  <div className="bg-white p-4 shadow rounded-lg text-center">
-    <h3 className="text-lg font-bold">{value}</h3>
-    <p className="text-gray-600">{title}</p>
+// Reusable Components
+const StatCard = ({ title, value, icon }) => (
+  <div className="bg-white p-6 rounded-xl shadow-md flex items-center gap-4">
+    <span className="text-3xl">{icon}</span>
+    <div>
+      <h3 className="text-2xl font-bold">{value}</h3>
+      <p className="text-gray-600">{title}</p>
+    </div>
   </div>
 );
 
-// ✅ Vehicles List Component
-const VehicleList = ({ vehicles }) => (
-  <div className="bg-white p-4 shadow rounded-lg">
-    <h1 className="text-2xl font-semibold mb-4">My Vehicles</h1>
-    {vehicles.length === 0 ? (
-      <p className="text-center text-gray-500">No vehicles found.</p>
-    ) : (
-      <table className="w-full bg-white shadow-md rounded-lg">
-        <thead>
-          <tr className="border-b">
-            <th className="p-2">Image</th>
-            <th className="p-2">Vehicle Name</th>
-            <th className="p-2">Type</th>
-            <th className="p-2">Price</th>
-            <th className="p-2">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {vehicles.map((vehicle) => (
-            <tr key={vehicle._id} className="border-b text-center">
-              <td className="p-2">
-                <img
-                  src={vehicle.image ? `http://localhost:3001/uploads/${vehicle.image}` : "https://via.placeholder.com/100"}
-                  alt={vehicle.name}
-                  className="w-16 h-16 rounded-lg object-cover"
-                />
-              </td>
-              <td className="p-2">{vehicle.name}</td>
-              <td className="p-2">{vehicle.type}</td>
-              <td className="p-2">${vehicle.pricePerSeat}</td>
-              <td className="p-2">{vehicle.isAvailable ? "Available" : "Unavailable"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    )}
+const TransportSection = ({ title, items, type, onEdit, onDelete, onAddNew }) => (
+  <div className="space-y-6">
+    <div className="flex justify-between items-center">
+      <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
+      <button
+        onClick={onAddNew}
+        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+      >
+        Add New
+      </button>
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {items.length === 0 ? (
+        <p className="text-gray-500 text-center col-span-3">No {type}s available.</p>
+      ) : (
+        items.map((item) => (
+          <TransportCard
+            key={item._id}
+            item={item}
+            type={type}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        ))
+      )}
+    </div>
   </div>
 );
 
-// ✅ Bookings List Component
-const BookingList = ({ bookings }) => (
-  <div className="bg-white p-4 shadow rounded-lg">
-    <h1 className="text-2xl font-semibold mb-4">Bookings</h1>
-    {bookings.length === 0 ? (
-      <p className="text-center text-gray-500">No bookings found.</p>
-    ) : (
-      <table className="w-full bg-white shadow-md rounded-lg">
-        <thead>
-          <tr className="border-b">
-            <th className="p-2">Vehicle</th>
-            <th className="p-2">User</th>
-            <th className="p-2">Start Date</th>
-            <th className="p-2">End Date</th>
-            <th className="p-2">Price</th>
-            <th className="p-2">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {bookings.map((booking) => (
-            <tr key={booking._id} className="border-b text-center">
-              <td className="p-2">{booking.vehicleId?.name || "N/A"}</td>
-              <td className="p-2">{booking.userId?.name || "N/A"}</td>
-              <td className="p-2">{new Date(booking.startDate).toLocaleDateString()}</td>
-              <td className="p-2">{new Date(booking.endDate).toLocaleDateString()}</td>
-              <td className="p-2">${booking.price}</td>
-              <td className="p-2">{booking.status}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    )}
+const TransportCard = ({ item, type, onEdit, onDelete }) => (
+  <div className="bg-white shadow-lg rounded-xl overflow-hidden hover:shadow-xl transition-shadow duration-300">
+    <div className="relative">
+      <img
+        src={item.image ? `http://localhost:3001${item.image}` : "/default-transport.jpg"}
+        alt={item.name}
+        className="w-full h-48 object-cover"
+      />
+      <div className="absolute top-2 right-2 flex gap-2">
+        <button
+          onClick={() => onEdit(item)}
+          className="p-2 bg-white/90 rounded-full hover:bg-blue-100 transition-colors"
+        >
+          ✏️
+        </button>
+        <button
+          onClick={() => onDelete(item._id)}
+          className="p-2 bg-white/90 rounded-full hover:bg-red-100 transition-colors"
+        >
+          🗑️
+        </button>
+      </div>
+    </div>
+
+    <div className="p-4 space-y-3">
+      <h3 className="text-xl font-semibold text-gray-800">{item.name}</h3>
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <InfoItem label="Price" value={`Rs. ${item.pricePerSeat}`} />
+        <InfoItem label="Seats" value={item.totalSeats} />
+        {type === "bus" && (
+          <>
+            <InfoItem label="Pickup" value={item.pickupPoint} />
+            <InfoItem label="Drop" value={item.dropPoint} />
+          </>
+        )}
+      </div>
+      <div className="flex justify-between items-center text-sm text-gray-500">
+        <span>{new Date(item.tripDate).toLocaleDateString()}</span>
+        <span>{type.toUpperCase()}</span>
+      </div>
+    </div>
+  </div>
+);
+
+const InfoItem = ({ label, value }) => (
+  <div>
+    <span className="text-gray-500">{label}: </span>
+    <span className="font-medium">{value}</span>
+  </div>
+);
+
+const AddEditForm = ({ vehicle, bus, isAdding, type, onClose, onFetchData }) => {
+  const [formData, setFormData] = useState({
+    name: vehicle?.name || bus?.name || "",
+    type: vehicle?.type || bus?.type || (type === "Bus" ? "Bus" : "Vehicle"),
+    pricePerSeat: vehicle?.pricePerSeat || bus?.pricePerSeat || "",
+    pickupPoint: vehicle?.pickupPoint || bus?.pickupPoint || "",
+    dropPoint: vehicle?.dropPoint || bus?.dropPoint || "",
+    totalSeats: vehicle?.totalSeats || bus?.totalSeats || "",
+    tripDate: vehicle?.tripDate ? new Date(vehicle.tripDate).toISOString().split("T")[0] : "",
+    takeOffDate: vehicle?.takeOffDate ? new Date(vehicle.takeOffDate).toISOString().split("T")[0] : "",
+    image: "",
+  });
+
+  const vendorId = localStorage.getItem("vendorId");
+
+  // ✅ Separate function for handling VEHICLE submission
+  const handleVehicleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append("vendorId", vendorId);
+
+      // Append form fields
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key !== "image" && value) formDataToSend.append(key, value);
+      });
+
+      // Append image if exists
+      if (formData.image instanceof File) {
+        formDataToSend.append("image", formData.image);
+      }
+
+      const url = isAdding
+        ? `http://localhost:3001/api/vehicles`
+        : `http://localhost:3001/api/vehicles/${vehicle._id}`;
+
+      const method = isAdding ? "post" : "put";
+
+      const response = await axios[method](url, formDataToSend, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (response.data.success) {
+        toast.success(`✅ Vehicle ${isAdding ? "added" : "updated"} successfully!`);
+        onFetchData();
+        onClose();
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error(`❌ Failed to ${isAdding ? "add" : "update"} vehicle`);
+    }
+  };
+
+  // ✅ Separate function for handling BUS submission
+  const handleBusSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append("vendorId", vendorId);
+
+      // Append form fields
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key !== "image" && value) formDataToSend.append(key, value);
+      });
+
+      // Append image if exists
+      if (formData.image instanceof File) {
+        formDataToSend.append("image", formData.image);
+      }
+
+      const url = isAdding
+        ? `http://localhost:3001/api/buses`
+        : `http://localhost:3001/api/buses/${bus._id}`;
+
+      const method = isAdding ? "post" : "put";
+
+      const response = await axios[method](url, formDataToSend, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (response.data.success) {
+        toast.success(`✅ Bus ${isAdding ? "added" : "updated"} successfully!`);
+        onFetchData();
+        onClose();
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error(`❌ Failed to ${isAdding ? "add" : "update"} bus`);
+    }
+  };
+
+  // ✅ Unified close function
+  const handleClose = () => {
+    setFormData({
+      name: "",
+      type: type === "buses" ? "Bus" : "Car",
+      pricePerSeat: "",
+      pickupPoint: "",
+      dropPoint: "",
+      totalSeats: "",
+      tripDate: "",
+      takeOffDate: "",
+      image: "",
+    });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-xl w-full max-w-2xl p-6 space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">
+            {isAdding ? `Add New ${type === "buses" ? "Bus" : "Vehicle"}` : `Edit ${type === "buses" ? "Bus" : "Vehicle"}`}
+          </h2>
+          <button onClick={handleClose} className="text-gray-500 hover:text-gray-700">✕</button>
+        </div>
+
+        {/* Handle submission based on type */}
+        <form onSubmit={type === "buses" ? handleBusSubmit : handleVehicleSubmit} className="grid grid-cols-2 gap-4">
+          <FormInput label="Name" name="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+          <FormInput label="Price per Seat" type="number" name="pricePerSeat" value={formData.pricePerSeat} onChange={(e) => setFormData({ ...formData, pricePerSeat: e.target.value })} />
+          <FormInput label="Pickup Point" name="pickupPoint" value={formData.pickupPoint} onChange={(e) => setFormData({ ...formData, pickupPoint: e.target.value })} />
+          <FormInput label="Drop Point" name="dropPoint" value={formData.dropPoint} onChange={(e) => setFormData({ ...formData, dropPoint: e.target.value })} />
+          <FormInput label="Total Seats" type="number" name="totalSeats" value={formData.totalSeats} onChange={(e) => setFormData({ ...formData, totalSeats: e.target.value })} />
+          <FormInput label="Trip Date" type="date" name="tripDate" value={formData.tripDate} onChange={(e) => setFormData({ ...formData, tripDate: e.target.value })} />
+          <FormInput label="Take Off Date" type="date" name="takeOffDate" value={formData.takeOffDate} onChange={(e) => setFormData({ ...formData, takeOffDate: e.target.value })} />
+          
+          {/* Image Upload */}
+          <div className="col-span-2">
+            <label className="text-sm font-medium text-gray-700">Upload Image</label>
+            <input type="file" accept="image/*" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => { if (e.target.files.length > 0) { setFormData({ ...formData, image: e.target.files[0] }); } }}
+            />
+          </div>
+
+          {/* Submit & Cancel Buttons */}
+          <div className="col-span-2 flex justify-end gap-3 mt-4">
+            <button type="button" onClick={handleClose} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              {isAdding ? "Add" : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ✅ Reusable Input Component
+const FormInput = ({ label, type = "text", name, value, onChange }) => (
+  <div className="space-y-1">
+    <label className="text-sm font-medium text-gray-700">{label}</label>
+    <input type={type} name={name} value={value} onChange={onChange} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
   </div>
 );
 

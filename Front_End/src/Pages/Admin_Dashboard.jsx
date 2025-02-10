@@ -11,41 +11,32 @@ const AdminDashboard = () => {
   const [buses, setBuses] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
+  // ✅ Fetch Data from API
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [usersRes, vendorsRes, adminsRes, busesRes, vehiclesRes] =
+        await Promise.all([
+          axios.get("http://localhost:3001/admin/get-users"),
+          axios.get("http://localhost:3001/admin/get-vendors"),
+          axios.get("http://localhost:3001/admin/get-admins"),
+          axios.get("http://localhost:3001/api/buses"),
+          axios.get("http://localhost:3001/api/vehicles"),
+        ]);
 
- // ✅ Fetch Data from API
- const fetchData = useCallback(async () => {
-  setLoading(true);
-  try {
-    const [usersRes, vendorsRes, adminsRes, busesRes, vehiclesRes] =
-      await Promise.all([
-        axios.get("http://localhost:3001/admin/get-users"),
-        axios.get("http://localhost:3001/admin/get-vendors"),
-        axios.get("http://localhost:3001/admin/get-admins"),
-        axios.get("http://localhost:3001/api/buses"),
-        axios.get("http://localhost:3001/api/vehicles"),
-      ]);
-
-    setUsers(usersRes.data.users || []);
-    setVendors(vendorsRes.data.vendors || []);
-    setAdmins(adminsRes.data.admins || []);
-    setBuses(busesRes.data.buses || busesRes.data.data || []);
-    setVehicles(vehiclesRes.data.vehicles || vehiclesRes.data.data || []);
-
-    setStats({
-      users: usersRes.data.users?.length || 0,
-      vendors: vendorsRes.data.vendors?.length || 0,
-      admins: adminsRes.data.admins?.length || 0,
-      buses: busesRes.data.buses?.length || busesRes.data.data?.length || 0,
-      vehicles:
-        vehiclesRes.data.vehicles?.length || vehiclesRes.data.data?.length || 0,
-    });
-  } catch (error) {
-    toast.error("Failed to load data.");
-  } finally {
-    setLoading(false);
-  }
-}, []);
+      setUsers(usersRes.data.users || []);
+      setVendors(vendorsRes.data.vendors || []);
+      setAdmins(adminsRes.data.admins || []);
+      setBuses(busesRes.data.buses || busesRes.data.data || []);
+      setVehicles(vehiclesRes.data.vehicles || vehiclesRes.data.data || []);
+    } catch (error) {
+      toast.error("Failed to load data.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -62,6 +53,16 @@ const AdminDashboard = () => {
     } catch (error) {
       toast.error("Failed to update vendor status.");
     }
+  };
+
+  // ✅ Filter Data Based on Search Query
+  const filterData = (data, fields) => {
+    if (!searchQuery) return data;
+    return data.filter((item) =>
+      fields.some((field) =>
+        String(item[field]).toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    );
   };
 
   return (
@@ -81,7 +82,10 @@ const AdminDashboard = () => {
                     ? "bg-blue-600 text-white font-semibold"
                     : "hover:bg-gray-200"
                 }`}
-                onClick={() => setActiveSection(section)}
+                onClick={() => {
+                  setActiveSection(section);
+                  setSearchQuery(""); // Reset search query on section change
+                }}
               >
                 {section.charAt(0).toUpperCase() + section.slice(1)}
               </li>
@@ -93,15 +97,56 @@ const AdminDashboard = () => {
       {/* Main Content */}
       <main className="flex-1 p-8">
         {loading ? (
-          <div className="text-center text-lg text-gray-500">Loading...</div>
+          <div className="space-y-4">
+            <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+          </div>
         ) : (
           <>
-            {activeSection === "dashboard" && <h1 className="text-2xl font-bold">Welcome to Admin Dashboard</h1>}
-            {activeSection === "users" && <DataTable title="Users" data={users} fields={["name", "email"]} />}
-            {activeSection === "vendors" && <VendorsTable vendors={vendors} onToggleStatus={toggleVendorStatus} />}
-            {activeSection === "admins" && <DataTable title="Admins" data={admins} fields={["name", "email"]} />}
-            {activeSection === "buses" && <BusCards buses={buses} />}
-            {activeSection === "vehicles" && <VehicleCards vehicles={vehicles} />}
+            {/* Search Bar */}
+            {activeSection !== "dashboard" && (
+              <div className="mb-6">
+                <input
+                  type="text"
+                  placeholder={`Search ${activeSection}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
+
+            {/* Render Sections */}
+            {activeSection === "dashboard" && (
+              <h1 className="text-2xl font-bold">Welcome to Admin Dashboard</h1>
+            )}
+            {activeSection === "users" && (
+              <DataTable
+                title="Users"
+                data={filterData(users, ["name", "email"])}
+                fields={["name", "email"]}
+              />
+            )}
+            {activeSection === "vendors" && (
+              <VendorsTable
+                vendors={filterData(vendors, ["vendorName", "email"])}
+                onToggleStatus={toggleVendorStatus}
+              />
+            )}
+            {activeSection === "admins" && (
+              <DataTable
+                title="Admins"
+                data={filterData(admins, ["name", "email"])}
+                fields={["name", "email"]}
+              />
+            )}
+            {activeSection === "buses" && (
+              <BusCards buses={filterData(buses, ["busName", "pickupPoint", "dropPoint"])} />
+            )}
+            {activeSection === "vehicles" && (
+              <VehicleCards vehicles={filterData(vehicles, ["name", "type"])} />
+            )}
           </>
         )}
       </main>
@@ -182,7 +227,10 @@ const BusCards = ({ buses }) => (
     <h2 className="text-2xl font-semibold mb-6 text-gray-800">Buses</h2>
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {buses.map((bus) => (
-        <div key={bus._id} className="bg-white shadow-md rounded-lg overflow-hidden hover:shadow-lg transition duration-300">
+        <div
+          key={bus._id}
+          className="bg-white shadow-md rounded-lg overflow-hidden hover:shadow-lg transition duration-300"
+        >
           <img
             src={bus.image.startsWith("http") ? bus.image : `http://localhost:3001${bus.image}`}
             alt={bus.busName || "Bus Image"}
@@ -201,13 +249,17 @@ const BusCards = ({ buses }) => (
     </div>
   </div>
 );
+
 // ✅ Vehicle Cards Section
 const VehicleCards = ({ vehicles }) => (
   <div className="p-6 bg-white shadow-md rounded-lg">
     <h2 className="text-2xl font-semibold mb-6 text-gray-800">Vehicles</h2>
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {vehicles.map((vehicle) => (
-        <div key={vehicle._id} className="bg-white shadow-md rounded-lg overflow-hidden hover:shadow-lg transition duration-300">
+        <div
+          key={vehicle._id}
+          className="bg-white shadow-md rounded-lg overflow-hidden hover:shadow-lg transition duration-300"
+        >
           <img
             src={vehicle.image.startsWith("http") ? vehicle.image : `http://localhost:3001${vehicle.image}`}
             alt={vehicle.name || "Vehicle Image"}

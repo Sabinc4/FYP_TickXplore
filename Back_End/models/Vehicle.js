@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const VehicleSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    type: { type: String, enum: ["Bus", "Car", "Jeep", "4x4"], required: true },
+    type: { type: String, enum: ["Vehicle"], default: "Vehicle" },
     pricePerSeat: { type: Number, required: true, min: 1 },
     image: { type: String, required: true },
     vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor", required: true },

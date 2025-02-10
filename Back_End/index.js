@@ -13,7 +13,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Security Middleware (Fixed Helmet Configuration)
+// ✅ Security Middleware
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }, // ✅ Allows cross-origin resource sharing
@@ -22,27 +22,35 @@ app.use(
 );
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
-// ✅ CORS Configuration (Fully Allow Frontend URL)
+// ✅ CORS Configuration (Handles Multiple Origins)
+const allowedOrigins = ["http://localhost:5173"]; // ✅ Add more origins if needed
 const corsOptions = {
-  origin: ["http://localhost:5174"], // ✅ Allow only frontend domain
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], // ✅ Added PUT and OPTIONS
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("❌ CORS not allowed for this origin"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true, // ✅ Allow credentials (if needed)
+  credentials: true,
 };
 app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // ✅ Handle preflight requests
 
-// ✅ Handle Preflight Requests for CORS (Important for PUT Requests)
-app.options("*", cors(corsOptions));
+// ✅ Serve Static Files (Ensure 'uploads/' Exists)
+const fs = require("fs");
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+app.use("/uploads", express.static(uploadsDir));
 
-// ✅ Serve Static Files (Uploaded Images)
-app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // ✅ Ensure images are accessible
-
-// ✅ MongoDB Connection with Improved Error Handling
+// ✅ MongoDB Connection with Error Handling
+const mongoUri = process.env.MONGO_URI || "mongodb://localhost:27017/tickxplore"; // Fallback URI
 mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("✅ MongoDB connected successfully"))
   .catch((err) => {
     console.error("❌ MongoDB connection error:", err.message);
@@ -57,7 +65,7 @@ const vehicleRoutes = require("./routes/vehicleRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 const busRoutes = require("./routes/busRoutes");
 
-// ✅ API Routes
+// ✅ API Routes (Grouped for Clarity)
 app.use("/auth", authRoutes);
 app.use("/admin", adminRoutes);
 app.use("/vendor", vendorRoutes);
@@ -68,6 +76,14 @@ app.use("/api/buses", busRoutes);
 // ✅ Test Route to Check Image Serving
 app.get("/test-image", (req, res) => {
   res.send(`<img src="http://localhost:3001/uploads/sample.jpg" alt="Test Image"/>`);
+});
+
+// ✅ Graceful Shutdown Handling
+process.on("SIGINT", async () => {
+  console.log("\n🔄 Closing MongoDB Connection...");
+  await mongoose.connection.close();
+  console.log("✅ MongoDB Connection Closed. Server Shutting Down.");
+  process.exit(0);
 });
 
 // ✅ Start Server

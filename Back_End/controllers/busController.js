@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Bus = require("../models/Bus");
 
 // ✅ Create a new bus (POST)
@@ -33,18 +34,32 @@ exports.getAllBuses = async (req, res) => {
   }
 };
 
-// ✅ Get a single bus by ID (GET)
 exports.getBusById = async (req, res) => {
   try {
-    const bus = await Bus.findById(req.params.id).populate("vendorId", "name");
-    if (!bus) {
-      return res.status(404).json({ success: false, message: "Bus not found" });
+    const { id } = req.params; // Get Bus ID from params
+
+    // ✅ Validate Bus ID format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "⚠️ Invalid Bus ID format" });
     }
+
+    // ✅ Find Bus by ID
+    const bus = await Bus.findById(id);
+    
+    if (!bus) {
+      return res.status(404).json({ message: "⚠️ Bus not found" });
+    }
+
+    // ✅ Return Bus Data
     res.status(200).json({ success: true, data: bus });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("❌ Error fetching bus:", error);
+    res.status(500).json({ message: "❌ Failed to fetch bus", error: error.message });
   }
 };
+
+
+
 
 // ✅ Update a bus by ID (PUT)
 exports.updateBus = async (req, res) => {
