@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import "react-toastify/dist/ReactToastify.css";
 
 const VendorDashboard = () => {
@@ -8,6 +9,7 @@ const VendorDashboard = () => {
   const [vehicles, setVehicles] = useState([]);
   const [buses, setBuses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedBus, setSelectedBus] = useState(null);
@@ -16,7 +18,7 @@ const VendorDashboard = () => {
 
   useEffect(() => {
     if (!vendorId) {
-      toast.error("❌ Vendor ID is missing. Please log in again.");
+      toast.error("Vendor ID is missing. Please log in again.");
       return;
     }
     fetchData();
@@ -24,6 +26,7 @@ const VendorDashboard = () => {
 
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [vehiclesRes, busesRes] = await Promise.all([
         axios.get(`http://localhost:3001/api/vehicles?vendorId=${vendorId}`),
@@ -31,12 +34,14 @@ const VendorDashboard = () => {
       ]);
 
       setVehicles(vehiclesRes.data.vehicles || []);
-      setBuses(busesRes.data.data || []);
+      setBuses(busesRes.data.buses || []);
     } catch (error) {
-      console.error("❌ Error fetching data:", error);
-      toast.error("❌ Unable to fetch data. Please check your network.");
+      console.error("Error fetching data:", error);
+      setError("Failed to load data. Please try again.");
+      toast.error("Unable to fetch data. Please check your network.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleAddNew = () => {
@@ -62,10 +67,10 @@ const VendorDashboard = () => {
     if (window.confirm("Are you sure you want to delete this vehicle?")) {
       try {
         await axios.delete(`http://localhost:3001/api/vehicles/${vehicleId}`);
-        toast.success("✅ Vehicle deleted successfully!");
+        toast.success("Vehicle deleted successfully!");
         fetchData();
       } catch (error) {
-        toast.error("❌ Error deleting vehicle.");
+        toast.error("Error deleting vehicle.");
       }
     }
   };
@@ -74,13 +79,19 @@ const VendorDashboard = () => {
     if (window.confirm("Are you sure you want to delete this bus?")) {
       try {
         await axios.delete(`http://localhost:3001/api/buses/${busId}`);
-        toast.success("✅ Bus deleted successfully!");
+        toast.success("Bus deleted successfully!");
         fetchData();
       } catch (error) {
-        toast.error("❌ Error deleting bus.");
+        toast.error("Error deleting bus.");
       }
     }
   };
+
+  // Dashboard Data for Summary Cards and Chart
+  const dashboardData = [
+    { name: "Vehicles", count: vehicles.length, color: "#3B82F6" },
+    { name: "Buses", count: buses.length, color: "#10B981" },
+  ];
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -117,52 +128,110 @@ const VendorDashboard = () => {
       {/* Main Content */}
       <main className="flex-1 p-6 overflow-y-auto">
         {loading ? (
-          <div className="flex justify-center items-center h-full">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="space-y-4">
+            <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
           </div>
         ) : (
           <>
-            {activeSection === "dashboard" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <StatCard title="Total Vehicles" value={vehicles.length} icon="🚗" />
-                <StatCard title="Total Buses" value={buses.length} icon="🚌" />
+            {/* Error Message */}
+            {error && (
+              <div className="p-4 bg-red-100 text-red-600 rounded-lg mb-6 flex justify-between items-center">
+                <p>{error}</p>
+                <button
+                  onClick={fetchData}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  Retry
+                </button>
               </div>
             )}
 
-            {activeSection === "vehicles" && (
-              <TransportSection
-                title="Vehicles"
-                items={vehicles}
-                type="vehicle"
-                onEdit={handleEditVehicle}
-                onDelete={handleDeleteVehicle}
-                onAddNew={handleAddNew}
-              />
-            )}
+            {/* Dashboard Section */}
+            {activeSection === "dashboard" ? (
+              <div className="space-y-8">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {dashboardData.map((item) => (
+                    <div
+                      key={item.name}
+                      className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all"
+                      style={{ borderLeft: `4px solid ${item.color}` }}
+                    >
+                      <h3 className="text-lg font-semibold text-gray-700">
+                        {item.name}
+                      </h3>
+                      <p className="text-3xl font-bold mt-2" style={{ color: item.color }}>
+                        {item.count}
+                      </p>
+                    </div>
+                  ))}
+                </div>
 
-            {activeSection === "buses" && (
-              <TransportSection
-                title="Buses"
-                items={buses}
-                type="bus"
-                onEdit={handleEditBus}
-                onDelete={handleDeleteBus}
-                onAddNew={handleAddNew}
-              />
-            )}
+                {/* Bar Chart */}
+                <div className="bg-white p-6 rounded-xl shadow-md">
+                  <h2 className="text-xl font-semibold mb-4">Entity Distribution</h2>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={dashboardData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar
+                          dataKey="count"
+                          name="Total Count"
+                          fill="#3B82F6"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Vehicles Section */}
+                {activeSection === "vehicles" && (
+                  <TransportSection
+                    title="Vehicles"
+                    items={vehicles}
+                    type="vehicle"
+                    onEdit={handleEditVehicle}
+                    onDelete={handleDeleteVehicle}
+                    onAddNew={handleAddNew}
+                  />
+                )}
 
-            {(editMode || isAdding) && (
-              <AddEditForm
-                vehicle={selectedVehicle}
-                bus={selectedBus}
-                isAdding={isAdding}
-                type={activeSection}
-                onClose={() => {
-                  setEditMode(false);
-                  setIsAdding(false);
-                }}
-                onFetchData={fetchData}
-              />
+                {/* Buses Section */}
+                {activeSection === "buses" && (
+                  <TransportSection
+                    title="Buses"
+                    items={buses}
+                    type="bus"
+                    onEdit={handleEditBus}
+                    onDelete={handleDeleteBus}
+                    onAddNew={handleAddNew}
+                  />
+                )}
+
+                {/* Add/Edit Form */}
+                {(editMode || isAdding) && (
+                  <AddEditForm
+                    vehicle={selectedVehicle}
+                    bus={selectedBus}
+                    isAdding={isAdding}
+                    type={activeSection}
+                    onClose={() => {
+                      setEditMode(false);
+                      setIsAdding(false);
+                    }}
+                    onFetchData={fetchData}
+                  />
+                )}
+              </>
             )}
           </>
         )}
@@ -275,21 +344,21 @@ const AddEditForm = ({ vehicle, bus, isAdding, type, onClose, onFetchData }) => 
     image: "",
   });
 
-  const vendorId = localStorage.getItem("vendorId");
-
-  // ✅ Separate function for handling VEHICLE submission
   const handleVehicleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const vendorId = localStorage.getItem("vendorId");
+      if (!vendorId) {
+        toast.error("Vendor ID is missing. Please log in again.");
+        return;
+      }
+
       const formDataToSend = new FormData();
       formDataToSend.append("vendorId", vendorId);
-
-      // Append form fields
       Object.entries(formData).forEach(([key, value]) => {
         if (key !== "image" && value) formDataToSend.append(key, value);
       });
 
-      // Append image if exists
       if (formData.image instanceof File) {
         formDataToSend.append("image", formData.image);
       }
@@ -305,29 +374,31 @@ const AddEditForm = ({ vehicle, bus, isAdding, type, onClose, onFetchData }) => 
       });
 
       if (response.data.success) {
-        toast.success(`✅ Vehicle ${isAdding ? "added" : "updated"} successfully!`);
+        toast.success(`Vehicle ${isAdding ? "added" : "updated"} successfully!`);
         onFetchData();
         onClose();
       }
     } catch (error) {
-      console.error("Error:", error);
-      toast.error(`❌ Failed to ${isAdding ? "add" : "update"} vehicle`);
+      console.error("Error posting vehicle:", error);
+      toast.error("Failed to add vehicle. Check the console.");
     }
   };
 
-  // ✅ Separate function for handling BUS submission
   const handleBusSubmit = async (e) => {
     e.preventDefault();
     try {
+      const vendorId = localStorage.getItem("vendorId");
+      if (!vendorId) {
+        toast.error("Vendor ID is missing. Please log in again.");
+        return;
+      }
+
       const formDataToSend = new FormData();
       formDataToSend.append("vendorId", vendorId);
-
-      // Append form fields
       Object.entries(formData).forEach(([key, value]) => {
         if (key !== "image" && value) formDataToSend.append(key, value);
       });
 
-      // Append image if exists
       if (formData.image instanceof File) {
         formDataToSend.append("image", formData.image);
       }
@@ -343,21 +414,20 @@ const AddEditForm = ({ vehicle, bus, isAdding, type, onClose, onFetchData }) => 
       });
 
       if (response.data.success) {
-        toast.success(`✅ Bus ${isAdding ? "added" : "updated"} successfully!`);
+        toast.success(`Bus ${isAdding ? "added" : "updated"} successfully!`);
         onFetchData();
         onClose();
       }
     } catch (error) {
-      console.error("Error:", error);
-      toast.error(`❌ Failed to ${isAdding ? "add" : "update"} bus`);
+      console.error("Error posting bus:", error);
+      toast.error("Failed to add bus. Check the console.");
     }
   };
 
-  // ✅ Unified close function
   const handleClose = () => {
     setFormData({
       name: "",
-      type: type === "buses" ? "Bus" : "Car",
+      type: type === "buses" ? "Bus" : "Vehicle",
       pricePerSeat: "",
       pickupPoint: "",
       dropPoint: "",
@@ -410,7 +480,7 @@ const AddEditForm = ({ vehicle, bus, isAdding, type, onClose, onFetchData }) => 
   );
 };
 
-// ✅ Reusable Input Component
+// Reusable Input Component
 const FormInput = ({ label, type = "text", name, value, onChange }) => (
   <div className="space-y-1">
     <label className="text-sm font-medium text-gray-700">{label}</label>

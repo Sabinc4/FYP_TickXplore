@@ -11,6 +11,7 @@ import FAQs from "../Pages/FAQs";
 import Profile from "../Component/Profile";
 import Admin_Dashboard from "../Pages/Admin_Dashboard";
 import Vendor_Dashboard from "../Pages/Vendor_Dashboard";
+import Tickets from "../Pages/tickets";
 
 const router = createBrowserRouter([
     {
@@ -27,6 +28,10 @@ const router = createBrowserRouter([
         {
           path: '/',
           element: <Home/>,
+        },
+        {
+          path: '/tickets',
+          element:<Tickets/>,
         },
         {
             path: '/about-us',
@@ -64,7 +69,6 @@ const router = createBrowserRouter([
     path: '/Vendor_Dashboard',
     element: <Vendor_Dashboard/>
   }
-
       ]
     }
 ]);
