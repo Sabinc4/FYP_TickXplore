@@ -12,6 +12,7 @@ import Profile from "../Component/Profile";
 import Admin_Dashboard from "../Pages/Admin_Dashboard";
 import Vendor_Dashboard from "../Pages/Vendor_Dashboard";
 import Tickets from "../Pages/tickets";
+import Seat_Selection from "../Pages/Seat_Selection";
 
 const router = createBrowserRouter([
     {
@@ -68,6 +69,10 @@ const router = createBrowserRouter([
   {
     path: '/Vendor_Dashboard',
     element: <Vendor_Dashboard/>
+  },
+  {
+    path: '/Seat_Selection',
+    element: <Seat_Selection/>
   }
       ]
     }

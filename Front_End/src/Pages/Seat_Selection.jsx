@@ -1,84 +1,146 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 import { MdEventSeat } from "react-icons/md";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const SeatAvailability = () => {
-  // Sample data for buses and seats
-  const buses = [
-    { id: 1, name: "Bus A", totalSeats: 30, bookedSeats: [] },
-    { id: 2, name: "Bus B", totalSeats: 25, bookedSeats: [] },
-  ];
-
-  const [selectedBus, setSelectedBus] = useState(buses[0]); // Default to the first bus
+  const [buses, setBuses] = useState([]);
+  const [selectedBus, setSelectedBus] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState([]);
+  const [pickupLocations, setPickupLocations] = useState([]);
+  const [dropLocations, setDropLocations] = useState([]);
+  const [selectedPickup, setSelectedPickup] = useState("");
+  const [selectedDrop, setSelectedDrop] = useState("");
 
-  const toggleSeatSelection = (seat) => {
-    if (selectedSeats.includes(seat)) {
-      setSelectedSeats(selectedSeats.filter((s) => s !== seat));
-    } else {
-      setSelectedSeats([...selectedSeats, seat]);
-    }
-  };
+  // Fetch buses & extract locations from bus database
+  useEffect(() => {
+    const fetchBuses = async () => {
+      try {
+        const response = await axios.get("http://localhost:3001/api/buses");
+        const busData = response.data.buses;
+        setBuses(busData);
+
+        // Extract unique pickup and drop locations
+        const uniquePickupPoints = [...new Set(busData.map((bus) => bus.pickupPoint))];
+        const uniqueDropPoints = [...new Set(busData.map((bus) => bus.dropPoint))];
+
+        setPickupLocations(uniquePickupPoints);
+        setDropLocations(uniqueDropPoints);
+
+        if (busData.length > 0) {
+          setSelectedBus(busData[0]); // Select first bus by default
+        }
+      } catch (error) {
+        toast.error("Failed to fetch buses. Please try again.");
+      }
+    };
+
+    fetchBuses();
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
-      <div className="bg-white shadow-md rounded-lg w-full max-w-3xl p-6">
-        {/* Page Title */}
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">
-          Seat Availability
-        </h1>
+      <ToastContainer position="top-right" autoClose={3000} />
 
-        {/* Bus Details */}
-        <div className="mb-6">
-          <h2 className="text-xl font-medium text-gray-700 mb-2">
-            Selected Bus: <span className="text-blue-600">{selectedBus.name}</span>
-          </h2>
-          <p className="text-gray-600">
-            Total Seats: {selectedBus.totalSeats} | Booked Seats:{" "}
-            {selectedBus.bookedSeats.length}
-          </p>
+      <div className="flex flex-col md:flex-row bg-white shadow-md rounded-lg w-full max-w-5xl p-6 gap-6">
+        {/* Left Section: Journey Details */}
+        <div className="w-full md:w-1/3 bg-gray-50 p-6 rounded-md shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Journey Details</h2>
+
+          <label className="block text-gray-700 mb-1">Journey Date</label>
+          <input type="date" className="w-full p-2 border rounded-md mb-4" />
+
+          <label className="block text-gray-700 mb-1">Pickup Point</label>
+          <select
+            className="w-full p-2 border rounded-md mb-4"
+            value={selectedPickup}
+            onChange={(e) => setSelectedPickup(e.target.value)}
+          >
+            <option value="">Select Pickup</option>
+            {pickupLocations.map((location, index) => (
+              <option key={index} value={location}>
+                {location}
+              </option>
+            ))}
+          </select>
+
+          <label className="block text-gray-700 mb-1">Dropping Point</label>
+          <select
+            className="w-full p-2 border rounded-md mb-4"
+            value={selectedDrop}
+            onChange={(e) => setSelectedDrop(e.target.value)}
+          >
+            <option value="">Select Drop</option>
+            {dropLocations.map((location, index) => (
+              <option key={index} value={location}>
+                {location}
+              </option>
+            ))}
+          </select>
+
+          <button className="w-full mt-4 py-2 bg-green-600 text-white rounded-md font-medium hover:bg-green-700">
+            Continue
+          </button>
         </div>
 
-        {/* Seat Grid */}
-        <div className="grid grid-cols-5 gap-4 bg-gray-50 p-4 rounded-lg shadow-inner">
-          {Array.from({ length: selectedBus.totalSeats }, (_, i) => i + 1).map(
-            (seat) => {
-              const isBooked = selectedBus.bookedSeats.includes(seat);
-              const isSelected = selectedSeats.includes(seat);
+        {/* Right Section: Seat Selection */}
+        <div className="w-full md:w-2/3 bg-gray-50 p-6 rounded-md shadow-sm">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Click on a Seat to Select</h2>
 
-              return (
-                <div
-                  key={seat}
-                  className={`flex flex-col items-center justify-center p-3 border rounded-md cursor-pointer transition-transform transform hover:scale-105 ${
-                    isBooked
-                      ? "bg-red-500 text-white cursor-not-allowed"
-                      : isSelected
-                      ? "bg-green-500 text-white"
-                      : "bg-gray-200 text-gray-700"
-                  }`}
-                  onClick={() => !isBooked && toggleSeatSelection(seat)}
-                >
-                  <MdEventSeat size={30} />
-                  <span className="mt-2 text-sm font-medium">{seat}</span>
-                </div>
-              );
-            }
-          )}
-        </div>
+          {/* Seat Layout */}
+          <div className="p-4 border rounded-md bg-white">
+            <div className="text-center font-semibold text-gray-600 mb-2">FRONT</div>
+            <div className="grid grid-cols-5 gap-2">
+              {["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"].map((row) =>
+                [1, 2, "", 3, 4].map((num, index) => {
+                  if (num === "") return <div key={`${row}-${index}`} className="w-8"></div>;
 
-        {/* Selected Seats */}
-        {selectedSeats.length > 0 && (
-          <div className="mt-6 bg-gray-50 p-4 rounded-lg shadow-inner">
-            <h3 className="text-lg font-medium text-gray-700">
-              Selected Seats:{" "}
-              <span className="text-green-600 font-bold">
-                {selectedSeats.join(", ")}
-              </span>
-            </h3>
-            <button className="mt-4 w-full py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700">
-              Confirm Booking
-            </button>
+                  const seatId = `${row}${num}`;
+                  const isBooked = selectedBus?.bookedSeats?.includes(seatId);
+                  const isSelected = selectedSeats.includes(seatId);
+
+                  return (
+                    <div
+                      key={seatId}
+                      className={`flex items-center justify-center w-12 h-12 border rounded-md text-gray-700 font-medium cursor-pointer ${
+                        isBooked
+                          ? "bg-red-500 text-white cursor-not-allowed" // Booked seats in red
+                          : isSelected
+                          ? "bg-green-500 text-white" // Selected seats in green
+                          : "bg-white hover:bg-gray-200" // Available seats
+                      }`}
+                      onClick={() => !isBooked && setSelectedSeats((prev) =>
+                        prev.includes(seatId)
+                          ? prev.filter((seat) => seat !== seatId)
+                          : [...prev, seatId]
+                      )}
+                    >
+                      {seatId}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div className="text-center font-semibold text-gray-600 mt-2">REAR</div>
           </div>
-        )}
+
+          {/* Seat Legend */}
+          <div className="flex justify-between mt-4">
+            <div className="flex items-center">
+              <div className="w-6 h-6 bg-white border border-gray-400 mr-2"></div>
+              <span>Available</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-6 h-6 bg-green-500 border border-gray-400 mr-2"></div>
+              <span>Selected</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-6 h-6 bg-red-500 border border-gray-400 mr-2"></div>
+              <span>Booked</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

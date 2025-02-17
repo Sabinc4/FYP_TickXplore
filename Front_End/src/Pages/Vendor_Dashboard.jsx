@@ -18,7 +18,10 @@ const VendorDashboard = () => {
 
   useEffect(() => {
     if (!vendorId) {
-      toast.error("Vendor ID is missing. Please log in again.");
+      toast.error("Vendor ID is missing. Please log in again.", {
+        position: "top-right",
+        autoClose: 2000,
+      });
       return;
     }
     fetchData();
@@ -37,8 +40,10 @@ const VendorDashboard = () => {
       setBuses(busesRes.data.buses || []);
     } catch (error) {
       console.error("Error fetching data:", error);
-      setError("Failed to load data. Please try again.");
-      toast.error("Unable to fetch data. Please check your network.");
+      toast.error("Failed to load data. Please check your network and try again.", {
+        position: "top-right",
+        autoClose: 5000,
+      });
     } finally {
       setLoading(false);
     }
@@ -95,9 +100,18 @@ const VendorDashboard = () => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <ToastContainer position="top-right" autoClose={3000} />
-
-      {/* Sidebar */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
       <aside className="w-64 bg-gray-800 text-white p-5 border-r border-gray-700">
         <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,9 +121,9 @@ const VendorDashboard = () => {
         </h2>
         <ul className="space-y-2">
           {[
-            { id: "dashboard", icon: "🏠" },
-            { id: "vehicles", icon: "🚗" },
-            { id: "buses", icon: "🚌" },
+            { id: "dashboard" },
+            { id: "vehicles" },
+            { id: "buses" },
           ].map(({ id, icon }) => (
             <li
               key={id}
@@ -334,7 +348,7 @@ const InfoItem = ({ label, value }) => (
 const AddEditForm = ({ vehicle, bus, isAdding, type, onClose, onFetchData }) => {
   const [formData, setFormData] = useState({
     name: vehicle?.name || bus?.name || "",
-    type: vehicle?.type || bus?.type || (type === "Bus" ? "Bus" : "Vehicle"),
+    type: vehicle?.type || bus?.type || (type === "vehicle" ? "Bus" : "Vehicle"),
     pricePerSeat: vehicle?.pricePerSeat || bus?.pricePerSeat || "",
     pickupPoint: vehicle?.pickupPoint || bus?.pickupPoint || "",
     dropPoint: vehicle?.dropPoint || bus?.dropPoint || "",
@@ -427,7 +441,7 @@ const AddEditForm = ({ vehicle, bus, isAdding, type, onClose, onFetchData }) => 
   const handleClose = () => {
     setFormData({
       name: "",
-      type: type === "buses" ? "Bus" : "Vehicle",
+      type: type === "buses" ? "Bus" : "vehicle",
       pricePerSeat: "",
       pickupPoint: "",
       dropPoint: "",

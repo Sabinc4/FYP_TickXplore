@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { FaMapMarkerAlt, FaCaretDown, FaSpinner } from "react-icons/fa";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { FaMapMarkerAlt, FaSpinner, FaChair, FaInfoCircle } from "react-icons/fa";
 import { AiOutlineCalendar } from "react-icons/ai";
+import { IoMdArrowForward } from "react-icons/io";
+import { useNavigate } from "react-router-dom"; // Import useNavigate for navigation
 
 const BusTickets = () => {
+  const navigate = useNavigate(); // Initialize useNavigate
+
   // State variables
   const [formData, setFormData] = useState({
     pickupPoint: "",
@@ -12,8 +18,7 @@ const BusTickets = () => {
   });
 
   const [fetching, setFetching] = useState(false);
-  const [error, setError] = useState(null);
-  const [vehicles, setVehicles] = useState([]);
+  const [buses, setBuses] = useState([]);
   const [pickupLocations, setPickupLocations] = useState([]);
   const [dropLocations, setDropLocations] = useState([]);
   const [formErrors, setFormErrors] = useState({
@@ -27,48 +32,30 @@ const BusTickets = () => {
     fetchLocations();
   }, []);
 
-  // Fetch data from the backend
+  // Fetch data from backend
   const fetchData = async (url) => {
     try {
       const response = await axios.get(url);
       return response.data;
     } catch (error) {
-      console.error("Fetch error:", error);
+      toast.error("Failed to fetch data. Please try again.");
       throw error;
     }
   };
 
   // Fetch pickup and drop locations
   const fetchLocations = async () => {
-    setError(null);
     try {
-      const [busesData, vehiclesData] = await Promise.all([
-        fetchData("http://localhost:3001/api/buses"),
-        fetchData("http://localhost:3001/api/vehicles"),
-      ]);
-
+      const busesData = await fetchData("http://localhost:3001/api/buses");
       const buses = busesData.buses || [];
-      const vehicles = vehiclesData.vehicles || [];
 
-      // Extract unique pickup and drop points
-      const allPickupPoints = [
-        ...new Set([
-          ...buses.map((b) => b.pickupPoint),
-          ...vehicles.map((v) => v.pickupPoint),
-        ]),
-      ].filter(Boolean);
-
-      const allDropPoints = [
-        ...new Set([
-          ...buses.map((b) => b.dropPoint),
-          ...vehicles.map((v) => v.dropPoint),
-        ]),
-      ].filter(Boolean);
+      const allPickupPoints = [...new Set(buses.map((b) => b.pickupPoint))].filter(Boolean);
+      const allDropPoints = [...new Set(buses.map((b) => b.dropPoint))].filter(Boolean);
 
       setPickupLocations(allPickupPoints);
       setDropLocations(allDropPoints);
     } catch (error) {
-      setError("Failed to load locations. Please try again later.");
+      toast.error("Failed to load locations. Please refresh the page.");
     }
   };
 
@@ -86,258 +73,253 @@ const BusTickets = () => {
       date: !formData.date,
     };
     setFormErrors(errors);
-    return !Object.values(errors).some(Boolean);
+
+    if (Object.values(errors).some(Boolean)) {
+      toast.error("Please fill all required fields");
+      return false;
+    }
+
+    return true;
   };
 
-  // Handle search for vehicles
+  // Format date display
+  const formatDate = (dateString) => {
+    const options = {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+    return new Date(dateString).toLocaleDateString('en-US', options);
+  };
+
+  // Handle search for buses
   const handleSearch = async () => {
     if (!validateForm()) return;
 
     setFetching(true);
-    setError(null);
-
     try {
-      const [busesData, vehiclesData] = await Promise.all([
-        fetchData("http://localhost:3001/api/buses"),
-        fetchData("http://localhost:3001/api/vehicles"),
-      ]);
+      const busesData = await fetchData("http://localhost:3001/api/buses");
+      const allBuses = busesData.buses || [];
 
-      const allVehicles = [
-        ...(busesData.buses || []),
-        ...(vehiclesData.vehicles || []),
-      ];
+      const filteredBuses = allBuses.filter((bus) => {
+        const busDate = new Date(bus.takeOffDate).toISOString().split('T')[0];
+        return (
+          bus.pickupPoint === formData.pickupPoint &&
+          bus.dropPoint === formData.droppingPoint &&
+          busDate === formData.date &&
+          (bus.totalSeats - bus.bookedSeats.length) > 0
+        );
+      });
 
-      // Filter vehicles based on user input
-      const filteredVehicles = allVehicles.filter(
-        (vehicle) =>
-          vehicle.pickupPoint === formData.pickupPoint &&
-          vehicle.dropPoint === formData.droppingPoint &&
-          new Date(vehicle.takeOffDate).toISOString().split("T")[0] ===
-            formData.date
-      );
-
-      // Add full image URL to each vehicle
-      const vehiclesWithImages = filteredVehicles.map((vehicle) => ({
-        ...vehicle,
-        imageUrl: vehicle.image
-          ? `http://localhost:3001${vehicle.image}`
-          : null,
+      const busesWithDetails = filteredBuses.map((bus) => ({
+        ...bus,
+        imageUrl: bus.image
+          ? new URL(bus.image, "http://localhost:3001").href
+          : "/default-bus-image.jpg",
+        availableSeats: bus.totalSeats - bus.bookedSeats.length,
       }));
 
-      setVehicles(vehiclesWithImages);
+      setBuses(busesWithDetails);
+      if (filteredBuses.length === 0) {
+        toast.info("No available buses found for selected criteria");
+      }
     } catch (err) {
-      setError("Failed to search. Please check your connection and try again.");
+      toast.error("Search failed. Please check your connection.");
     } finally {
       setFetching(false);
     }
   };
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    const options = { year: "numeric", month: "long", day: "numeric" };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
-
-  // Format price for display
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "NPR",
-      maximumFractionDigits: 0,
-    }).format(price);
+  // Handle navigation to seat selection page
+  const handleViewSeats = (busId) => {
+    navigate(`/Seat_Selection`); // Navigate to the seat selection page with bus ID
   };
 
   return (
-    <div className="max-w-lg mx-auto mt-10 p-4 sm:p-6 bg-white shadow-lg rounded-md">
-      <h2 className="text-xl font-bold mb-6 text-center text-gray-800">
-        Book Your Bus Ticket
+    <div className="max-w-5xl mx-auto mt-10 p-4 sm:p-6 bg-white shadow-lg rounded-md">
+      <ToastContainer position="top-right" autoClose={3000} />
+
+      <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
+         Search Bus Tickets
       </h2>
 
-      {/* Pickup Point Input */}
-      <div className="relative mb-4">
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Pickup Point
-          {pickupLocations.length === 0 && (
-            <span className="ml-2 text-blue-500">
-              <FaSpinner className="inline animate-spin" />
-            </span>
+      {/* Search Form */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+        {/* Pickup Point */}
+        <div className="md:col-span-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">From</label>
+          <div className="flex items-center relative">
+            <FaMapMarkerAlt className="absolute left-3 text-gray-400" />
+            <select
+              name="pickupPoint"
+              value={formData.pickupPoint}
+              onChange={handleChange}
+              className={`w-full pl-10 py-2 border rounded-lg focus:outline-none ${
+                formErrors.pickupPoint ? "border-red-500" : "border-gray-300"
+              }`}
+            >
+              <option value="">Select pickup point</option>
+              {pickupLocations.map((location) => (
+                <option key={location} value={location}>
+                  {location}
+                </option>
+              ))}
+            </select>
+          </div>
+          {formErrors.pickupPoint && (
+            <p className="text-red-500 text-sm mt-1">Pickup point is required</p>
           )}
-        </label>
-        <div className="relative">
-          <FaMapMarkerAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
-          <select
-            name="pickupPoint"
-            value={formData.pickupPoint}
-            onChange={handleChange}
-            className={`w-full pl-10 pr-8 py-2 border rounded-md appearance-none focus:ring-2 ${
-              formErrors.pickupPoint ? "border-red-500" : "border-gray-300"
-            }`}
-            required
-          >
-            <option value="" disabled>
-              Select Pickup Point
-            </option>
-            {pickupLocations.map((location, index) => (
-              <option key={index} value={location}>
-                {location}
-              </option>
-            ))}
-          </select>
-          <FaCaretDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
-        {formErrors.pickupPoint && (
-          <p className="text-red-500 text-sm mt-1">Please select a pickup point</p>
-        )}
-      </div>
 
-      {/* Dropping Point Input */}
-      <div className="relative mb-4">
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Dropping Point
-          {dropLocations.length === 0 && (
-            <span className="ml-2 text-blue-500">
-              <FaSpinner className="inline animate-spin" />
-            </span>
+        {/* Dropping Point */}
+        <div className="md:col-span-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">To</label>
+          <div className="flex items-center relative">
+            <FaMapMarkerAlt className="absolute left-3 text-gray-400" />
+            <select
+              name="droppingPoint"
+              value={formData.droppingPoint}
+              onChange={handleChange}
+              className={`w-full pl-10 py-2 border rounded-lg focus:outline-none ${
+                formErrors.droppingPoint ? "border-red-500" : "border-gray-300"
+              }`}
+            >
+              <option value="">Select destination</option>
+              {dropLocations.map((location) => (
+                <option key={location} value={location}>
+                  {location}
+                </option>
+              ))}
+            </select>
+          </div>
+          {formErrors.droppingPoint && (
+            <p className="text-red-500 text-sm mt-1">Dropping point is required</p>
           )}
-        </label>
-        <div className="relative">
-          <FaMapMarkerAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
-          <select
-            name="droppingPoint"
-            value={formData.droppingPoint}
-            onChange={handleChange}
-            className={`w-full pl-10 pr-8 py-2 border rounded-md appearance-none focus:ring-2 ${
-              formErrors.droppingPoint ? "border-red-500" : "border-gray-300"
-            }`}
-            required
+        </div>
+
+        {/* Date */}
+        <div className="md:col-span-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Travel Date</label>
+          <div className="flex items-center relative">
+            <AiOutlineCalendar className="absolute left-3 text-gray-400" />
+            <input
+              type="date"
+              name="date"
+              value={formData.date}
+              onChange={handleChange}
+              className={`w-full pl-10 py-2 border rounded-lg focus:outline-none ${
+                formErrors.date ? "border-red-500" : "border-gray-300"
+              }`}
+            />
+          </div>
+          {formErrors.date && (
+            <p className="text-red-500 text-sm mt-1">Travel date is required</p>
+          )}
+        </div>
+
+        {/* Search Button */}
+        <div className="md:col-span-1">
+          <button
+            onClick={handleSearch}
+            disabled={fetching}
+            className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
           >
-            <option value="" disabled>
-              Select Dropping Point
-            </option>
-            {dropLocations.map((location, index) => (
-              <option key={index} value={location}>
-                {location}
-              </option>
-            ))}
-          </select>
-          <FaCaretDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            {fetching ? <FaSpinner className="animate-spin" /> : "Search Buses"}
+          </button>
         </div>
-        {formErrors.droppingPoint && (
-          <p className="text-red-500 text-sm mt-1">Please select a dropping point</p>
-        )}
       </div>
 
-      {/* Date Input */}
-      <div className="relative mb-6">
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Travel Date
-        </label>
-        <div className="relative">
-          <AiOutlineCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xl" />
-          <input
-            type="date"
-            name="date"
-            value={formData.date}
-            onChange={handleChange}
-            min={new Date().toISOString().split("T")[0]}
-            className={`w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 ${
-              formErrors.date ? "border-red-500" : "border-gray-300"
-            }`}
-            required
-          />
-        </div>
-        {formErrors.date && (
-          <p className="text-red-500 text-sm mt-1">Please select a travel date</p>
-        )}
-      </div>
-
-      {/* Search Button */}
+      {/* Clear Filters Button */}
       <button
-        onClick={handleSearch}
-        className="w-full bg-blue-600 text-white py-3 rounded-md font-semibold hover:bg-blue-700 transition flex items-center justify-center"
-        disabled={fetching}
+        onClick={() => {
+          setFormData({ pickupPoint: "", droppingPoint: "", date: "" });
+          setBuses([]);
+        }}
+        className="w-full md:w-auto px-6 py-3 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400 transition-colors mt-4"
       >
-        {fetching ? (
-          <>
-            <FaSpinner className="animate-spin mr-2" />
-            Searching...
-          </>
-        ) : (
-          "Search Buses"
-        )}
+        Clear Filters
       </button>
 
       {/* Results Section */}
-      <div className="mt-6">
-        {vehicles.length > 0 ? (
-          <ul className="space-y-4">
-            {vehicles.map((vehicle) => (
-              <li
-                key={vehicle.id}
-                className="p-4 border rounded-lg hover:shadow-md transition-shadow"
-              >
-                <div className="flex gap-4">
-                  <div className="w-20 h-20 rounded-md overflow-hidden">
-                    {vehicle.imageUrl ? (
-                      <img
-                        src={vehicle.imageUrl}
-                        alt={vehicle.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = "/default-bus-image.jpg";
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                        <span className="text-gray-500 text-sm">No Image</span>
-                      </div>
-                    )}
+      <div className="mt-8 space-y-6">
+        {fetching ? (
+          <div className="flex justify-center">
+            <FaSpinner className="animate-spin text-4xl text-blue-600" />
+          </div>
+        ) : buses.length > 0 ? (
+          buses.map((bus) => (
+            <div
+              key={bus._id}
+              className="flex flex-col md:flex-row items-center justify-between p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
+            >
+              {/* Bus Details */}
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-gray-800">
+                    {bus.name} - {bus.type}
+                  </h3>
+                  <span className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+                    Vendor ID: {bus.vendorId.slice(-6)}
+                  </span>
+                </div>
+
+                <div className="mt-4 flex items-center gap-4 text-gray-600">
+                  <span className="flex items-center">
+                    <FaMapMarkerAlt className="mr-2" />
+                    {bus.pickupPoint}
+                  </span>
+                  <IoMdArrowForward className="text-gray-400" />
+                  <span className="flex items-center">
+                    <FaMapMarkerAlt className="mr-2" />
+                    {bus.dropPoint}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="flex items-center text-sm text-gray-600">
+                      <AiOutlineCalendar className="mr-2" />
+                      {formatDate(bus.takeOffDate)}
+                    </p>
+                    <p className="flex items-center mt-2 text-sm text-gray-600">
+                      <FaChair className="mr-2" />
+                      Available: {bus.availableSeats}/{bus.totalSeats}
+                    </p>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-bold text-gray-800">
-                      {vehicle.name} ({vehicle.type})
-                    </h4>
-                    <div className="text-sm text-gray-600 space-y-1">
-                      <p>
-                        <span className="font-semibold">Route:</span>{" "}
-                        {vehicle.pickupPoint} → {vehicle.dropPoint}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Departure:</span>{" "}
-                        {formatDate(vehicle.takeOffDate)}
-                      </p>
-                      <p className="text-green-600 font-semibold">
-                        Price: {formatPrice(vehicle.pricePerSeat)}
-                      </p>
-                    </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-green-600">
+                      NPR {bus.pricePerSeat.toLocaleString()}
+                    </p>
+                    <p className="text-sm text-gray-500">per seat</p>
                   </div>
                 </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          !fetching && (
-            <div className="text-center p-6 bg-gray-50 rounded-lg">
-              <p className="text-gray-600">
-                No buses found. Try adjusting your search filters.
-              </p>
+
+                <button
+                  onClick={() => handleViewSeats(bus._id)} // Navigate to seat selection page
+                  className="mt-4 px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                >
+                  View Seats & Book
+                </button>
+              </div>
+
+              {/* Bus Image */}
+              <img
+                src={bus.imageUrl}
+                alt={bus.name}
+                className="w-48 h-32 object-cover rounded-lg mt-6 md:mt-0 md:ml-6"
+                onError={(e) => (e.target.src = "/default-bus-image.jpg")}
+              />
             </div>
-          )
+          ))
+        ) : (
+          <p className="text-center text-gray-500 py-8">
+            No available buses found. Try different search criteria.
+          </p>
         )}
       </div>
-
-      {/* Error Display */}
-      {error && (
-        <div className="mt-4 p-4 bg-red-50 rounded-lg text-center">
-          <p className="text-red-600 mb-2">{error}</p>
-          <button
-            onClick={fetchLocations}
-            className="text-blue-600 hover:text-blue-700 font-medium"
-          >
-            Try Again
-          </button>
-        </div>
-      )}
     </div>
   );
 };
