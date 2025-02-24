@@ -5,35 +5,34 @@ import { CiMenuBurger } from "react-icons/ci";
 
 const Nav = () => {
   const [click, setClick] = useState(false);
-  const [userLoggedIn, setUserLoggedIn] = useState(false); // track login state
-  const [userInitials, setUserInitials] = useState(""); // Store initials
+  const [userLoggedIn, setUserLoggedIn] = useState(false); // Track login state
+  const [userInitials, setUserInitials] = useState(""); // Store user initials
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is logged in based on localStorage
+    // Check login status from localStorage
     const isLoggedIn = localStorage.getItem("userLoggedIn");
     if (isLoggedIn === "true") {
       setUserLoggedIn(true);
+    } else {
+      setUserLoggedIn(false);
     }
 
-    // Get the user's full name from localStorage
-    const userName = localStorage.getItem("userName"); // Assuming you stored the user's full name
-
+    // Retrieve user's full name and compute initials
+    const userName = localStorage.getItem("userName");
     if (userName) {
-      // Split the name into first and last name and extract the initials
       const nameParts = userName.split(" ");
       const firstInitial = nameParts[0].charAt(0).toUpperCase();
       const lastInitial = nameParts.length > 1 ? nameParts[1].charAt(0).toUpperCase() : "";
-
-      setUserInitials(firstInitial + lastInitial); // Combine initials
+      setUserInitials(firstInitial + lastInitial);
     }
 
-    // Check if refresh is needed (after successful sign-in)
+    // Check if a page refresh is needed (e.g., after sign-in)
     const needsRefresh = localStorage.getItem("needsRefresh");
     if (needsRefresh === "true") {
-      window.location.reload(); // Trigger page refresh
-      localStorage.removeItem("needsRefresh"); // Remove flag after refresh
+      window.location.reload();
+      localStorage.removeItem("needsRefresh");
     }
   }, [location]);
 
@@ -45,19 +44,29 @@ const Nav = () => {
   const menuItems = (
     <>
       <Link to="/" className={isActive("/")}>
-        <li className="cursor-pointer py-4">Home</li>
+        <li className="cursor-pointer py-4" onClick={() => setClick(false)}>
+          Home
+        </li>
       </Link>
       <Link to="/vehicle-bookings" className={isActive("/vehicle-bookings")}>
-        <li className="cursor-pointer py-4">Vehicle Bookings</li>
+        <li className="cursor-pointer py-4" onClick={() => setClick(false)}>
+          Vehicle Bookings
+        </li>
       </Link>
       <Link to="/tourist-areas" className={isActive("/tourist-areas")}>
-        <li className="cursor-pointer py-4">Tourist Areas</li>
+        <li className="cursor-pointer py-4" onClick={() => setClick(false)}>
+          Tourist Areas
+        </li>
       </Link>
       <Link to="/about-us" className={isActive("/about-us")}>
-        <li className="cursor-pointer py-4">About Us</li>
+        <li className="cursor-pointer py-4" onClick={() => setClick(false)}>
+          About Us
+        </li>
       </Link>
       <Link to="/faqs" className={isActive("/faqs")}>
-        <li className="cursor-pointer py-4">FAQs</li>
+        <li className="cursor-pointer py-4" onClick={() => setClick(false)}>
+          FAQs
+        </li>
       </Link>
 
       {userLoggedIn ? (
@@ -66,16 +75,23 @@ const Nav = () => {
             className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center"
             onClick={() => setClick(!click)}
           >
-            <span className="text-xl">{userInitials}</span> {/* Display initials */}
+            <span className="text-xl">{userInitials}</span>
           </button>
           {click && (
             <div className="absolute right-0 top-full bg-white shadow-lg rounded-md p-4">
-              <Link to="/profile" className="block py-2 px-4">Profile</Link>
+              <Link
+                to="/profile"
+                className="block py-2 px-4"
+                onClick={() => setClick(false)}
+              >
+                Profile
+              </Link>
               <button
                 className="block py-2 px-4 w-full text-left"
                 onClick={() => {
                   localStorage.removeItem("userLoggedIn");
                   setUserLoggedIn(false);
+                  setClick(false);
                   navigate("/"); // Redirect to home after logout
                 }}
               >
