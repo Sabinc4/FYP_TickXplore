@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-// Helper function to determine the API endpoint based on role
+// ✅ Function to determine API endpoint based on user role
 const getEndpoint = (role) => {
   if (role === "vendor") return "vendors";
   if (role === "admin") return "admins";
@@ -10,7 +10,7 @@ const getEndpoint = (role) => {
 
 const Profile = () => {
   const navigate = useNavigate();
-  const [userRole, setUserRole] = useState("user"); // default to user
+  const [userRole, setUserRole] = useState("user"); // Default to "user"
   const [user, setUser] = useState(null); // Stores user data from API
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,47 +22,41 @@ const Profile = () => {
     role: "",
   });
 
+  // ✅ Fetch user data on component mount
   useEffect(() => {
     console.log("Profile component mounted.");
 
-    // Check login status
     const loggedIn = localStorage.getItem("userLoggedIn");
-    console.log("userLoggedIn:", loggedIn);
     if (loggedIn !== "true") {
       console.error("User not logged in. Redirecting to /sign-in");
       navigate("/sign-in");
       return;
     }
 
-    // Retrieve stored role and the appropriate ID from localStorage.
+    // ✅ Retrieve stored role & ID from localStorage
     const storedUserRole = localStorage.getItem("userRole") || "user";
     setUserRole(storedUserRole);
-    let storedId;
-    if (storedUserRole === "vendor") {
-      storedId = localStorage.getItem("vendorId");
-    } else {
-      // for admin and user, assume it's stored under "userId"
-      storedId = localStorage.getItem("userId");
-    }
-    console.log("storedId:", storedId, "storedUserRole:", storedUserRole);
+
+    const storedId = storedUserRole === "vendor"
+      ? localStorage.getItem("vendorId")
+      : localStorage.getItem("userId");
+
     if (!storedId) {
-      console.error("No ID found in localStorage. Redirecting to /sign-in");
+      console.error("No ID found. Redirecting to /sign-in");
       navigate("/sign-in");
       return;
     }
 
+    // ✅ Determine API endpoint & fetch profile data
     const endpoint = getEndpoint(storedUserRole);
-    // Fetch the profile using the appropriate endpoint and ID.
     fetch(`http://localhost:3001/${endpoint}/${storedId}`)
       .then((response) => {
-        console.log("Fetch response:", response);
         if (!response.ok) {
           throw new Error(`Server responded with status: ${response.status}`);
         }
         return response.json();
       })
       .then((data) => {
-        console.log("Fetched user data:", data);
         if (!data) {
           throw new Error("No user data received.");
         }
@@ -82,43 +76,43 @@ const Profile = () => {
       });
   }, [navigate]);
 
-  // Toggle edit mode
+  // ✅ Handle Edit Mode Toggle
   const handleEditToggle = () => {
     setEditMode(!editMode);
   };
 
-  // Handle changes in text fields
+  // ✅ Handle Form Change
   const handleFormChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Determine the ID field from the fetched user object
+  // ✅ Get correct ID field
   const getIdField = () => {
     if (userRole === "vendor") return "vendorId";
     if (userRole === "admin") return "adminId";
     return "userId";
   };
 
-  // Save updated data
+  // ✅ Save Updated User Data
   const handleSave = () => {
-    console.log("Saving updated user data:", formData);
+    if (!formData.name.trim()) {
+      alert("Name cannot be empty.");
+      return;
+    }
+
     const endpoint = getEndpoint(userRole);
     const idField = getIdField();
     const id = user[idField];
-    // Use the auto-incremented ID for the PUT request.
+
     fetch(`http://localhost:3001/${endpoint}/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
     })
       .then((response) => {
-        console.log("Response from save:", response);
         if (!response.ok) {
           return response.text().then((text) => {
-            console.error("Error response text:", text);
-            throw new Error(
-              `Server responded with status: ${response.status}, ${text}`
-            );
+            throw new Error(`Server responded with status: ${response.status}, ${text}`);
           });
         }
         return response.json();
@@ -134,48 +128,40 @@ const Profile = () => {
       });
   };
 
-  // Delete the account
+  // ✅ Delete Account
   const handleDelete = () => {
-    if (window.confirm("Are you sure you want to delete your account?")) {
-      const endpoint = getEndpoint(userRole);
-      const idField = getIdField();
-      const id = user[idField];
-      console.log("Deleting user with id:", id);
-      fetch(`http://localhost:3001/${endpoint}/${id}`, { method: "DELETE" })
-        .then((response) => {
-          console.log("Response from delete:", response);
-          if (!response.ok) {
-            return response.text().then((text) => {
-              console.error("Error response text (delete):", text);
-              throw new Error(
-                `Server responded with status: ${response.status}, ${text}`
-              );
-            });
-          }
-          return response.json();
-        })
-        .then(() => {
-          console.log("User account deleted successfully.");
-          localStorage.removeItem("userLoggedIn");
-          localStorage.removeItem("userId");
-          localStorage.removeItem("userRole");
-          localStorage.removeItem("vendorId");
-          navigate("/");
-        })
-        .catch((err) => {
-          console.error("Error deleting account:", err);
-          setError(err.message);
-        });
-    }
+    if (!window.confirm("Are you sure you want to delete your account?")) return;
+
+    const endpoint = getEndpoint(userRole);
+    const idField = getIdField();
+    const id = user[idField];
+
+    fetch(`http://localhost:3001/${endpoint}/${id}`, { method: "DELETE" })
+      .then((response) => {
+        if (!response.ok) {
+          return response.text().then((text) => {
+            throw new Error(`Server responded with status: ${response.status}, ${text}`);
+          });
+        }
+        return response.json();
+      })
+      .then(() => {
+        console.log("User account deleted successfully.");
+        localStorage.clear();
+        navigate("/");
+      })
+      .catch((err) => {
+        console.error("Error deleting account:", err);
+        setError(err.message);
+      });
   };
 
-  if (loading)
-    return <div className="text-center mt-8">Loading profile...</div>;
-  if (error)
-    return <div className="text-center mt-8 text-red-600">Error: {error}</div>;
-  if (!user)
-    return <div className="text-center mt-8">No user data available.</div>;
+  // ✅ Show Loading/Error Messages
+  if (loading) return <div className="text-center mt-8">Loading profile...</div>;
+  if (error) return <div className="text-center mt-8 text-red-600">Error: {error}</div>;
+  if (!user) return <div className="text-center mt-8">No user data available.</div>;
 
+  // ✅ Render Profile Page
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center">
       <div className="bg-white p-8 rounded-lg shadow-lg w-96">
@@ -198,8 +184,8 @@ const Profile = () => {
                 type="email"
                 name="email"
                 value={formData.email}
-                onChange={handleFormChange}
-                className="mt-1 p-2 border border-gray-300 rounded w-full"
+                disabled
+                className="mt-1 p-2 border border-gray-300 rounded w-full bg-gray-200"
               />
             </div>
             <div className="mb-4">
@@ -212,18 +198,6 @@ const Profile = () => {
                 className="mt-1 p-2 border border-gray-300 rounded w-full"
               />
             </div>
-            {userRole === "admin" && (
-              <div className="mb-4">
-                <label className="block text-xl font-medium">Role</label>
-                <input
-                  type="text"
-                  name="role"
-                  value={formData.role}
-                  onChange={handleFormChange}
-                  className="mt-1 p-2 border border-gray-300 rounded w-full"
-                />
-              </div>
-            )}
             <div className="flex justify-between">
               <button
                 onClick={handleSave}
@@ -241,35 +215,12 @@ const Profile = () => {
           </>
         ) : (
           <>
-            <div className="mb-4">
-              <h3 className="text-xl font-medium">Name</h3>
-              <p className="text-gray-600">{user.name}</p>
-            </div>
-            <div className="mb-4">
-              <h3 className="text-xl font-medium">Email</h3>
-              <p className="text-gray-600">{user.email}</p>
-            </div>
-            <div className="mb-4">
-              <h3 className="text-xl font-medium">Location</h3>
-              <p className="text-gray-600">{user.location}</p>
-            </div>
-            <div className="mb-4">
-              <h3 className="text-xl font-medium">Role</h3>
-              <p className="text-gray-600">{user.role}</p>
-            </div>
+            <p className="text-xl mb-2"><strong>Name:</strong> {user.name}</p>
+            <p className="text-xl mb-2"><strong>Email:</strong> {user.email}</p>
+            <p className="text-xl mb-4"><strong>Location:</strong> {user.location}</p>
             <div className="flex justify-between">
-              <button
-                onClick={handleEditToggle}
-                className="py-2 px-6 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition"
-              >
-                Edit Profile
-              </button>
-              <button
-                onClick={handleDelete}
-                className="py-2 px-6 bg-red-800 text-white font-bold rounded-lg hover:bg-red-900 transition"
-              >
-                Delete Account
-              </button>
+              <button onClick={handleEditToggle} className="py-2 px-6 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700">Edit</button>
+              <button onClick={handleDelete} className="py-2 px-6 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700">Delete</button>
             </div>
           </>
         )}

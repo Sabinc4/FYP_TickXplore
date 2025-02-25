@@ -3,7 +3,7 @@ const UserModel = require("../models/User");
 const VendorModel = require("../models/Vendor");
 const AdminModel = require("../models/Admin");
 const VehicleModel = require("../models/Vehicle");
-const BusModel = require("../models/Bus"); // Ensure BusModel is imported
+const BusModel = require("../models/Bus");
 
 // ✅ Error Handler Function
 const handleError = (res, error, action) => {
@@ -21,7 +21,7 @@ exports.getUsers = async (req, res) => {
   }
 };
 
-// ✅ FETCH VENDORS (Only Required Fields)
+// ✅ FETCH VENDORS
 exports.getVendors = async (req, res) => {
   try {
     const vendors = await VendorModel.find({}, "vendorId vendorName email vendorLocation role isActive");
@@ -31,7 +31,7 @@ exports.getVendors = async (req, res) => {
   }
 };
 
-// ✅ FETCH ADMINS (Only Required Fields)
+// ✅ FETCH ADMINS
 exports.getAdmins = async (req, res) => {
   try {
     const admins = await AdminModel.find({}, "adminId name email location role");
@@ -41,14 +41,14 @@ exports.getAdmins = async (req, res) => {
   }
 };
 
-// ✅ FETCH DASHBOARD STATS (Now Includes Buses)
+// ✅ FETCH DASHBOARD STATS
 exports.getStats = async (req, res) => {
   try {
     const usersCount = await UserModel.countDocuments();
     const vendorsCount = await VendorModel.countDocuments();
     const adminsCount = await AdminModel.countDocuments();
     const vehiclesCount = await VehicleModel.countDocuments();
-    const busesCount = await BusModel.countDocuments(); // Added Buses Count
+    const busesCount = await BusModel.countDocuments();
 
     res.status(200).json({
       success: true,
@@ -57,7 +57,7 @@ exports.getStats = async (req, res) => {
         vendors: vendorsCount || 0,
         admins: adminsCount || 0,
         vehicles: vehiclesCount || 0,
-        buses: busesCount || 0, // Included buses in stats
+        buses: busesCount || 0,
       },
     });
   } catch (error) {
@@ -68,11 +68,12 @@ exports.getStats = async (req, res) => {
 // ✅ TOGGLE VENDOR STATUS
 exports.toggleVendorStatus = async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "⚠️ Invalid Vendor ID format" });
     }
 
-    const vendor = await VendorModel.findById(req.params.id);
+    const vendor = await VendorModel.findById(id);
     if (!vendor) return res.status(404).json({ message: "❌ Vendor not found" });
 
     vendor.isActive = !vendor.isActive;
@@ -88,33 +89,88 @@ exports.toggleVendorStatus = async (req, res) => {
   }
 };
 
-// ✅ DELETE USER
-exports.deleteUser = async (req, res) => {
+// ✅ EDIT USER (Fixed)
+exports.editUser = async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "⚠️ Invalid User ID format" });
     }
 
-    const user = await UserModel.findByIdAndDelete(req.params.id);
-    if (!user) return res.status(404).json({ message: "❌ User not found" });
+    const { name, email } = req.body;
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      id,
+      { name, email },
+      { new: true, runValidators: true }
+    );
 
-    res.status(200).json({ success: true, message: "✅ User deleted successfully", deletedUser: user });
+    if (!updatedUser) return res.status(404).json({ message: "❌ User not found" });
+
+    res.status(200).json({ message: "✅ User updated successfully", updatedUser });
+  } catch (error) {
+    handleError(res, error, "updating user");
+  }
+};
+
+// ✅ DELETE USER
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "⚠️ Invalid User ID format" });
+    }
+
+    const deletedUser = await UserModel.findByIdAndDelete(id);
+    if (!deletedUser) return res.status(404).json({ message: "❌ User not found" });
+
+    res.status(200).json({ message: "✅ User deleted successfully", deletedUser });
   } catch (error) {
     handleError(res, error, "deleting user");
   }
 };
 
-// ✅ DELETE VENDOR
-exports.deleteVendor = async (req, res) => {
+// ✅ EDIT VENDOR (Fixed)
+// ✅ EDIT VENDOR (Fixed)
+exports.editVendor = async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "⚠️ Invalid Vendor ID format" });
     }
 
-    const vendor = await VendorModel.findByIdAndDelete(req.params.id);
-    if (!vendor) return res.status(404).json({ message: "❌ Vendor not found" });
+    const { vendorName } = req.body;
+    if (!vendorName) {
+      return res.status(400).json({ message: "⚠️ Vendor name is required" });
+    }
 
-    res.status(200).json({ success: true, message: "✅ Vendor deleted successfully", deletedVendor: vendor });
+    const updatedVendor = await VendorModel.findByIdAndUpdate(
+      id,
+      { vendorName },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedVendor) return res.status(404).json({ message: "❌ Vendor not found" });
+
+    res.status(200).json({ message: "✅ Vendor updated successfully", updatedVendor });
+  } catch (error) {
+    console.error("❌ Error updating vendor:", error);
+    res.status(500).json({ message: "❌ Error updating vendor", error: error.message });
+  }
+};
+
+
+// ✅ DELETE VENDOR
+exports.deleteVendor = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "⚠️ Invalid Vendor ID format" });
+    }
+
+    const deletedVendor = await VendorModel.findByIdAndDelete(id);
+    if (!deletedVendor) return res.status(404).json({ message: "❌ Vendor not found" });
+
+    res.status(200).json({ message: "✅ Vendor deleted successfully", deletedVendor });
   } catch (error) {
     handleError(res, error, "deleting vendor");
   }

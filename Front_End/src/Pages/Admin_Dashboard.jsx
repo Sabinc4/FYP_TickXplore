@@ -75,6 +75,70 @@ const AdminDashboard = () => {
     );
   };
 
+  const handleEditUser = (user) => {
+    const updatedName = prompt("Enter new name:", user.name);
+    if (!updatedName || updatedName.trim() === "") {
+      toast.error("⚠️ User name cannot be empty.");
+      return;
+    }
+  
+    axios
+      .put(`http://localhost:3001/admin/edit-user/${user._id}`, { name: updatedName })
+      .then((response) => {
+        console.log("✅ User updated:", response.data);
+        toast.success(response.data.message);
+        fetchData();
+      })
+      .catch((error) => {
+        console.error("❌ Failed to update user:", error.response ? error.response.data : error);
+        toast.error(error.response?.data?.message || "Failed to update user.");
+      });
+  };
+  
+  
+  const handleDeleteUser = (userId) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+  
+    axios
+      .delete(`http://localhost:3001/admin/delete-user/${userId}`)
+      .then((response) => {
+        toast.success(response.data.message);
+        fetchData();
+      })
+      .catch(() => toast.error("Failed to delete user."));
+  };
+  
+  const handleEditVendor = (vendor) => {
+    const updatedName = prompt("Enter new vendor name:", vendor.vendorName);
+    if (!updatedName) return;
+  
+    axios
+      .put(`http://localhost:3001/admin/edit-vendor/${vendor._id}`, { vendorName: updatedName })
+      .then((response) => {
+        console.log("✅ Vendor updated:", response.data);
+        toast.success(response.data.message);
+        fetchData();
+      })
+      .catch((error) => {
+        console.error("❌ Failed to update vendor:", error.response ? error.response.data : error);
+        toast.error(error.response?.data?.message || "Failed to update vendor.");
+      });
+  };
+  
+  
+  const handleDeleteVendor = (vendorId) => {
+    if (!window.confirm("Are you sure you want to delete this vendor?")) return;
+  
+    axios
+      .delete(`http://localhost:3001/admin/delete-vendor/${vendorId}`)
+      .then((response) => {
+        toast.success(response.data.message);
+        fetchData();
+      })
+      .catch(() => toast.error("Failed to delete vendor."));
+  };
+  
+
   // Paginated Data
   const paginatedBuses = buses.slice(
     (currentPage - 1) * itemsPerPage,
@@ -205,20 +269,26 @@ const AdminDashboard = () => {
                   </div>
                 )}
 
-                {/* Render Sections */}
-                {activeSection === "users" && (
-                  <DataTable
-                    title="Users"
-                    data={filterData(users, ["name", "email"])}
-                    fields={["name", "email"]}
-                  />
-                )}
-                {activeSection === "vendors" && (
-                  <VendorsTable
-                    vendors={filterData(vendors, ["vendorName", "email"])}
-                    onToggleStatus={toggleVendorStatus}
-                  />
-                )}
+              {activeSection === "users" && (
+                <DataTable
+                  title="Users"
+                  data={filterData(users, ["name", "email"])}
+                  fields={["name", "email"]}
+                  onEdit={handleEditUser}
+                  onDelete={handleDeleteUser}
+                />
+              )}
+
+              {activeSection === "vendors" && (
+                <DataTable
+                  title="Vendors"
+                  data={filterData(vendors, ["vendorName", "email"])}
+                  fields={["vendorName", "email"]}
+                  onEdit={handleEditVendor}
+                  onDelete={handleDeleteVendor}
+                />
+              )}
+
                 {activeSection === "admins" && (
                   <DataTable
                     title="Admins"
@@ -295,7 +365,7 @@ const SkeletonLoader = ({ type }) => {
 };
 
 // Data Table Component
-const DataTable = ({ title, data, fields }) => (
+const DataTable = ({ title, data, fields, onEdit, onDelete }) => (
   <div className="p-6 bg-white shadow-md rounded-lg">
     <h2 className="text-2xl font-semibold mb-6 text-gray-800">{title}</h2>
     <table className="w-full border border-gray-300 rounded-lg">
@@ -306,6 +376,7 @@ const DataTable = ({ title, data, fields }) => (
               {key.charAt(0).toUpperCase() + key.slice(1)}
             </th>
           ))}
+          <th className="border border-gray-300 px-6 py-3">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -316,12 +387,27 @@ const DataTable = ({ title, data, fields }) => (
                 {String(item[field])}
               </td>
             ))}
+            <td className="border border-gray-300 px-6 py-3 flex gap-2">
+              <button
+                onClick={() => onEdit(item)}
+                className="px-3 py-1 bg-yellow-500 text-white rounded-md"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => onDelete(item._id)}
+                className="px-3 py-1 bg-red-500 text-white rounded-md"
+              >
+                Delete
+              </button>
+            </td>
           </tr>
         ))}
       </tbody>
     </table>
   </div>
 );
+
 
 // Vendors Table with Activation Toggle
 const VendorsTable = ({ vendors, onToggleStatus }) => (
