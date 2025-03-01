@@ -71,9 +71,10 @@ const router = createBrowserRouter([
     element: <Vendor_Dashboard/>
   },
   {
-    path: '/Seat_Selection',
-    element: <Seat_Selection/>
+    path: '/Seat_Selection/:id',
+    element: <Seat_Selection />
   }
+  
       ]
     }
 ]);

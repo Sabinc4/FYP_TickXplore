@@ -19,7 +19,6 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-  
 
   // Fetch Data from API
   const fetchData = useCallback(async () => {
@@ -81,7 +80,7 @@ const AdminDashboard = () => {
       toast.error("⚠️ User name cannot be empty.");
       return;
     }
-  
+
     axios
       .put(`http://localhost:3001/admin/edit-user/${user._id}`, { name: updatedName })
       .then((response) => {
@@ -94,11 +93,10 @@ const AdminDashboard = () => {
         toast.error(error.response?.data?.message || "Failed to update user.");
       });
   };
-  
-  
+
   const handleDeleteUser = (userId) => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
-  
+
     axios
       .delete(`http://localhost:3001/admin/delete-user/${userId}`)
       .then((response) => {
@@ -107,11 +105,11 @@ const AdminDashboard = () => {
       })
       .catch(() => toast.error("Failed to delete user."));
   };
-  
+
   const handleEditVendor = (vendor) => {
     const updatedName = prompt("Enter new vendor name:", vendor.vendorName);
     if (!updatedName) return;
-  
+
     axios
       .put(`http://localhost:3001/admin/edit-vendor/${vendor._id}`, { vendorName: updatedName })
       .then((response) => {
@@ -124,11 +122,10 @@ const AdminDashboard = () => {
         toast.error(error.response?.data?.message || "Failed to update vendor.");
       });
   };
-  
-  
+
   const handleDeleteVendor = (vendorId) => {
     if (!window.confirm("Are you sure you want to delete this vendor?")) return;
-  
+
     axios
       .delete(`http://localhost:3001/admin/delete-vendor/${vendorId}`)
       .then((response) => {
@@ -137,7 +134,6 @@ const AdminDashboard = () => {
       })
       .catch(() => toast.error("Failed to delete vendor."));
   };
-  
 
   // Paginated Data
   const paginatedBuses = buses.slice(
@@ -269,39 +265,47 @@ const AdminDashboard = () => {
                   </div>
                 )}
 
-              {activeSection === "users" && (
-                <DataTable
-                  title="Users"
-                  data={filterData(users, ["name", "email"])}
-                  fields={["name", "email"]}
-                  onEdit={handleEditUser}
-                  onDelete={handleDeleteUser}
-                />
-              )}
+                {/* Users Section */}
+                {activeSection === "users" && (
+                  <DataTable
+                    title="Users"
+                    data={filterData(users, ["name", "email"])}
+                    fields={["name", "email"]}
+                    onEdit={handleEditUser}
+                    onDelete={handleDeleteUser}
+                  />
+                )}
 
-              {activeSection === "vendors" && (
-                <DataTable
-                  title="Vendors"
-                  data={filterData(vendors, ["vendorName", "email"])}
-                  fields={["vendorName", "email"]}
-                  onEdit={handleEditVendor}
-                  onDelete={handleDeleteVendor}
-                />
-              )}
+                {/* Vendors Section */}
+                {activeSection === "vendors" && (
+                  <DataTable
+                    title="Vendors"
+                    data={filterData(vendors, ["vendorName", "email", "isActive"])}
+                    fields={["vendorName", "email", "isActive"]}
+                    onEdit={handleEditVendor}
+                    onDelete={handleDeleteVendor}
+                  />
+                )}
 
+                {/* Admins Section */}
                 {activeSection === "admins" && (
                   <DataTable
                     title="Admins"
                     data={filterData(admins, ["name", "email"])}
                     fields={["name", "email"]}
+                    // No onEdit or onDelete passed for admins
                   />
                 )}
+
+                {/* Buses Section */}
                 {activeSection === "buses" && (
                   <BusCards
                     buses={filterData(paginatedBuses, ["busName", "pickupPoint", "dropPoint"])}
                     loading={loading}
                   />
                 )}
+
+                {/* Vehicles Section */}
                 {activeSection === "vehicles" && (
                   <VehicleCards
                     vehicles={filterData(paginatedVehicles, ["name", "type"])}
@@ -376,7 +380,10 @@ const DataTable = ({ title, data, fields, onEdit, onDelete }) => (
               {key.charAt(0).toUpperCase() + key.slice(1)}
             </th>
           ))}
-          <th className="border border-gray-300 px-6 py-3">Actions</th>
+          {/* Conditionally render Actions column */}
+          {(onEdit || onDelete) && (
+            <th className="border border-gray-300 px-6 py-3">Actions</th>
+          )}
         </tr>
       </thead>
       <tbody>
@@ -387,59 +394,27 @@ const DataTable = ({ title, data, fields, onEdit, onDelete }) => (
                 {String(item[field])}
               </td>
             ))}
-            <td className="border border-gray-300 px-6 py-3 flex gap-2">
-              <button
-                onClick={() => onEdit(item)}
-                className="px-3 py-1 bg-yellow-500 text-white rounded-md"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => onDelete(item._id)}
-                className="px-3 py-1 bg-red-500 text-white rounded-md"
-              >
-                Delete
-              </button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
-
-
-// Vendors Table with Activation Toggle
-const VendorsTable = ({ vendors, onToggleStatus }) => (
-  <div className="p-6 bg-white shadow-md rounded-lg">
-    <h2 className="text-2xl font-semibold mb-6 text-gray-800">Vendors</h2>
-    <table className="w-full border border-gray-300 rounded-lg">
-      <thead>
-        <tr className="bg-blue-600 text-white">
-          <th className="border border-gray-300 px-6 py-3">Vendor Name</th>
-          <th className="border border-gray-300 px-6 py-3">Email</th>
-          <th className="border border-gray-300 px-6 py-3">Status</th>
-          <th className="border border-gray-300 px-6 py-3">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {vendors.map((vendor) => (
-          <tr key={vendor._id} className="border border-gray-300 bg-white">
-            <td className="border border-gray-300 px-6 py-3">{vendor.vendorName}</td>
-            <td className="border border-gray-300 px-6 py-3">{vendor.email}</td>
-            <td className="border border-gray-300 px-6 py-3">
-              {vendor.isActive ? "Active" : "Inactive"}
-            </td>
-            <td className="border border-gray-300 px-6 py-3">
-              <button
-                onClick={() => onToggleStatus(vendor._id)}
-                className={`px-4 py-2 text-white rounded-md ${
-                  vendor.isActive ? "bg-red-500" : "bg-green-500"
-                }`}
-              >
-                {vendor.isActive ? "Deactivate" : "Activate"}
-              </button>
-            </td>
+            {/* Conditionally render action buttons */}
+            {(onEdit || onDelete) && (
+              <td className="border border-gray-300 px-6 py-3 flex gap-2">
+                {onEdit && (
+                  <button
+                    onClick={() => onEdit(item)}
+                    className="px-3 py-1 bg-yellow-500 text-white rounded-md"
+                  >
+                    Edit
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={() => onDelete(item._id)}
+                    className="px-3 py-1 bg-red-500 text-white rounded-md"
+                  >
+                    Delete
+                  </button>
+                )}
+              </td>
+            )}
           </tr>
         ))}
       </tbody>

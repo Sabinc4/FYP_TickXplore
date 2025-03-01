@@ -59,15 +59,17 @@ const Bus_Tickets = () => {
   // ✅ Handle Form Submission
   const handleSubmit = (e) => {
     e.preventDefault();
-
+  
     if (!formData.pickupPoint || !formData.droppingPoint) {
       alert("Please select both Pickup and Dropping Points.");
       return;
     }
-
+  
     setLoading(true);
     setTimeout(() => {
-      navigate(`/tickets?pickup=${formData.pickupPoint}&drop=${formData.droppingPoint}&date=${formData.date}`);
+      navigate(
+        `/tickets?pickup=${encodeURIComponent(formData.pickupPoint)}&drop=${encodeURIComponent(formData.droppingPoint)}&date=${encodeURIComponent(formData.date)}`
+      );
       setLoading(false);
     }, 1000);
   };
