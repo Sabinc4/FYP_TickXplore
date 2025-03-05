@@ -13,6 +13,7 @@ import Admin_Dashboard from "../Pages/Admin_Dashboard";
 import Vendor_Dashboard from "../Pages/Vendor_Dashboard";
 import Tickets from "../Pages/tickets";
 import Seat_Selection from "../Pages/Seat_Selection";
+import Vehicle_Seats from "../Pages/Vehicle_Seats";
 
 const router = createBrowserRouter([
     {
@@ -73,8 +74,11 @@ const router = createBrowserRouter([
   {
     path: '/Seat_Selection/:id',
     element: <Seat_Selection />
+  },
+  {
+    path: '/Vehicle/:id',
+    element: <Vehicle_Seats/>
   }
-  
       ]
     }
 ]);

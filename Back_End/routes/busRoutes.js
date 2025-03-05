@@ -1,13 +1,33 @@
 const express = require("express");
-const router = express.Router();
-const busController = require("../controllers/busController");
+const multer = require("multer");
+const path = require("path");
+const {
+  createBus,
+  getAllBuses,
+  getBusById,
+  updateBus,
+  deleteBus,
+} = require("../controllers/busController");
 
-// Define routes using controller methods
-router.post("/create", busController.createBus);
-router.get("/", busController.getAllBuses);
-router.get("/:id", busController.getBusById);
-router.put("/:id", busController.updateBus);
-router.post("/book-seats", busController.bookSeats); // ✅ Fixed booking route
-router.delete("/:id", busController.deleteBus);
+const router = express.Router();
+
+// Multer Setup for Image Uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({ storage });
+
+// API Endpoints
+router.post("/", upload.single("image"), createBus); // Create Bus
+router.get("/", getAllBuses); // Get All Buses
+router.get("/:id", getBusById); // Get Single Bus by ID
+router.put("/:id", upload.single("image"), updateBus); // Update Bus
+router.delete("/:id", deleteBus); // Delete Bus
 
 module.exports = router;

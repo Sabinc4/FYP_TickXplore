@@ -9,7 +9,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 const BusTickets = () => {
   const navigate = useNavigate();
-  const location= useLocation();
+  const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
 
   // State variables
@@ -32,10 +32,11 @@ const BusTickets = () => {
 
   // Fetch locations on component mount
   useEffect(() => {
+    fetchLocations();
     if (formData.pickupPoint && formData.droppingPoint && formData.date) {
       handleSearch(); // Auto-trigger search when page loads with parameters
     }
-  }, [formData]);
+  }, []);
 
   // Fetch data from backend
   const fetchData = async (url) => {
@@ -104,19 +105,6 @@ const BusTickets = () => {
     return true;
   };
 
-  // Format date display
-  const formatDate = (dateString) => {
-    const options = {
-      weekday: "short",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    };
-    return new Date(dateString).toLocaleDateString("en-US", options);
-  };
-
   // Handle search for buses and vehicles
   const handleSearch = async () => {
     if (!validateForm()) return;
@@ -128,8 +116,8 @@ const BusTickets = () => {
         fetchData("http://localhost:3001/api/vehicles"),
       ]);
 
-      console.log("Buses API Response:", busesData);
-      console.log("Vehicles API Response:", vehiclesData);
+      console.log("Buses API Response:", busesData); // Debug buses data
+      console.log("Vehicles API Response:", vehiclesData); // Debug vehicles data
 
       const allBuses = busesData.buses || [];
       const allVehicles = vehiclesData.vehicles || [];
@@ -138,23 +126,27 @@ const BusTickets = () => {
       const filteredBuses = allBuses.filter((bus) => {
         const busDate = new Date(bus.takeOffDate).toISOString().split("T")[0];
         return (
-          bus.pickupPoint === formData.pickupPoint &&
-          bus.dropPoint === formData.droppingPoint &&
+          bus.pickupPoint.toLowerCase() === formData.pickupPoint.toLowerCase() &&
+          bus.dropPoint.toLowerCase() === formData.droppingPoint.toLowerCase() &&
           busDate === formData.date &&
-          bus.totalSeats - bus.bookedSeats.length > 0
+          bus.totalSeats - bus.bookedSeats.length > 0 &&
+          bus.pricePerSeat > 0 // Ensure price is valid
         );
       });
 
-      // Filter vehicles
+      // Filter vehicles (whole-vehicle reservation)
       const filteredVehicles = allVehicles.filter((vehicle) => {
         const vehicleDate = new Date(vehicle.takeOffDate).toISOString().split("T")[0];
         return (
-          vehicle.pickupPoint === formData.pickupPoint &&
-          vehicle.dropPoint === formData.droppingPoint &&
+          vehicle.pickupPoint.toLowerCase() === formData.pickupPoint.toLowerCase() &&
+          vehicle.dropPoint.toLowerCase() === formData.droppingPoint.toLowerCase() &&
           vehicleDate === formData.date &&
-          vehicle.availableSeats > 0
+          vehicle.isAvailable // Only show available vehicles
         );
       });
+
+      console.log("FILTERED BUSES:", filteredBuses); // Debug filtered buses
+      console.log("FILTERED VEHICLES:", filteredVehicles); // Debug filtered vehicles
 
       // Add image URLs and available seats
       const busesWithDetails = filteredBuses.map((bus) => ({
@@ -163,6 +155,7 @@ const BusTickets = () => {
           ? new URL(bus.image, "http://localhost:3001").href
           : "/default-bus-image.jpg",
         availableSeats: bus.totalSeats - bus.bookedSeats.length,
+        price: bus.pricePerSeat || "N/A", // Ensure price is included
       }));
 
       const vehiclesWithDetails = filteredVehicles.map((vehicle) => ({
@@ -170,7 +163,11 @@ const BusTickets = () => {
         imageUrl: vehicle.image
           ? new URL(vehicle.image, "http://localhost:3001").href
           : "/default-vehicle-image.jpg",
+        price: vehicle.price || "N/A", // Ensure price is included
       }));
+
+      console.log("Buses with Details:", busesWithDetails); // Debug buses with details
+      console.log("Vehicles with Details:", vehiclesWithDetails); // Debug vehicles with details
 
       setBuses(busesWithDetails);
       setVehicles(vehiclesWithDetails);
@@ -190,7 +187,7 @@ const BusTickets = () => {
     if (type === "bus") {
       navigate(`/Seat_Selection/${id}`);
     } else {
-      navigate(`/Vehicle_Booking/${id}`);
+      navigate(`/Vehicle/${id}`);
     }
   };
 
@@ -355,73 +352,83 @@ const BusTickets = () => {
   );
 };
 
-// Reusable Transport Card Component
-const TransportCard = ({ data, onSelect, type }) => (
-  <div className="flex flex-col md:flex-row items-center justify-between p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
-    <div className="flex-1">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xl font-bold text-gray-800">
-          {data.name} - {data.type}
-        </h3>
-        <span className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-          {type === "bus" ? "Bus" : "Vehicle"} ID: {data.vendorId?.slice(-6)}
-        </span>
-      </div>
+const TransportCard = ({ data, onSelect, type }) => {
+  if (!data || !data.name) {
+    console.error("Invalid data:", data);
+    return null;
+  }
 
-      {/* Common Details */}
-      <div className="mt-4 flex items-center gap-4 text-gray-600">
-        <span className="flex items-center">
-          <FaMapMarkerAlt className="mr-2" />
-          {data.pickupPoint}
-        </span>
-        <IoMdArrowForward className="text-gray-400" />
-        <span className="flex items-center">
-          <FaMapMarkerAlt className="mr-2" />
-          {data.dropPoint}
-        </span>
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-4">
-        <div>
-          <p className="flex items-center text-sm text-gray-600">
-            <AiOutlineCalendar className="mr-2" />
-            {new Date(data.takeOffDate).toLocaleDateString("en-US", {
-              weekday: "short",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </p>
-          <p className="flex items-center mt-2 text-sm text-gray-600">
-            <FaChair className="mr-2" />
-            Available: {data.availableSeats}/{data.totalSeats}
-          </p>
+  return (
+    <div className="flex flex-col md:flex-row items-center justify-between p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
+      <div className="flex-1">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-bold text-gray-800">
+            {data.name} - {data.type || "Vehicle"}
+          </h3>
+          <span className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+            {type === "bus" ? "Bus" : "Vehicle"} ID: {String(data.vendorId || "").slice(-6)}
+          </span>
         </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold text-green-600">
-            NPR {data.pricePerSeat?.toLocaleString()}
-          </p>
-          <p className="text-sm text-gray-500">per seat</p>
+
+        {/* Common Details */}
+        <div className="mt-4 flex items-center gap-4 text-gray-600">
+          <span className="flex items-center">
+            <FaMapMarkerAlt className="mr-2" />
+            {data.pickupPoint || "N/A"}
+          </span>
+          <IoMdArrowForward className="text-gray-400" />
+          <span className="flex items-center">
+            <FaMapMarkerAlt className="mr-2" />
+            {data.dropPoint || "N/A"}
+          </span>
         </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <div>
+            <p className="flex items-center text-sm text-gray-600">
+              <AiOutlineCalendar className="mr-2" />
+              {data.takeOffDate
+                ? new Date(data.takeOffDate).toLocaleDateString("en-US", {
+                    weekday: "short",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "N/A"}
+            </p>
+            {type === "bus" && (
+              <p className="flex items-center mt-2 text-sm text-gray-600">
+                <FaChair className="mr-2" />
+                Available: {data.availableSeats || 0}/{data.totalSeats || 0}
+              </p>
+            )}
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-green-600">
+              NPR {data.price?.toLocaleString() || "N/A"}
+            </p>
+            <p className="text-sm text-gray-500">per {type === "bus" ? "seat" : "vehicle"}</p>
+          </div>
+        </div>
+
+        <button
+          onClick={onSelect}
+          className="mt-4 px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+        >
+          {type === "bus" ? "View Seats & Book" : "Book Vehicle"}
+        </button>
       </div>
 
-      <button
-        onClick={onSelect}
-        className="mt-4 px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
-      >
-        {type === "bus" ? "View Seats & Book" : "Book Vehicle"}
-      </button>
+      <img
+        src={data.imageUrl || "/default-vehicle-image.jpg"}
+        alt={data.name}
+        className="w-48 h-32 object-cover rounded-lg mt-6 md:mt-0 md:ml-6"
+        onError={(e) => (e.target.src = "/default-vehicle-image.jpg")}
+      />
     </div>
-
-    <img
-      src={data.imageUrl}
-      alt={data.name}
-      className="w-48 h-32 object-cover rounded-lg mt-6 md:mt-0 md:ml-6"
-      onError={(e) => (e.target.src = type === "bus" ? "/default-bus-image.jpg" : "/default-vehicle-image.jpg")}
-    />
-  </div>
-);
+  );
+};
 
 export default BusTickets;

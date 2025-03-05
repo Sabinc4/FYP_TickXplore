@@ -1,23 +1,24 @@
+// models/Vehicle.js
 const mongoose = require("mongoose");
 
-const VehicleSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true, trim: true },
-    type: { type: String, enum: ["Vehicle"], default: "Vehicle" },
-    pricePerSeat: { type: Number, required: true, min: 1 },
-    image: { type: String, required: true },
-    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor", required: true },
-    pickupPoint: { type: String, required: true, trim: true },
-    dropPoint: { type: String, required: true, trim: true },
-    totalSeats: { type: Number, required: true, min: 1 },
-    
-    // 🎯 Array to store seat numbers that have been booked
-    bookedSeats: [{ type: Number, min: 1 }], 
+const vehicleSchema = new mongoose.Schema({
+  name: String,
+  image: String,
+  pickupPoint: String,
+  dropPoint: String,
+  capacity: Number,
+  price: Number,
+  vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor" },
+  takeOffDate: Date,
+  isAvailable: { type: Boolean, default: true },
+  reservations: [
+    {
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      takeOffDate: Date,
+    },
+  ],
+});
 
-    tripDate: { type: Date, required: true },
-    takeOffDate: { type: Date, required: true },
-  },
-  { timestamps: true }
-);
+const Vehicle = mongoose.model("Vehicle", vehicleSchema);
 
-module.exports = mongoose.model("Vehicle", VehicleSchema);
+module.exports = Vehicle;

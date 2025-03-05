@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import "react-toastify/dist/ReactToastify.css";
+import axios from "axios";
 
 const VendorDashboard = () => {
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -16,30 +16,43 @@ const VendorDashboard = () => {
   const [isAdding, setIsAdding] = useState(false);
   const vendorId = localStorage.getItem("vendorId");
 
+  const API_BASE_URL = "http://localhost:3001/api";
+
+  // Vehicle API Functions
+  const fetchVehicles = (vendorId) => axios.get(`${API_BASE_URL}/vehicles?vendorId=${vendorId}`);
+  const addVehicle = (formData) => axios.post(`${API_BASE_URL}/vehicles`, formData);
+  const updateVehicle = (id, formData) => axios.put(`${API_BASE_URL}/vehicles/${id}`, formData);
+  const deleteVehicle = (id) => axios.delete(`${API_BASE_URL}/vehicles/${id}`);
+
+  // Bus API Functions
+  const fetchBuses = (vendorId) => axios.get(`${API_BASE_URL}/buses?vendorId=${vendorId}`);
+  const addBus = (formData) => axios.post(`${API_BASE_URL}/buses`, formData, {
+    headers: { "Content-Type": "multipart/form-data" }, // Required for file uploads
+  });
+  const updateBus = (id, formData) => axios.put(`${API_BASE_URL}/buses/${id}`, formData, {
+    headers: { "Content-Type": "multipart/form-data" }, // Required for file uploads
+  });
+  const deleteBus = (id) => axios.delete(`${API_BASE_URL}/buses/${id}`);
+
   useEffect(() => {
-    if (!vendorId) {
-      toast.error("Vendor ID is missing. Please log in again.", {
-        position: "top-right",
-        autoClose: 2000,
-      });
-      return;
-    }
     fetchData();
   }, [vendorId]);
-
+  
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
       const [vehiclesRes, busesRes] = await Promise.all([
-        axios.get(`http://localhost:3001/api/vehicles?vendorId=${vendorId}`),
-        axios.get(`http://localhost:3001/api/buses?vendorId=${vendorId}`),
+        fetchVehicles(vendorId),
+        fetchBuses(vendorId),
       ]);
-
+      console.log("Vehicles Data:", vehiclesRes.data.vehicles); // Debug log
+      console.log("Buses Data:", busesRes.data.buses); // Debug log
       setVehicles(vehiclesRes.data.vehicles || []);
       setBuses(busesRes.data.buses || []);
     } catch (error) {
       console.error("Error fetching data:", error);
+      setError("Failed to load data. Please check your network and try again.");
       toast.error("Failed to load data. Please check your network and try again.", {
         position: "top-right",
         autoClose: 5000,
@@ -48,6 +61,8 @@ const VendorDashboard = () => {
       setLoading(false);
     }
   };
+
+
 
   const handleAddNew = () => {
     setIsAdding(true);
@@ -71,7 +86,7 @@ const VendorDashboard = () => {
   const handleDeleteVehicle = async (vehicleId) => {
     if (window.confirm("Are you sure you want to delete this vehicle?")) {
       try {
-        await axios.delete(`http://localhost:3001/api/vehicles/${vehicleId}`);
+        await deleteVehicle(vehicleId);
         toast.success("Vehicle deleted successfully!");
         fetchData();
       } catch (error) {
@@ -83,7 +98,7 @@ const VendorDashboard = () => {
   const handleDeleteBus = async (busId) => {
     if (window.confirm("Are you sure you want to delete this bus?")) {
       try {
-        await axios.delete(`http://localhost:3001/api/buses/${busId}`);
+        await deleteBus(busId);
         toast.success("Bus deleted successfully!");
         fetchData();
       } catch (error) {
@@ -243,6 +258,10 @@ const VendorDashboard = () => {
                       setIsAdding(false);
                     }}
                     onFetchData={fetchData}
+                    addBus={addBus} // Pass addBus function
+                    updateBus={updateBus} // Pass updateBus function
+                    addVehicle={addVehicle} // Pass addVehicle function
+                    updateVehicle={updateVehicle} // Pass updateVehicle function
                   />
                 )}
               </>
@@ -255,16 +274,6 @@ const VendorDashboard = () => {
 };
 
 // Reusable Components
-const StatCard = ({ title, value, icon }) => (
-  <div className="bg-white p-6 rounded-xl shadow-md flex items-center gap-4">
-    <span className="text-3xl">{icon}</span>
-    <div>
-      <h3 className="text-2xl font-bold">{value}</h3>
-      <p className="text-gray-600">{title}</p>
-    </div>
-  </div>
-);
-
 const TransportSection = ({ title, items, type, onEdit, onDelete, onAddNew }) => (
   <div className="space-y-6">
     <div className="flex justify-between items-center">
@@ -297,11 +306,13 @@ const TransportSection = ({ title, items, type, onEdit, onDelete, onAddNew }) =>
 const TransportCard = ({ item, type, onEdit, onDelete }) => (
   <div className="bg-white shadow-lg rounded-xl overflow-hidden hover:shadow-xl transition-shadow duration-300">
     <div className="relative">
-      <img
-        src={item.image ? `http://localhost:3001${item.image}` : "/default-transport.jpg"}
-        alt={item.name}
-        className="w-full h-48 object-cover"
-      />
+    <img
+  src={item.image ? item.image : "/default-transport.jpg"}
+  alt={item.name}
+  className="w-full h-48 object-cover"
+/>
+
+
       <div className="absolute top-2 right-2 flex gap-2">
         <button
           onClick={() => onEdit(item)}
@@ -321,17 +332,30 @@ const TransportCard = ({ item, type, onEdit, onDelete }) => (
     <div className="p-4 space-y-3">
       <h3 className="text-xl font-semibold text-gray-800">{item.name}</h3>
       <div className="grid grid-cols-2 gap-2 text-sm">
-        <InfoItem label="Price" value={`Rs. ${item.pricePerSeat}`} />
-        <InfoItem label="Seats" value={item.totalSeats} />
-        {type === "bus" && (
+        {type === "bus" ? (
           <>
+            <InfoItem label="Price per Seat" value={`Rs. ${item.pricePerSeat}`} />
+            <InfoItem label="Total Seats" value={item.totalSeats} />
             <InfoItem label="Pickup" value={item.pickupPoint} />
             <InfoItem label="Drop" value={item.dropPoint} />
+          </>
+        ) : (
+          <>
+          <InfoItem label="Price" value={`Rs. ${item.price}`} />
+          <InfoItem label="Capacity" value={item.capacity} />
+          <InfoItem label="Status" value={item.isAvailable ? "Available" : "Reserved"} />
+          <InfoItem label="Pickup" value={item.pickupPoint} />
+          <InfoItem label="Drop" value={item.dropPoint} />
           </>
         )}
       </div>
       <div className="flex justify-between items-center text-sm text-gray-500">
-        <span>{new Date(item.tripDate).toLocaleDateString()}</span>
+        <span>
+          {item.takeOffDate ? 
+            new Date(item.takeOffDate).toLocaleDateString() : 
+            'Date not set'
+          }
+        </span>
         <span>{type.toUpperCase()}</span>
       </div>
     </div>
@@ -345,21 +369,63 @@ const InfoItem = ({ label, value }) => (
   </div>
 );
 
-const AddEditForm = ({ vehicle, bus, isAdding, type, onClose, onFetchData }) => {
+const FormInput = ({ label, type = "text", name, value, onChange, ...props }) => (
+  <div className="space-y-1">
+    <label className="text-sm font-medium text-gray-700">{label}</label>
+    <input
+      type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
+      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+      {...props}
+    />
+  </div>
+);
+
+const AddEditForm = ({
+  vehicle,
+  bus,
+  isAdding,
+  type,
+  onClose,
+  onFetchData,
+  addBus,
+  updateBus,
+  addVehicle,
+  updateVehicle,
+}) => {
   const [formData, setFormData] = useState({
     name: vehicle?.name || bus?.name || "",
-    type: vehicle?.type || bus?.type || (type === "vehicle" ? "Bus" : "Vehicle"),
-    pricePerSeat: vehicle?.pricePerSeat || bus?.pricePerSeat || "",
+    type: type === "vehicles" ? "Vehicle" : "Bus",
+    pricePerSeat: bus?.pricePerSeat || "",
+    price: vehicle?.price || "",
+    capacity: vehicle?.capacity || "",
+    image: "",
     pickupPoint: vehicle?.pickupPoint || bus?.pickupPoint || "",
     dropPoint: vehicle?.dropPoint || bus?.dropPoint || "",
-    totalSeats: vehicle?.totalSeats || bus?.totalSeats || "",
+    totalSeats: bus?.totalSeats || "",
+    isAvailable: vehicle?.isAvailable || true,
     tripDate: vehicle?.tripDate ? new Date(vehicle.tripDate).toISOString().split("T")[0] : "",
-    takeOffDate: vehicle?.takeOffDate ? new Date(vehicle.takeOffDate).toISOString().split("T")[0] : "",
-    image: "",
+    takeOffDate: (vehicle?.takeOffDate || bus?.takeOffDate) ? 
+      new Date(vehicle?.takeOffDate || bus?.takeOffDate).toISOString().split("T")[0] : 
+      "",
   });
 
-  const handleVehicleSubmit = async (e) => {
+  const [imagePreview, setImagePreview] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData({ ...formData, image: file });
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const vendorId = localStorage.getItem("vendorId");
       if (!vendorId) {
@@ -373,84 +439,37 @@ const AddEditForm = ({ vehicle, bus, isAdding, type, onClose, onFetchData }) => 
         if (key !== "image" && value) formDataToSend.append(key, value);
       });
 
-      if (formData.image instanceof File) {
-        formDataToSend.append("image", formData.image);
-      }
-
-      const url = isAdding
-        ? `http://localhost:3001/api/vehicles`
-        : `http://localhost:3001/api/vehicles/${vehicle._id}`;
-
-      const method = isAdding ? "post" : "put";
-
-      const response = await axios[method](url, formDataToSend, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      if (response.data.success) {
-        toast.success(`Vehicle ${isAdding ? "added" : "updated"} successfully!`);
-        onFetchData();
-        onClose();
-      }
-    } catch (error) {
-      console.error("Error posting vehicle:", error);
-      toast.error("Failed to add vehicle. Check the console.");
-    }
-  };
-
-  const handleBusSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const vendorId = localStorage.getItem("vendorId");
-      if (!vendorId) {
-        toast.error("Vendor ID is missing. Please log in again.");
+      if (!formData.takeOffDate) {
+        toast.error('Please select a take-off date');
         return;
       }
-
-      const formDataToSend = new FormData();
-      formDataToSend.append("vendorId", vendorId);
-      Object.entries(formData).forEach(([key, value]) => {
-        if (key !== "image" && value) formDataToSend.append(key, value);
-      });
-
+      
       if (formData.image instanceof File) {
         formDataToSend.append("image", formData.image);
       }
 
-      const url = isAdding
-        ? `http://localhost:3001/api/buses`
-        : `http://localhost:3001/api/buses/${bus._id}`;
-
-      const method = isAdding ? "post" : "put";
-
-      const response = await axios[method](url, formDataToSend, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      let response;
+      if (type === "vehicles") {
+        response = isAdding
+          ? await addVehicle(formDataToSend)
+          : await updateVehicle(vehicle._id, formDataToSend);
+      } else {
+        response = isAdding
+          ? await addBus(formDataToSend)
+          : await updateBus(bus._id, formDataToSend);
+      }
 
       if (response.data.success) {
-        toast.success(`Bus ${isAdding ? "added" : "updated"} successfully!`);
+        toast.success(`${type === "vehicles" ? "Vehicle" : "Bus"} ${isAdding ? "added" : "updated"} successfully!`);
         onFetchData();
         onClose();
       }
     } catch (error) {
-      console.error("Error posting bus:", error);
-      toast.error("Failed to add bus. Check the console.");
+      console.error("Error submitting form:", error);
+      toast.error(error.response?.data?.message || "Failed to submit form.");
+    } finally {
+      setIsSubmitting(false);
     }
-  };
-
-  const handleClose = () => {
-    setFormData({
-      name: "",
-      type: type === "buses" ? "Bus" : "vehicle",
-      pricePerSeat: "",
-      pickupPoint: "",
-      dropPoint: "",
-      totalSeats: "",
-      tripDate: "",
-      takeOffDate: "",
-      image: "",
-    });
-    onClose();
   };
 
   return (
@@ -458,34 +477,60 @@ const AddEditForm = ({ vehicle, bus, isAdding, type, onClose, onFetchData }) => 
       <div className="bg-white rounded-xl w-full max-w-2xl p-6 space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold">
-            {isAdding ? `Add New ${type === "buses" ? "Bus" : "Vehicle"}` : `Edit ${type === "buses" ? "Bus" : "Vehicle"}`}
+            {isAdding ? `Add New ${type === "vehicles" ? "Vehicle" : "Bus"}` : `Edit ${type === "vehicles" ? "Vehicle" : "Bus"}`}
           </h2>
-          <button onClick={handleClose} className="text-gray-500 hover:text-gray-700">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
         </div>
 
-        {/* Handle submission based on type */}
-        <form onSubmit={type === "buses" ? handleBusSubmit : handleVehicleSubmit} className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
           <FormInput label="Name" name="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
-          <FormInput label="Price per Seat" type="number" name="pricePerSeat" value={formData.pricePerSeat} onChange={(e) => setFormData({ ...formData, pricePerSeat: e.target.value })} />
+
+          {type === "vehicles" && (
+            <FormInput
+              label="Price"
+              type="number"
+              name="price"
+              value={formData.price}
+              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+            />
+          )}
+
+          {type === "buses" && (
+            <FormInput
+              label="Price per Seat"
+              type="number"
+              name="pricePerSeat"
+              value={formData.pricePerSeat}
+              onChange={(e) => setFormData({ ...formData, pricePerSeat: e.target.value })}
+            />
+          )}
+
           <FormInput label="Pickup Point" name="pickupPoint" value={formData.pickupPoint} onChange={(e) => setFormData({ ...formData, pickupPoint: e.target.value })} />
           <FormInput label="Drop Point" name="dropPoint" value={formData.dropPoint} onChange={(e) => setFormData({ ...formData, dropPoint: e.target.value })} />
-          <FormInput label="Total Seats" type="number" name="totalSeats" value={formData.totalSeats} onChange={(e) => setFormData({ ...formData, totalSeats: e.target.value })} />
+          {type === "buses" ? (
+            <FormInput label="Total Seats" type="number" name="totalSeats" value={formData.totalSeats} onChange={(e) => setFormData({ ...formData, totalSeats: e.target.value })} />
+          ) : (
+            <FormInput label="Capacity" type="number" name="capacity" value={formData.capacity} onChange={(e) => setFormData({ ...formData, capacity: e.target.value })} />
+          )}
           <FormInput label="Trip Date" type="date" name="tripDate" value={formData.tripDate} onChange={(e) => setFormData({ ...formData, tripDate: e.target.value })} />
           <FormInput label="Take Off Date" type="date" name="takeOffDate" value={formData.takeOffDate} onChange={(e) => setFormData({ ...formData, takeOffDate: e.target.value })} />
-          
+
           {/* Image Upload */}
           <div className="col-span-2">
             <label className="text-sm font-medium text-gray-700">Upload Image</label>
-            <input type="file" accept="image/*" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              onChange={(e) => { if (e.target.files.length > 0) { setFormData({ ...formData, image: e.target.files[0] }); } }}
-            />
+            <input type="file" accept="image/*" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500" onChange={handleImageChange} />
+            {imagePreview && (
+              <div className="mt-2">
+                <img src={imagePreview} alt="Preview" className="w-32 h-32 object-cover rounded-lg" />
+              </div>
+            )}
           </div>
 
           {/* Submit & Cancel Buttons */}
           <div className="col-span-2 flex justify-end gap-3 mt-4">
-            <button type="button" onClick={handleClose} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              {isAdding ? "Add" : "Save Changes"}
+            <button type="button" onClick={onClose} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              {isSubmitting ? "Submitting..." : isAdding ? "Add" : "Save Changes"}
             </button>
           </div>
         </form>
@@ -493,13 +538,5 @@ const AddEditForm = ({ vehicle, bus, isAdding, type, onClose, onFetchData }) => 
     </div>
   );
 };
-
-// Reusable Input Component
-const FormInput = ({ label, type = "text", name, value, onChange }) => (
-  <div className="space-y-1">
-    <label className="text-sm font-medium text-gray-700">{label}</label>
-    <input type={type} name={name} value={value} onChange={onChange} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
-  </div>
-);
 
 export default VendorDashboard;

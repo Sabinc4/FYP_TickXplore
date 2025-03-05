@@ -1,13 +1,22 @@
 const mongoose = require("mongoose");
+const fs = require("fs");
+const path = require("path");
 const Bus = require("../models/Bus");
 
-// ✅ Create a new Bus
+// ✅ Create Bus
 exports.createBus = async (req, res) => {
   try {
+    console.log("Received Data:", req.body); // ✅ Debugging log
+
     const { vendorId, name, pricePerSeat, pickupPoint, dropPoint, totalSeats, tripDate, takeOffDate } = req.body;
 
-    if (!vendorId) {
-      return res.status(400).json({ success: false, message: "Vendor ID is required" });
+    if (!vendorId || !name || !pricePerSeat || !pickupPoint || !dropPoint || !totalSeats || !tripDate || !takeOffDate) {
+      return res.status(400).json({ success: false, message: "All fields are required." });
+    }
+
+    let bookedSeats = [];
+    if (req.body.bookedSeats) {
+      bookedSeats = JSON.parse(req.body.bookedSeats); // ✅ Convert bookedSeats to an array
     }
 
     const image = req.file ? `/uploads/${req.file.filename}` : null;
@@ -21,8 +30,8 @@ exports.createBus = async (req, res) => {
       dropPoint,
       totalSeats,
       tripDate,
-      takeOffDate,
-      bookedSeats: [], // ✅ Ensure bookedSeats is initialized
+      takeOffDate, // ✅ Ensure takeOffDate is correctly inserted
+      bookedSeats,
     });
 
     await newBus.save();
@@ -33,106 +42,124 @@ exports.createBus = async (req, res) => {
   }
 };
 
+// ✅ Get Price of a Specific Seat
+exports.getSeatPrice = async (req, res) => {
+  try {
+    const { busId } = req.params;
+    const { seat } = req.query;
+
+    const bus = await Bus.findById(busId);
+    if (!bus) {
+      return res.status(404).json({ success: false, message: "Bus not found" });
+    }
+
+    const seatPrice = bus.seatPrices?.[seat];
+    if (seatPrice === undefined) {
+      return res.status(404).json({ success: false, message: "Seat price not found" });
+    }
+
+    res.json({ success: true, price: seatPrice });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to fetch seat price", error: error.message });
+  }
+};
+
+
 // ✅ Get All Buses
 exports.getAllBuses = async (req, res) => {
   try {
+    console.log("Query Params:", req.query); // ✅ Log query parameters for debugging
+
     const { vendorId, admin, homepage } = req.query;
     let buses;
 
     if (admin === "true") {
-      buses = await Bus.find();
+      buses = await Bus.find().populate("vendorId", "name email"); // ✅ Admin sees all buses with vendor details
     } else if (homepage === "true") {
-      buses = await Bus.find({}, "pickupPoint dropPoint");
+      buses = await Bus.find({}, "pickupPoint dropPoint"); // ✅ Homepage only gets pickup & drop locations
     } else if (vendorId) {
-      buses = await Bus.find({ vendorId });
+      buses = await Bus.find({ vendorId }).populate("vendorId", "name email"); // ✅ Vendors see only their own buses
     } else {
-      buses = await Bus.find();
+      buses = await Bus.find().populate("vendorId", "name email"); // ✅ Default: show all buses with vendor details
     }
 
     if (!buses || buses.length === 0) {
-      return res.status(404).json({ message: "No buses found." });
+      return res.status(404).json({ success: false, message: "No buses found." });
     }
 
-    res.status(200).json({ success: true, buses });
+    // ✅ Modify image paths to include the full server URL
+    const busesWithFullImageUrl = buses.map(bus => ({
+      ...bus.toObject(),
+      image: bus.image ? `http://localhost:3001${bus.image}` : null
+    }));
+
+    res.status(200).json({ success: true, buses: busesWithFullImageUrl });
   } catch (error) {
     console.error("Error fetching buses:", error);
-    res.status(500).json({ message: "Failed to fetch buses", error: error.message });
+    res.status(500).json({ success: false, message: "Failed to fetch buses", error: error.message });
   }
 };
+
 
 // ✅ Get Bus by ID
 exports.getBusById = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid Bus ID format" });
-    }
-
-    const bus = await Bus.findById(id);
+    const bus = await Bus.findById(req.params.id);
     if (!bus) {
-      return res.status(404).json({ message: "Bus not found" });
+      return res.status(404).json({ success: false, message: "Bus not found" });
     }
-
-    res.status(200).json({ success: true, data: bus });
+    res.status(200).json({ success: true, bus });
   } catch (error) {
-    console.error("Error fetching bus:", error);
-    res.status(500).json({ message: "Failed to fetch bus", error: error.message });
+    res.status(500).json({ success: false, message: "Failed to fetch bus", error: error.message });
   }
 };
 
-// ✅ Update a Bus by ID
+// ✅ Update Bus
 exports.updateBus = async (req, res) => {
   try {
-    const busData = req.body;
-
-    if (req.file) {
-      busData.image = `/uploads/${req.file.filename}`;
-    }
-
-    const bus = await Bus.findByIdAndUpdate(req.params.id, busData, { new: true, runValidators: true });
+    const bus = await Bus.findById(req.params.id);
     if (!bus) {
       return res.status(404).json({ success: false, message: "Bus not found" });
     }
 
-    res.status(200).json({ success: true, data: bus });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
-
-// ✅ Book Seats (Fixed)
-exports.bookSeats = async (req, res) => {
-  const { busId, seats } = req.body;
-  try {
-    const bus = await Bus.findById(busId);
-    if (!bus) return res.status(404).json({ message: "Bus not found" });
-
-    // Check for already booked seats
-    const alreadyBooked = seats.some((seat) => bus.bookedSeats.includes(seat));
-    if (alreadyBooked) {
-      return res.status(400).json({ message: "Some seats are already booked" });
+    // 🎯 Update only provided fields
+    if (req.body.name) bus.name = req.body.name;
+    if (req.body.pricePerSeat) bus.pricePerSeat = req.body.pricePerSeat;
+    if (req.body.pickupPoint) bus.pickupPoint = req.body.pickupPoint;
+    if (req.body.dropPoint) bus.dropPoint = req.body.dropPoint;
+    if (req.body.totalSeats) bus.totalSeats = req.body.totalSeats;
+    if (req.body.tripDate) bus.tripDate = new Date(req.body.tripDate);
+    if (req.body.takeOffDate) bus.takeOffDate = new Date(req.body.takeOffDate);
+    
+    // ✅ Convert bookedSeats from a string to an array
+    if (req.body.bookedSeats) {
+      bus.bookedSeats = JSON.parse(req.body.bookedSeats);
     }
 
-    bus.bookedSeats.push(...seats);
-    await bus.save();
+    // ✅ Handle new image upload
+    if (req.file) {
+      bus.image = `/uploads/${req.file.filename}`;
+    }
 
-    res.json({ message: "Seats booked successfully", bookedSeats: bus.bookedSeats });
+    await bus.save();
+    res.status(200).json({ success: true, message: "Bus updated successfully", bus });
   } catch (error) {
-    res.status(500).json({ message: "Error booking seats" });
+    res.status(500).json({ success: false, message: "Failed to update bus", error: error.message });
   }
 };
 
-// ✅ Delete a Bus by ID
+
+// ✅ Delete Bus
 exports.deleteBus = async (req, res) => {
   try {
-    const bus = await Bus.findByIdAndDelete(req.params.id);
+    const bus = await Bus.findById(req.params.id);
     if (!bus) {
       return res.status(404).json({ success: false, message: "Bus not found" });
     }
 
+    await bus.deleteOne();
     res.status(200).json({ success: true, message: "Bus deleted successfully" });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ success: false, message: "Failed to delete bus", error: error.message });
   }
 };
