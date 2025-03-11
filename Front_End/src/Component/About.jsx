@@ -17,33 +17,38 @@ const AboutUs = () => (
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
         }}
-      ></div>
+      >
+        <div className="absolute inset-0 bg-black opacity-40"></div>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white z-10">
+          About Us
+        </h1>
+      </div>
     </section>
 
     {/* Section Content */}
-    <div className="max-w-6xl mx-auto py-12 px-6 sm:px-8 lg:px-10">
+    <div className="max-w-6xl mx-auto py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
       {/* Introduction Text */}
-      <p className="text-lg sm:text-xl lg:text-2xl text-gray-700 leading-relaxed mb-8">
+      <p className="text-lg sm:text-xl lg:text-2xl text-gray-700 leading-relaxed mb-6 sm:mb-8">
         Welcome to <strong className="font-semibold">TickXplore</strong>, your go-to platform for seamless vehicle bookings across Nepal. Whether you're planning a trip to a tourist destination, need to rent a vehicle, or book a bus ticket for your journey, we've got you covered!
       </p>
 
-      <p className="text-lg sm:text-xl lg:text-2xl text-gray-700 leading-relaxed mb-8">
+      <p className="text-lg sm:text-xl lg:text-2xl text-gray-700 leading-relaxed mb-6 sm:mb-8">
         Our mission is to provide a hassle-free booking experience for both locals and tourists. We aim to make it easy for you to explore the beautiful destinations of Nepal by offering quick and easy access to vehicle reservations.
       </p>
 
       {/* Image and Text Section - Bus */}
-      <div className="flex flex-wrap items-center justify-between gap-8 my-12">
+      <div className="flex flex-wrap items-center justify-between gap-6 sm:gap-8 my-8 sm:my-12">
         {/* Left Image */}
-        <div className="flex-1 min-w-[300px]">
+        <div className="flex-1 min-w-[280px] sm:min-w-[300px]">
           <img
             src={busImage} // Bus image for the service
             alt="Bus Travel"
-            className="w-full h-auto rounded-lg shadow-lg"
+            className="w-full h-auto rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
           />
         </div>
 
         {/* Text on Right */}
-        <div className="flex-1 min-w-[300px]">
+        <div className="flex-1 min-w-[280px] sm:min-w-[300px]">
           <p className="text-lg sm:text-xl lg:text-2xl text-gray-700 leading-relaxed">
             Book your bus tickets easily and travel across the most scenic routes in Nepal with TickXplore. We offer a range of comfortable bus services that connect you to various tourist destinations in Nepal.
           </p>
@@ -51,26 +56,26 @@ const AboutUs = () => (
       </div>
 
       {/* Image and Text Section - Vehicle Rental */}
-      <div className="flex flex-wrap items-center justify-between gap-8 my-12">
+      <div className="flex flex-wrap items-center justify-between gap-6 sm:gap-8 my-8 sm:my-12">
         {/* Text on Left */}
-        <div className="flex-1 min-w-[300px] order-1 sm:order-1">
+        <div className="flex-1 min-w-[280px] sm:min-w-[300px] order-1 sm:order-1">
           <p className="text-lg sm:text-xl lg:text-2xl text-gray-700 leading-relaxed">
             Rent a variety of vehicles like 4x4s, jeeps, and Scorpios for your trips to the mountains and beyond. Our fleet is designed to make your journey more comfortable and exciting.
           </p>
         </div>
 
         {/* Right Image */}
-        <div className="flex-1 min-w-[300px] order-2 sm:order-2">
+        <div className="flex-1 min-w-[280px] sm:min-w-[300px] order-2 sm:order-2">
           <img
             src={vehicleImage} // Vehicle rental image
             alt="Vehicle Rental"
-            className="w-full h-auto rounded-lg shadow-lg"
+            className="w-full h-auto rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
           />
         </div>
       </div>
 
       {/* Closing Text */}
-      <p className="text-lg sm:text-xl lg:text-2xl text-gray-700 leading-relaxed mt-12">
+      <p className="text-lg sm:text-xl lg:text-2xl text-gray-700 leading-relaxed mt-8 sm:mt-12">
         Join <strong className="font-semibold">TickXplore</strong> today and start your journey with ease. Whether you're planning a road trip or need transport for a group tour, we ensure a smooth and reliable experience every time.
       </p>
     </div>

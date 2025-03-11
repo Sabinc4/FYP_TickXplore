@@ -14,10 +14,13 @@ exports.createBus = async (req, res) => {
       return res.status(400).json({ success: false, message: "All fields are required." });
     }
 
+    // ✅ Ensure bookedSeats is stored correctly
     let bookedSeats = [];
     if (req.body.bookedSeats) {
-      bookedSeats = JSON.parse(req.body.bookedSeats); // ✅ Convert bookedSeats to an array
+      bookedSeats = Array.isArray(req.body.bookedSeats) ? req.body.bookedSeats : JSON.parse(req.body.bookedSeats);
     }
+
+    console.log("✅ Final bookedSeats:", bookedSeats); // 🛠️ Debugging log
 
     const image = req.file ? `/uploads/${req.file.filename}` : null;
 
@@ -30,8 +33,8 @@ exports.createBus = async (req, res) => {
       dropPoint,
       totalSeats,
       tripDate,
-      takeOffDate, // ✅ Ensure takeOffDate is correctly inserted
-      bookedSeats,
+      takeOffDate,
+      bookedSeats, 
     });
 
     await newBus.save();
@@ -41,6 +44,7 @@ exports.createBus = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to create bus", error: error.message });
   }
 };
+
 
 // ✅ Get Price of a Specific Seat
 exports.getSeatPrice = async (req, res) => {
@@ -130,11 +134,13 @@ exports.updateBus = async (req, res) => {
     if (req.body.totalSeats) bus.totalSeats = req.body.totalSeats;
     if (req.body.tripDate) bus.tripDate = new Date(req.body.tripDate);
     if (req.body.takeOffDate) bus.takeOffDate = new Date(req.body.takeOffDate);
-    
-    // ✅ Convert bookedSeats from a string to an array
+
+    // ✅ Ensure bookedSeats is parsed correctly
     if (req.body.bookedSeats) {
-      bus.bookedSeats = JSON.parse(req.body.bookedSeats);
+      bus.bookedSeats = Array.isArray(req.body.bookedSeats) ? req.body.bookedSeats : JSON.parse(req.body.bookedSeats);
     }
+
+    console.log("✅ Updated bookedSeats:", bus.bookedSeats); // 🛠️ Debugging log
 
     // ✅ Handle new image upload
     if (req.file) {
@@ -147,6 +153,7 @@ exports.updateBus = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to update bus", error: error.message });
   }
 };
+
 
 
 // ✅ Delete Bus

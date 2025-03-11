@@ -12,93 +12,63 @@ const FAQs = () => {
   return (
     <div>
       {/* Image section */}
-      <div className="w-full h-[20vh]">
+      <div className="w-full h-[150px] sm:h-[200px] md:h-[250px] lg:h-[300px]">
         <img
           src={Bus_Tickets} // Use the imported image path
           alt="Bus Tickets"
-          className="w-[1920px] h-[20vh] object-cover mx-auto"
+          className="w-full h-full object-cover"
         />
       </div>
 
       {/* FAQ Section */}
-      <div className="p-6 text-center">
-        <h1 className="text-3xl font-bold mb-4">Frequently Asked Questions</h1>
+      <div className="p-4 sm:p-6 lg:p-8 text-center">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4">
+          Frequently Asked Questions
+        </h1>
         
-        <p className="text-lg mx-auto max-w-2xl mb-6">
+        <p className="text-sm sm:text-base md:text-lg mx-auto max-w-2xl mb-6">
           TickXplore is your go-to platform for booking vehicle tickets in Nepal. Whether you're looking to travel by bus, 4x4 jeeps, scorpios, or e-vans.
         </p>
         
         {/* FAQ Boxes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-16">
-          <div 
-            className="p-4 border border-gray-300 rounded-lg shadow-lg cursor-pointer"
-            onClick={() => toggleDescription(0)}
-          >
-            <h2 className="text-2xl font-semibold mb-2">
-              {activeIndex === 0 ? '−' : '+'} Can we choose buses from anywhere?
-            </h2>
-            {activeIndex === 0 && (
-              <p className="text-base">
-                Yes, TickXplore allows you to select buses from various routes and locations across Nepal.
-              </p>
-            )}
-          </div>
-
-          <div 
-            className="p-4 border border-gray-300 rounded-lg shadow-lg cursor-pointer"
-            onClick={() => toggleDescription(1)}
-          >
-            <h2 className="text-2xl font-semibold mb-2">
-              {activeIndex === 1 ? '−' : '+'} How do I pay for tickets?
-            </h2>
-            {activeIndex === 1 && (
-              <p className="text-base">
-                You can pay for your tickets using various payment methods, including credit/debit cards and mobile wallets.
-              </p>
-            )}
-          </div>
-
-          <div 
-            className="p-4 border border-gray-300 rounded-lg shadow-lg cursor-pointer"
-            onClick={() => toggleDescription(2)}
-          >
-            <h2 className="text-2xl font-semibold mb-2">
-              {activeIndex === 2 ? '−' : '+'} Are there discounts available?
-            </h2>
-            {activeIndex === 2 && (
-              <p className="text-base">
-                Yes, TickXplore offers occasional discounts and special offers for certain routes and vehicles.
-              </p>
-            )}
-          </div>
-
-          <div 
-            className="p-4 border border-gray-300 rounded-lg shadow-lg cursor-pointer"
-            onClick={() => toggleDescription(3)}
-          >
-            <h2 className="text-2xl font-semibold mb-2">
-              {activeIndex === 3 ? '−' : '+'} Can I book multiple tickets at once?
-            </h2>
-            {activeIndex === 3 && (
-              <p className="text-base">
-                Yes, you can book multiple tickets for your group in one booking process.
-              </p>
-            )}
-          </div>
-
-          <div 
-            className="p-4 border border-gray-300 rounded-lg shadow-lg cursor-pointer"
-            onClick={() => toggleDescription(4)}
-          >
-            <h2 className="text-2xl font-semibold mb-2">
-              {activeIndex === 4 ? '−' : '+'} How do I cancel my booking?
-            </h2>
-            {activeIndex === 4 && (
-              <p className="text-base">
-                You can easily cancel your booking through the TickXplore platform, subject to cancellation policies.
-              </p>
-            )}
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 px-4 sm:px-8 lg:px-16">
+          {[
+            {
+              question: "Can we choose buses from anywhere?",
+              answer: "Yes, TickXplore allows you to select buses from various routes and locations across Nepal.",
+            },
+            {
+              question: "How do I pay for tickets?",
+              answer: "You can pay for your tickets using various payment methods, including credit/debit cards and mobile wallets.",
+            },
+            {
+              question: "Are there discounts available?",
+              answer: "Yes, TickXplore offers occasional discounts and special offers for certain routes and vehicles.",
+            },
+            {
+              question: "Can I book multiple tickets at once?",
+              answer: "Yes, you can book multiple tickets for your group in one booking process.",
+            },
+            {
+              question: "How do I cancel my booking?",
+              answer: "You can easily cancel your booking through the TickXplore platform, subject to cancellation policies.",
+            },
+          ].map((faq, index) => (
+            <div 
+              key={index}
+              className="p-4 sm:p-6 border border-gray-300 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
+              onClick={() => toggleDescription(index)}
+            >
+              <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-2">
+                {activeIndex === index ? '−' : '+'} {faq.question}
+              </h2>
+              {activeIndex === index && (
+                <p className="text-sm sm:text-base text-gray-700">
+                  {faq.answer}
+                </p>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>

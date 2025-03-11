@@ -311,8 +311,6 @@ const TransportCard = ({ item, type, onEdit, onDelete }) => (
   alt={item.name}
   className="w-full h-48 object-cover"
 />
-
-
       <div className="absolute top-2 right-2 flex gap-2">
         <button
           onClick={() => onEdit(item)}

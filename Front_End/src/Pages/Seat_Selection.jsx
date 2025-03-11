@@ -18,9 +18,17 @@ const SeatAvailability = () => {
         const response = await axios.get("http://localhost:3001/api/buses");
         const busData = response.data.buses;
         setBuses(busData);
-        if (busData.length > 0) {
-          setSelectedBus(busData[0]);
-        }
+
+        // Select the first bus that has booked seats dynamically
+        const firstBusWithBookedSeats = busData.find(bus => bus.bookedSeats.length > 0) || busData[0];
+
+        // Convert bookedSeats to numbers (ensure it's an array of numbers)
+        firstBusWithBookedSeats.bookedSeats = firstBusWithBookedSeats.bookedSeats.map(Number);
+
+        setSelectedBus(firstBusWithBookedSeats);
+
+        console.log(" Selected Bus:", firstBusWithBookedSeats);
+        console.log(" Booked Seats:", firstBusWithBookedSeats.bookedSeats);
       } catch (error) {
         toast.error("Failed to fetch buses. Please try again.");
       } finally {
@@ -38,6 +46,13 @@ const SeatAvailability = () => {
 
   const handleSeatSelection = (seatNumber) => {
     if (!selectedBus) return;
+
+    // Check if the seat is already booked
+    if (selectedBus.bookedSeats.includes(seatNumber)) {
+      toast.warning("This seat is already booked.");
+      return;
+    }
+
     const isSelected = selectedSeats.includes(seatNumber);
 
     const newSelectedSeats = isSelected
@@ -66,129 +81,132 @@ const SeatAvailability = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
       <ToastContainer position="top-right" autoClose={3000} />
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-6">
+      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6">
         {/* Journey Details on the Left */}
-        <div className="bg-white rounded-lg shadow-lg p-6 flex-1 md:w-2/3">
-          <h2 className="text-3xl font-bold text-gray-800 mb-6">Journey Details</h2>
-          
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 flex-1">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4 sm:mb-6">Journey Details</h2>
+
           {/* Bus Image */}
-          {selectedBus.busImage && (
-            <div className="mb-6">
+          {selectedBus.image && (
+            <div className="mb-4 sm:mb-6">
               <img
-                src={selectedBus.busImage}
+                src={selectedBus.image}
                 alt="Bus"
-                className="w-full h-48 object-cover rounded-lg shadow-sm"
+                className="w-full h-48 sm:h-64 object-cover rounded-lg shadow-sm"
               />
             </div>
           )}
 
           {/* Trip Details */}
-          <div className="space-y-4 mb-6">
-            <div className="flex items-center gap-4">
-              <FaCalendarAlt className="text-gray-600" size={24} />
+          <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <FaCalendarAlt className="text-gray-600" size={20} />
               <div>
                 <p className="text-gray-600 font-semibold">Trip Date</p>
-                <p className="text-gray-800 text-lg">{new Date(selectedBus.tripDate).toLocaleDateString("en-US")}</p>
+                <p className="text-gray-800 text-base sm:text-lg">{new Date(selectedBus.tripDate).toLocaleDateString("en-US")}</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <FaMapMarkerAlt className="text-gray-600" size={24} />
+            <div className="flex items-center gap-3 sm:gap-4">
+              <FaMapMarkerAlt className="text-gray-600" size={20} />
               <div>
                 <p className="text-gray-600 font-semibold">Pickup Point</p>
-                <p className="text-gray-800 text-lg">{selectedBus.pickupPoint}</p>
+                <p className="text-gray-800 text-base sm:text-lg">{selectedBus.pickupPoint}</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <FaMapMarkerAlt className="text-gray-600" size={24} />
+            <div className="flex items-center gap-3 sm:gap-4">
+              <FaMapMarkerAlt className="text-gray-600" size={20} />
               <div>
                 <p className="text-gray-600 font-semibold">Drop Point</p>
-                <p className="text-gray-800 text-lg">{selectedBus.dropPoint}</p>
+                <p className="text-gray-800 text-base sm:text-lg">{selectedBus.dropPoint}</p>
               </div>
             </div>
           </div>
 
           {/* Selected Seats */}
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Selected Seats</h2>
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-green-600 text-white">
-                <th className="p-3 text-left rounded-tl-lg">Seat</th>
-                <th className="p-3 text-right rounded-tr-lg">Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedSeats.map((seatNumber) => (
-                <tr key={seatNumber} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="p-3 text-left">Seat {getSeatLabel(seatNumber)}</td>
-                  <td className="p-3 text-right">Rs. {selectedBus.pricePerSeat}</td>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">Selected Seats</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-green-600 text-white">
+                  <th className="p-2 sm:p-3 text-left rounded-tl-lg">Seat</th>
+                  <th className="p-2 sm:p-3 text-right rounded-tr-lg">Price</th>
                 </tr>
-              ))}
-              <tr className="bg-gray-100">
-                <td className="p-3 text-left font-bold">Total</td>
-                <td className="p-3 text-right font-bold">Rs. {totalPrice}</td>
-              </tr>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {selectedSeats.map((seatNumber) => (
+                  <tr key={seatNumber} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="p-2 sm:p-3 text-left">Seat {getSeatLabel(seatNumber)}</td>
+                    <td className="p-2 sm:p-3 text-right">Rs. {selectedBus.pricePerSeat}</td>
+                  </tr>
+                ))}
+                <tr className="bg-gray-100">
+                  <td className="p-2 sm:p-3 text-left font-bold">Total</td>
+                  <td className="p-2 sm:p-3 text-right font-bold">Rs. {totalPrice}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           {/* Continue to Payment Button */}
-          <button className="mt-6 w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 text-lg font-semibold">
+          <button className="mt-4 sm:mt-6 w-full bg-green-600 text-white py-2 sm:py-3 rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 text-base sm:text-lg font-semibold">
             Continue to Payment
           </button>
         </div>
 
         {/* Bus Layout on the Right */}
-        <div className="bg-white rounded-lg shadow-lg p-6 flex-1 md:w-1/3">
-          <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Bus Layout</h2>
-          
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 flex-1">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4 sm:mb-6 text-center">Bus Layout</h2>
+
           {/* Front Section */}
-          <div className="text-xl font-bold text-center mb-4">FRONT</div>
+          <div className="text-lg sm:text-xl font-bold text-center mb-3 sm:mb-4">FRONT</div>
 
           {/* Driver Icon - Positioned above A4 */}
-          <div className="flex justify-end pr-[46px] mb-2">
-            <FaUserTie size={30} className="text-gray-700" />
+          <div className="flex justify-end pr-[30px] sm:pr-[46px] mb-2">
+            <FaUserTie size={24} className="text-gray-700" />
           </div>
 
           {/* Door Label - Positioned above A1 and to the left */}
-          <div className="flex items-center gap-4 pl-2 mb-2">
-            <div className="text-gray-600 w-12 text-center">DOOR</div>
-            <div className="w-12"></div> {/* Spacer for alignment */}
+          <div className="flex items-center gap-3 sm:gap-4 pl-2 mb-2">
+            <div className="text-gray-600 w-10 sm:w-12 text-center">DOOR</div>
+            <div className="w-10 sm:w-12"></div> {/* Spacer for alignment */}
           </div>
 
           {/* Seat Grid */}
-          <div className="flex flex-col gap-3">
-            {Array.from({ length: 10 }, (_, rowIndex) => {
+          <div className="flex flex-col gap-2 sm:gap-3">
+            {Array.from({ length: Math.ceil(selectedBus.totalSeats / 4) }, (_, rowIndex) => {
               const rowLabel = String.fromCharCode(65 + rowIndex);
               return (
-                <div key={rowLabel} className="flex items-center gap-4 pl-2">
+                <div key={rowLabel} className="flex items-center gap-3 sm:gap-4 pl-2">
                   {/* Spacer for alignment */}
-                  <div className="w-12"></div>
+                  <div className="w-10 sm:w-12"></div>
 
                   {/* Seats */}
-                  <div className="flex gap-4">
+                  <div className="flex gap-2 sm:gap-4">
                     {[1, 2, 3, 4].map((colNum) => {
                       const seatNumber = rowIndex * 4 + colNum;
+                      if (seatNumber > selectedBus.totalSeats) return null; // Skip seats beyond totalSeats
+
                       const seatLabel = getSeatLabel(seatNumber);
                       const isBooked = selectedBus.bookedSeats.includes(seatNumber);
                       const isSelected = selectedSeats.includes(seatNumber);
 
                       let gapStyle = "";
-                      if (colNum === 2) gapStyle = "mr-20";
-                      if (colNum === 1 || colNum === 3) gapStyle = "mr-4";
+                      if (colNum === 2) gapStyle = "mr-12 sm:mr-20";
+                      if (colNum === 1 || colNum === 3) gapStyle = "mr-2 sm:mr-4";
 
                       return (
                         <div key={seatNumber} className={`${gapStyle}`}>
                           <button
-                            disabled={isBooked}
+                            key={seatNumber}
                             onClick={() => handleSeatSelection(seatNumber)}
-                            className={`w-12 h-12 flex items-center justify-center rounded-lg text-sm font-semibold border-2 transition-colors
-                              ${isBooked ? "bg-gray-300 text-gray-500 cursor-not-allowed" :
-                                isSelected ? "bg-green-500 text-white hover:bg-green-600" :
-                                "bg-white border-gray-400 hover:bg-gray-100"}`}
-                            aria-label={`Seat ${seatLabel}`}
+                            disabled={isBooked}
+                            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg font-bold transition-colors 
+                              ${isBooked ? "bg-red-500 text-white cursor-not-allowed" : 
+                                isSelected ? "bg-green-500 text-white hover:bg-green-600" : "bg-gray-100 border"}`}
                           >
-                            <span className="ml-1">{seatLabel}</span>
+                            {seatLabel}
                           </button>
                         </div>
                       );
@@ -200,7 +218,7 @@ const SeatAvailability = () => {
           </div>
 
           {/* Rear Section */}
-          <div className="text-xl font-bold text-center mt-6">REAR</div>
+          <div className="text-lg sm:text-xl font-bold text-center mt-4 sm:mt-6">REAR</div>
         </div>
       </div>
     </div>
