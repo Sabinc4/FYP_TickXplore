@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useParams } from "react-router-dom";
 import { FaUserTie, FaCalendarAlt, FaMapMarkerAlt } from "react-icons/fa";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { ClipLoader } from "react-spinners";
 
 const SeatAvailability = () => {
-  const [buses, setBuses] = useState([]);
+  const { id } = useParams();
   const [selectedBus, setSelectedBus] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [totalPrice, setTotalPrice] = useState(0);
@@ -15,29 +16,28 @@ const SeatAvailability = () => {
   useEffect(() => {
     const fetchBuses = async () => {
       try {
-        const response = await axios.get("http://localhost:3001/api/buses");
-        const busData = response.data.buses;
-        setBuses(busData);
-
-        // Select the first bus that has booked seats dynamically
-        const firstBusWithBookedSeats = busData.find(bus => bus.bookedSeats.length > 0) || busData[0];
-
+        const response = await axios.get(`http://localhost:3001/api/buses/${id}`);
+        const busData = response.data.bus;
+        console.log("Fetched Bus Data:", busData); // ✅ Debug: Check image URL in console
+  
+        if (!busData) {
+          toast.error("Bus not found.");
+          return;
+        }
+  
         // Convert bookedSeats to numbers (ensure it's an array of numbers)
-        firstBusWithBookedSeats.bookedSeats = firstBusWithBookedSeats.bookedSeats.map(Number);
-
-        setSelectedBus(firstBusWithBookedSeats);
-
-        console.log(" Selected Bus:", firstBusWithBookedSeats);
-        console.log(" Booked Seats:", firstBusWithBookedSeats.bookedSeats);
+        busData.bookedSeats = busData.bookedSeats.map(Number);
+  
+        setSelectedBus(busData);
       } catch (error) {
-        toast.error("Failed to fetch buses. Please try again.");
+        toast.error("Failed to fetch bus. Please try again.");
       } finally {
         setLoading(false);
       }
     };
     fetchBuses();
-  }, []);
-
+  }, [id]);
+  
   const getSeatLabel = (seatNumber) => {
     const row = Math.floor((seatNumber - 1) / 4);
     const col = ((seatNumber - 1) % 4) + 1;
@@ -92,10 +92,14 @@ const SeatAvailability = () => {
           {selectedBus.image && (
             <div className="mb-4 sm:mb-6">
               <img
-                src={selectedBus.image}
-                alt="Bus"
-                className="w-full h-48 sm:h-64 object-cover rounded-lg shadow-sm"
-              />
+              src={selectedBus.image.startsWith("http") ? selectedBus.image : `http://localhost:3001${selectedBus.image}`}
+              alt="Bus"
+              className="w-full h-48 sm:h-64 object-cover rounded-lg shadow-sm"
+              onError={(e) => {
+                e.target.src = "/default-bus-image.jpg"; // Fallback if image fails
+              }}
+            />
+
             </div>
           )}
 

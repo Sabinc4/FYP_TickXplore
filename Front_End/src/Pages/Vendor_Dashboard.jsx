@@ -46,22 +46,32 @@ const VendorDashboard = () => {
         fetchVehicles(vendorId),
         fetchBuses(vendorId),
       ]);
-      console.log("Vehicles Data:", vehiclesRes.data.vehicles); // Debug log
-      console.log("Buses Data:", busesRes.data.buses); // Debug log
+  
+      // Check if the response contains data
       setVehicles(vehiclesRes.data.vehicles || []);
       setBuses(busesRes.data.buses || []);
+  
+      // If no vehicles or buses are found, don't set an error
+      if (vehiclesRes.data.vehicles.length === 0 && busesRes.data.buses.length === 0) {
+        toast.info("No vehicles or buses found. Please add one to get started.", {
+          position: "top-right",
+          autoClose: 5000,
+        });
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
-      setError("Failed to load data. Please check your network and try again.");
-      toast.error("Failed to load data. Please check your network and try again.", {
-        position: "top-right",
-        autoClose: 5000,
-      });
+      // Only set an error if the API request fails, not for empty data
+      if (error.response && error.response.status !== 404) {
+        setError("Failed to load data. Please check your network and try again.");
+        toast.error("Failed to load data. Please check your network and try again.", {
+          position: "top-right",
+          autoClose: 5000,
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
-
 
 
   const handleAddNew = () => {
@@ -285,11 +295,19 @@ const TransportSection = ({ title, items, type, onEdit, onDelete, onAddNew }) =>
         Add New
       </button>
     </div>
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {items.length === 0 ? (
-        <p className="text-gray-500 text-center col-span-3">No {type}s available.</p>
-      ) : (
-        items.map((item) => (
+    {items.length === 0 ? (
+      <div className="text-center p-6 bg-white rounded-lg shadow-md">
+        <p className="text-gray-500 mb-4">No {type}s available.</p>
+        <button
+          onClick={onAddNew}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Add Your First {type === "vehicle" ? "Vehicle" : "Bus"}
+        </button>
+      </div>
+    ) : (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {items.map((item) => (
           <TransportCard
             key={item._id}
             item={item}
@@ -297,9 +315,9 @@ const TransportSection = ({ title, items, type, onEdit, onDelete, onAddNew }) =>
             onEdit={onEdit}
             onDelete={onDelete}
           />
-        ))
-      )}
-    </div>
+        ))}
+      </div>
+    )}
   </div>
 );
 

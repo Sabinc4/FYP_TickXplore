@@ -3,36 +3,59 @@ import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FiCalendar, FiArrowRight, FiRefreshCw } from "react-icons/fi";
+import { useParams } from "react-router-dom";
 
 const VehicleReservation = () => {
-  // State Management
+  const { id } = useParams();
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [takeOffDate, setTakeOffDate] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Fetch Available Vehicles
   useEffect(() => {
-    fetchVehicles();
-  }, []);
+    if (id) {
+      fetchVehicleById(id);
+    } else {
+      fetchVehicles();
+    }
+  }, [id]);
 
   const fetchVehicles = async () => {
     setLoading(true);
     try {
       const response = await axios.get("http://localhost:3001/api/vehicles");
-      const availableVehicles = response.data.vehicles.filter((v) => v.isAvailable);
-      setVehicles(availableVehicles);
-      if (availableVehicles.length > 0) {
-        setSelectedVehicle(availableVehicles[0]);
+      console.log("Fetched Vehicles:", response.data); // ✅ Debugging
+  
+      if (response.data.vehicles && response.data.vehicles.length > 0) {
+        setVehicles(response.data.vehicles);
+        setSelectedVehicle(response.data.vehicles[0]); // Default to the first vehicle
+      } else {
+        toast.warning("No available vehicles.");
+        setVehicles([]);
       }
     } catch (error) {
+      console.error("Error fetching vehicles:", error);
       toast.error(error.response?.data?.message || "Failed to fetch vehicles");
     } finally {
       setLoading(false);
     }
   };
+  
 
-  // Handle Reservation Confirmation
+  const fetchVehicleById = async (vehicleId) => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`http://localhost:3001/api/vehicles/${vehicleId}`);
+      console.log("Fetched Vehicle Data:", response.data);
+      setSelectedVehicle(response.data.vehicle);
+    } catch (error) {
+      console.error("Error fetching vehicle:", error);
+      toast.error(error.response?.data?.message || "Failed to fetch vehicle details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleReservationConfirmation = async () => {
     if (!selectedVehicle || !takeOffDate) {
       toast.error("Please select a vehicle and a take-off date");
@@ -58,7 +81,13 @@ const VehicleReservation = () => {
     }
   };
 
-  // Loading State
+  useEffect(() => {
+    if (selectedVehicle) {
+      console.log("Selected Vehicle:", selectedVehicle);
+      console.log("Selected Vehicle Price:", selectedVehicle.price);
+    }
+  }, [selectedVehicle]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-50">
@@ -67,8 +96,7 @@ const VehicleReservation = () => {
     );
   }
 
-  // No Vehicles Available State
-  if (vehicles.length === 0) {
+  if (!selectedVehicle && vehicles.length === 0) {
     return (
       <div className="text-center py-12 bg-gray-50 min-h-screen">
         <div className="max-w-2xl mx-auto px-4">
@@ -109,23 +137,33 @@ const VehicleReservation = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Vehicle</label>
                 <select
-                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-                  onChange={(e) => setSelectedVehicle(vehicles.find((v) => v._id === e.target.value))}
-                  value={selectedVehicle?._id || ""}
-                >
-                  {vehicles.map((vehicle) => (
+                className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  const vehicle = vehicles.find((v) => v._id === selectedId);
+                  setSelectedVehicle(vehicle);
+                }}
+                value={selectedVehicle?._id || ""}
+              >
+                <option value="" disabled>Select a Vehicle</option>
+                {vehicles.length > 0 ? (
+                  vehicles.map((vehicle) => (
                     <option key={vehicle._id} value={vehicle._id}>
                       {vehicle.name} - {vehicle.pickupPoint} → {vehicle.dropPoint}
                     </option>
-                  ))}
-                </select>
+                  ))
+                ) : (
+                  <option disabled>No Vehicles Available</option>
+                )}
+              </select>
+
               </div>
 
               {selectedVehicle && (
                 <div className="bg-gray-50 p-4 sm:p-6 rounded-xl space-y-4">
                   <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden">
                     <img
-                      src={`${selectedVehicle.image}`}
+                      src={selectedVehicle.image}
                       alt={selectedVehicle.name}
                       className="w-full h-full object-cover"
                       onError={(e) => (e.target.src = "/default-vehicle.jpg")}
@@ -133,18 +171,23 @@ const VehicleReservation = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <DetailItem label="Pickup Location" value={selectedVehicle.pickupPoint} />
-                    <DetailItem label="Drop Location" value={selectedVehicle.dropPoint} />
-                    <DetailItem label="Price" value={`Rs. ${selectedVehicle.price}`} />
-                    <DetailItem label="Capacity" value={`${selectedVehicle.capacity} seats`} />
+                    <DetailItem label="Vehicle Name" value={selectedVehicle?.name || "N/A"} />
+                    <DetailItem label="Pickup Location" value={selectedVehicle?.pickupPoint || "Not Available"} />
+                    <DetailItem label="Drop Location" value={selectedVehicle?.dropPoint || "Not Available"} />
+                    <DetailItem label="Price" value={selectedVehicle?.price ? `Rs. ${selectedVehicle.price}` : "N/A"} />
+                    <DetailItem label="Capacity" value={`${selectedVehicle?.capacity || "Unknown"} seats`} />
                     <DetailItem
                       label="Scheduled Departure"
-                      value={new Date(selectedVehicle.takeOffDate).toLocaleDateString("en-US", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                      value={
+                        selectedVehicle?.takeOffDate
+                          ? new Date(selectedVehicle.takeOffDate).toLocaleDateString("en-US", {
+                              weekday: "long",
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })
+                          : "Not scheduled"
+                      }
                     />
                   </div>
                 </div>
@@ -177,7 +220,6 @@ const VehicleReservation = () => {
                 </div>
               </div>
 
-              {/* Reservation Summary */}
               {selectedVehicle && (
                 <div className="bg-gray-50 p-4 sm:p-6 rounded-xl space-y-4">
                   <h4 className="text-lg font-semibold text-gray-900">Reservation Summary</h4>
@@ -194,7 +236,6 @@ const VehicleReservation = () => {
   );
 };
 
-// Detail Item Component
 const DetailItem = ({ label, value }) => (
   <div className="flex justify-between items-center">
     <span className="text-gray-600 font-medium">{label}:</span>
@@ -202,7 +243,6 @@ const DetailItem = ({ label, value }) => (
   </div>
 );
 
-// Summary Item Component
 const SummaryItem = ({ label, value, isTotal }) => (
   <div className="flex justify-between items-center">
     <span className={`text-gray-600 ${isTotal ? "font-semibold" : ""}`}>{label}</span>

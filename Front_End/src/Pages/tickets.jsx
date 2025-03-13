@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FaMapMarkerAlt, FaSpinner, FaChair, FaInfoCircle, FaSortAmountDown, FaSortAlphaDown } from "react-icons/fa";
+import { FaMapMarkerAlt, FaSpinner, FaChair, FaInfoCircle } from "react-icons/fa";
 import { AiOutlineCalendar } from "react-icons/ai";
 import { IoMdArrowForward } from "react-icons/io";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -29,9 +29,6 @@ const BusTickets = () => {
     droppingPoint: false,
     date: false,
   });
-
-  // Filter state
-  const [filter, setFilter] = useState("priceLowToHigh"); // Default filter: Price Low to High
 
   // Fetch locations on component mount
   useEffect(() => {
@@ -108,23 +105,6 @@ const BusTickets = () => {
     return true;
   };
 
-  // Sort buses and vehicles based on the selected filter
-  const sortResults = (buses, vehicles) => {
-    switch (filter) {
-      case "priceLowToHigh":
-        buses.sort((a, b) => a.price - b.price);
-        vehicles.sort((a, b) => a.price - b.price);
-        break;
-      case "alphabetical":
-        buses.sort((a, b) => a.name.localeCompare(b.name));
-        vehicles.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      default:
-        break;
-    }
-    return { buses, vehicles };
-  };
-
   // Handle search for buses and vehicles
   const handleSearch = async () => {
     if (!validateForm()) return;
@@ -135,6 +115,9 @@ const BusTickets = () => {
         fetchData("http://localhost:3001/api/buses"),
         fetchData("http://localhost:3001/api/vehicles"),
       ]);
+
+      console.log("Buses API Response:", busesData); // Debug buses data
+      console.log("Vehicles API Response:", vehiclesData); // Debug vehicles data
 
       const allBuses = busesData.buses || [];
       const allVehicles = vehiclesData.vehicles || [];
@@ -147,20 +130,23 @@ const BusTickets = () => {
           bus.dropPoint.toLowerCase() === formData.droppingPoint.toLowerCase() &&
           busDate === formData.date &&
           bus.totalSeats - bus.bookedSeats.length > 0 &&
-          bus.pricePerSeat > 0
+          bus.pricePerSeat > 0 // Ensure price is valid
         );
       });
 
-      // Filter vehicles
+      // Filter vehicles (whole-vehicle reservation)
       const filteredVehicles = allVehicles.filter((vehicle) => {
         const vehicleDate = new Date(vehicle.takeOffDate).toISOString().split("T")[0];
         return (
           vehicle.pickupPoint.toLowerCase() === formData.pickupPoint.toLowerCase() &&
           vehicle.dropPoint.toLowerCase() === formData.droppingPoint.toLowerCase() &&
           vehicleDate === formData.date &&
-          vehicle.isAvailable
+          vehicle.isAvailable // Only show available vehicles
         );
       });
+
+      console.log("FILTERED BUSES:", filteredBuses); // Debug filtered buses
+      console.log("FILTERED VEHICLES:", filteredVehicles); // Debug filtered vehicles
 
       // Add image URLs and available seats
       const busesWithDetails = filteredBuses.map((bus) => ({
@@ -169,7 +155,7 @@ const BusTickets = () => {
           ? new URL(bus.image, "http://localhost:3001").href
           : "/default-bus-image.jpg",
         availableSeats: bus.totalSeats - bus.bookedSeats.length,
-        price: bus.pricePerSeat || "N/A",
+        price: bus.pricePerSeat || "N/A", // Ensure price is included
       }));
 
       const vehiclesWithDetails = filteredVehicles.map((vehicle) => ({
@@ -177,17 +163,14 @@ const BusTickets = () => {
         imageUrl: vehicle.image
           ? new URL(vehicle.image, "http://localhost:3001").href
           : "/default-vehicle-image.jpg",
-        price: vehicle.price || "N/A",
+        price: vehicle.price || "N/A", // Ensure price is included
       }));
 
-      // Sort results based on the selected filter
-      const { buses: sortedBuses, vehicles: sortedVehicles } = sortResults(
-        busesWithDetails,
-        vehiclesWithDetails
-      );
+      console.log("Buses with Details:", busesWithDetails); // Debug buses with details
+      console.log("Vehicles with Details:", vehiclesWithDetails); // Debug vehicles with details
 
-      setBuses(sortedBuses);
-      setVehicles(sortedVehicles);
+      setBuses(busesWithDetails);
+      setVehicles(vehiclesWithDetails);
 
       if (filteredBuses.length === 0 && filteredVehicles.length === 0) {
         toast.info("No available buses or vehicles found for selected criteria");
@@ -199,10 +182,15 @@ const BusTickets = () => {
     }
   };
 
-  // Handle filter change
-  const handleFilterChange = (e) => {
-    setFilter(e.target.value);
-    handleSearch(); // Re-fetch and sort results
+  // Handle navigation to seat selection or booking page
+  const handleViewSeats = (id, type) => {
+    if (type === "bus") {
+      const selectedBus = buses.find((bus) => bus._id === id);
+      console.log("Selected Bus Data:", selectedBus); // Log the selected bus data
+      navigate(`/Seat_Selection/${id}`); // Navigate with bus ID only
+    } else {
+      navigate(`/Vehicle/${id}`); // Navigate with vehicle ID only
+    }
   };
 
   return (
@@ -299,20 +287,17 @@ const BusTickets = () => {
         </div>
       </div>
 
-      {/* Filter Dropdown */}
-      <div className="mt-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
-        <div className="flex items-center relative">
-          <select
-            value={filter}
-            onChange={handleFilterChange}
-            className="w-full pl-10 py-2 border rounded-lg focus:outline-none border-gray-300"
-          >
-            <option value="priceLowToHigh">Price: Low to High</option>
-            <option value="alphabetical">Alphabetical</option>
-          </select>
-        </div>
-      </div>
+      {/* Clear Filters Button */}
+      <button
+        onClick={() => {
+          setFormData({ pickupPoint: "", droppingPoint: "", date: "" });
+          setBuses([]);
+          setVehicles([]);
+        }}
+        className="w-full md:w-auto px-6 py-3 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400 transition-colors mt-4"
+      >
+        Clear Filters
+      </button>
 
       {/* Results Section */}
       <div className="mt-8 space-y-6">
@@ -369,7 +354,6 @@ const BusTickets = () => {
   );
 };
 
-// TransportCard component remains the same
 const TransportCard = ({ data, onSelect, type }) => {
   if (!data || !data.name) {
     console.error("Invalid data:", data);
@@ -383,9 +367,6 @@ const TransportCard = ({ data, onSelect, type }) => {
           <h3 className="text-xl font-bold text-gray-800">
             {data.name} - {data.type || "Vehicle"}
           </h3>
-          <span className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-            {type === "bus" ? "Bus" : "Vehicle"} ID: {String(data.vendorId || "").slice(-6)}
-          </span>
         </div>
 
         {/* Common Details */}

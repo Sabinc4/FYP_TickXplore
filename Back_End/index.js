@@ -4,60 +4,53 @@ const cors = require("cors");
 const morgan = require("morgan");
 const helmet = require("helmet");
 const path = require("path");
-require("dotenv").config();
 const fs = require("fs");
 const fileUpload = require("express-fileupload");
+require("dotenv").config();
 
 // ✅ Initialize Express App
 const app = express();
-const homepageRoutes = require("./routes/homepageRoutes");
-const touristAreaRoutes = require("./routes/touristAreaRoutes");
 
 // ✅ Middleware Configuration
-app.use(express.json());
-app.use(fileUpload({ createParentPath: true }));
-app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+app.use(morgan("dev"));
 
-// ✅ Security Middleware
+// ✅ Secure the App
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }, // Allows cross-origin resource sharing
     crossOriginEmbedderPolicy: false, // Fix for CORS blocking
   })
 );
-app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
-// ✅ CORS Configuration (Handles Multiple Origins)
-const allowedOrigins = ["http://localhost:5173"]; // Add more origins if needed
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("❌ CORS not allowed for this origin"));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-};
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // Handle preflight requests
+// ✅ Enable File Upload Handling
+app.use(
+  fileUpload({
+    createParentPath: true,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    abortOnLimit: true,
+    responseOnLimit: "File size limit exceeded (Max: 5MB)",
+  })
+);
 
-// ✅ Serve Static Files (Ensure 'uploads/' Exists)
+// ✅ Static File Serving for Uploaded Images
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir);
 }
 app.use("/uploads", express.static(uploadsDir));
 
+// ✅ Important: `express.json()` & `express.urlencoded()` **MUST BE AFTER `fileUpload`**
+app.use(express.json()); 
+app.use(express.urlencoded({ extended: true })); 
+
 // ✅ MongoDB Connection with Error Handling
 const mongoUri = process.env.MONGO_URI || "mongodb://localhost:27017/tickxplore";
 mongoose
   .connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("✅ MongoDB connected successfully"))
+  .then(() => console.log("✅ MongoDB Connected Successfully"))
   .catch((err) => {
-    console.error("❌ MongoDB connection error:", err.message);
+    console.error("❌ MongoDB Connection Error:", err.message);
     process.exit(1);
   });
 
@@ -69,7 +62,8 @@ const vehicleRoutes = require("./routes/vehicleRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 const busRoutes = require("./routes/busRoutes");
 const userRoutes = require("./routes/userRoutes");
-
+const homepageRoutes = require("./routes/homepageRoutes");
+const touristAreaRoutes = require("./routes/touristAreaRoutes");
 
 // ✅ API Routes (Grouped for Clarity)
 app.use("/auth", authRoutes);
@@ -94,8 +88,8 @@ app.use((req, res) => {
 
 // ✅ Global Error Handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: "An unexpected error occurred." });
+  console.error("❌ Server Error:", err.stack);
+  res.status(500).json({ error: "An unexpected error occurred.", details: err.message });
 });
 
 // ✅ Graceful Shutdown Handling

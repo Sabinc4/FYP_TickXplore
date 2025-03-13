@@ -1,20 +1,24 @@
 const express = require("express");
 const {
-  reserveVehicle,
-  cancelReservation,
+  createVehicle,
   getAllVehicles,
   getVehicleById,
-  deleteVehicle,
-  createVehicle, // ✅ Import createVehicle function
+  updateVehicle,
+  deleteVehicle
 } = require("../controllers/vehicleController");
 
 const router = express.Router();
 
-router.get("/", getAllVehicles); // ✅ Get All Vehicles
-router.get("/:id", getVehicleById); // ✅ Get a Vehicle by ID
-router.post("/", createVehicle); // ✅ Create Vehicle (Handled inside controller)
-router.post("/reserve/:vehicleId", reserveVehicle);
-router.post("/:vehicleId/cancel", cancelReservation); // ✅ Cancel a Reservation
-router.delete("/:id", deleteVehicle); // ✅ Delete a Vehicle
+// ✅ Get All Vehicles
+router.get("/", getAllVehicles);
+
+// ✅ Get a Vehicle by ID
+router.get("/:id", getVehicleById);
+router.put("/:id", updateVehicle);
+// ✅ Create a New Vehicle
+router.post("/", createVehicle);
+
+// ✅ Delete a Vehicle
+router.delete("/:id", deleteVehicle);
 
 module.exports = router;
