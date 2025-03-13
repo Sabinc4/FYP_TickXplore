@@ -6,12 +6,16 @@ const helmet = require("helmet");
 const path = require("path");
 require("dotenv").config();
 const fs = require("fs");
+const fileUpload = require("express-fileupload");
 
 // ✅ Initialize Express App
 const app = express();
+const homepageRoutes = require("./routes/homepageRoutes");
+const touristAreaRoutes = require("./routes/touristAreaRoutes");
 
 // ✅ Middleware Configuration
 app.use(express.json());
+app.use(fileUpload({ createParentPath: true }));
 app.use(express.urlencoded({ extended: true }));
 
 // ✅ Security Middleware
@@ -75,6 +79,8 @@ app.use("/users", userRoutes);
 app.use("/booking", bookingRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/buses", busRoutes);
+app.use("/api", homepageRoutes);
+app.use("/api/tourist-areas", touristAreaRoutes);
 
 // ✅ Test Route to Check Image Serving
 app.get("/test-image", (req, res) => {
