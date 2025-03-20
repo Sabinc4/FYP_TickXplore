@@ -15,22 +15,32 @@ exports.getAllUsers = async (req, res) => {
 // ✅ Get User By ID (Handles ObjectId and Auto-Incremented userId)
 exports.getUserById = async (req, res) => {
   try {
-    let user;
+    const userId = req.params.id;
 
-    // Check if the provided ID is a valid MongoDB ObjectId
-    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-      user = await User.findById(req.params.id);
-    } else {
-      // If not a MongoDB ObjectId, check by userId (auto-incremented field)
-      user = await User.findOne({ userId: req.params.id });
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: "Invalid User ID format" });
     }
 
-    if (!user) return res.status(404).json({ error: "User not found" });
+    const user = await User.findById(userId);
 
-    return res.status(200).json(user);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // ✅ Ensure all expected fields are returned
+    res.status(200).json({
+      success: true,
+      user: {
+        _id: user._id,
+        name: user.name,  
+        email: user.email,
+        location: user.location,  
+        role: user.role
+      }
+    });
   } catch (error) {
-    console.error("❌ Error fetching user by ID:", error);
-    return res.status(500).json({ error: error.message });
+    console.error("❌ Error fetching user:", error.message);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 

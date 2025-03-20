@@ -129,7 +129,21 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// ✅ EDIT VENDOR (Fixed)
+// ✅ FETCH SINGLE ADMIN
+exports.getAdminById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const admin = await AdminModel.findById(id);
+    if (!admin) {
+      return res.status(404).json({ success: false, message: "❌ Admin not found" });
+    }
+    res.status(200).json({ success: true, admin });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+
 // ✅ EDIT VENDOR (Fixed)
 exports.editVendor = async (req, res) => {
   try {

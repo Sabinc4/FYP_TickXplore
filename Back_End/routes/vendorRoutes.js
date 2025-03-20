@@ -1,12 +1,18 @@
 const express = require("express");
 const router = express.Router();
-const vendorController = require("../controllers/vendorController"); // ✅ Ensure this file exists!
+const {
+  createVendor,
+  getAllVendors,
+  getVendorById,
+  updateVendor,
+  deleteVendor,
+} = require("../controllers/vendorController");
 
 // ✅ Define Vendor Routes
-router.post("/create", vendorController.createVendor);
-router.get("/", vendorController.getAllVendors);
-router.get("/:id", vendorController.getVendorById);
-router.patch("/:id", vendorController.updateVendor);
-router.delete("/:id", vendorController.deleteVendor);
+router.post("/create", createVendor);
+router.get("/", getAllVendors);
+router.get("/:id", getVendorById);
+router.put("/:id", updateVendor);
+router.delete("/:id", deleteVendor);
 
 module.exports = router;

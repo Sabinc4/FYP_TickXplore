@@ -14,14 +14,9 @@ const app = express();
 // ✅ Middleware Configuration
 app.use(cors());
 app.use(morgan("dev"));
-
-// ✅ Secure the App
-app.use(
-  helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }, // Allows cross-origin resource sharing
-    crossOriginEmbedderPolicy: false, // Fix for CORS blocking
-  })
-);
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" }, crossOriginEmbedderPolicy: false }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // ✅ Enable File Upload Handling
 app.use(
@@ -40,10 +35,6 @@ if (!fs.existsSync(uploadsDir)) {
 }
 app.use("/uploads", express.static(uploadsDir));
 
-// ✅ Important: `express.json()` & `express.urlencoded()` **MUST BE AFTER `fileUpload`**
-app.use(express.json()); 
-app.use(express.urlencoded({ extended: true })); 
-
 // ✅ MongoDB Connection with Error Handling
 const mongoUri = process.env.MONGO_URI || "mongodb://localhost:27017/tickxplore";
 mongoose
@@ -55,7 +46,7 @@ mongoose
   });
 
 // ✅ Import Routes
-const authRoutes = require("./routes/authRoutes");
+const authRoutes = require("./routes/authRoutes"); 
 const adminRoutes = require("./routes/adminRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
@@ -64,8 +55,9 @@ const busRoutes = require("./routes/busRoutes");
 const userRoutes = require("./routes/userRoutes");
 const homepageRoutes = require("./routes/homepageRoutes");
 const touristAreaRoutes = require("./routes/touristAreaRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 
-// ✅ API Routes (Grouped for Clarity)
+// ✅ API Routes
 app.use("/auth", authRoutes);
 app.use("/admin", adminRoutes);
 app.use("/vendor", vendorRoutes);
@@ -75,6 +67,12 @@ app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/buses", busRoutes);
 app.use("/api", homepageRoutes);
 app.use("/api/tourist-areas", touristAreaRoutes);
+app.use("/api/payments", paymentRoutes);
+
+// ✅ Health Check Route
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "Server is running!", timestamp: new Date() });
+});
 
 // ✅ Test Route to Check Image Serving
 app.get("/test-image", (req, res) => {
@@ -93,12 +91,15 @@ app.use((err, req, res, next) => {
 });
 
 // ✅ Graceful Shutdown Handling
-process.on("SIGINT", async () => {
+const shutdown = async () => {
   console.log("\n🔄 Closing MongoDB Connection...");
   await mongoose.connection.close();
   console.log("✅ MongoDB Connection Closed. Server Shutting Down.");
   process.exit(0);
-});
+};
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 
 // ✅ Start Server
 const PORT = process.env.PORT || 3001;

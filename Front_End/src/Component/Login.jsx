@@ -9,8 +9,8 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState(""); // Error state
-  const [loading, setLoading] = useState(false); // Loading state
+  const [error, setError] = useState(""); 
+  const [loading, setLoading] = useState(false); 
   const navigate = useNavigate();
 
   const togglePasswordVisibility = () => {
@@ -20,53 +20,56 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true); 
-
+    setLoading(true);
+  
     if (!email || !password) {
       setError("Email and Password are required.");
       setLoading(false);
       return;
     }
-
+  
     try {
       const response = await axios.post("http://localhost:3001/auth/sign-in", {
         email,
         password,
       });
-
+  
       if (response.data.redirectURL) {
         // Store user details in localStorage
         localStorage.setItem("userLoggedIn", "true");
         localStorage.setItem("userRole", response.data.user.role);
-
-        //Store Vendor or User ID properly
-        if (response.data.user.role === "vendor") {
+  
+        // ✅ Store ID based on role (Admin, Vendor, User)
+        if (response.data.user.role === "admin") {
+          localStorage.setItem("adminId", response.data.user._id);
+        } else if (response.data.user.role === "vendor") {
           localStorage.setItem("vendorId", response.data.user._id);
         } else {
           localStorage.setItem("userId", response.data.user._id);
         }
-
-        // Store login success status for Vendor Dashboard
+  
+        // ✅ Store login success status for Vendor Dashboard
         if (response.data.user.role === "vendor") {
           localStorage.setItem("showLoginSuccess", "true");
         }
-
+  
         // Redirect to the appropriate dashboard
         navigate(response.data.redirectURL);
       } else {
-        setError(" Incorrect email or password. Try again.");
+        setError("Incorrect email or password. Try again.");
       }
     } catch (err) {
       console.error("Login error:", err);
       if (err.response) {
-        setError(err.response.data.message || " Incorrect email or password. Try again.");
+        setError(err.response.data.message || "Incorrect email or password. Try again.");
       } else {
-        setError(" Server unreachable. Please check your connection.");
+        setError("Server unreachable. Please check your connection.");
       }
     } finally {
       setLoading(false);
     }
   };
+  
 
   return (
     <section className="h-screen bg-gradient-to-r bg-slate-100 flex items-center justify-center">

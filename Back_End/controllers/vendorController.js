@@ -1,9 +1,13 @@
+const mongoose = require("mongoose");
 const Vendor = require("../models/Vendor");
 
 // ✅ Create Vendor
 exports.createVendor = async (req, res) => {
   try {
     const { name, email, phone, address } = req.body;
+    if (!name || !email || !phone || !address) {
+      return res.status(400).json({ success: false, message: "All fields are required." });
+    }
 
     const newVendor = new Vendor({ name, email, phone, address });
     await newVendor.save();
@@ -29,11 +33,30 @@ exports.getAllVendors = async (req, res) => {
 // ✅ Get Single Vendor
 exports.getVendorById = async (req, res) => {
   try {
-    const vendor = await Vendor.findById(req.params.id);
+    const vendorId = req.params.id;
+
+    // ✅ Ensure ID is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(vendorId)) {
+      return res.status(400).json({ success: false, message: "Invalid Vendor ID format" });
+    }
+
+    const vendor = await Vendor.findById(vendorId);
+
     if (!vendor) {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
-    res.status(200).json({ success: true, vendor });
+
+    // ✅ Ensure full vendor data is sent
+    res.status(200).json({
+      success: true,
+      vendor: {
+        _id: vendor._id,
+        name: vendor.vendorName, // ✅ Match database field
+        email: vendor.email,
+        location: vendor.vendorLocation, // ✅ Match database field
+        role: vendor.role
+      }
+    });
   } catch (error) {
     console.error("❌ Error fetching vendor:", error.message);
     res.status(500).json({ success: false, message: "Internal Server Error" });
@@ -43,6 +66,10 @@ exports.getVendorById = async (req, res) => {
 // ✅ Update Vendor
 exports.updateVendor = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid Vendor ID format" });
+    }
+    
     const updatedVendor = await Vendor.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!updatedVendor) {
       return res.status(404).json({ success: false, message: "Vendor not found" });
@@ -57,6 +84,10 @@ exports.updateVendor = async (req, res) => {
 // ✅ Delete Vendor
 exports.deleteVendor = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid Vendor ID format" });
+    }
+    
     const vendor = await Vendor.findByIdAndDelete(req.params.id);
     if (!vendor) {
       return res.status(404).json({ success: false, message: "Vendor not found" });
