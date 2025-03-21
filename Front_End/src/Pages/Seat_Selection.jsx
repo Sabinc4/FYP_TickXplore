@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { FaUserTie, FaCalendarAlt, FaMapMarkerAlt } from "react-icons/fa";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -8,6 +8,8 @@ import { ClipLoader } from "react-spinners";
 
 const SeatAvailability = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+
   const [selectedBus, setSelectedBus] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [totalPrice, setTotalPrice] = useState(0);
@@ -18,16 +20,14 @@ const SeatAvailability = () => {
       try {
         const response = await axios.get(`http://localhost:3001/api/buses/${id}`);
         const busData = response.data.bus;
-        console.log("Fetched Bus Data:", busData); // ✅ Debug: Check image URL in console
-  
+
         if (!busData) {
           toast.error("Bus not found.");
           return;
         }
-  
-        // Convert bookedSeats to numbers (ensure it's an array of numbers)
+
+        // Convert bookedSeats to numbers
         busData.bookedSeats = busData.bookedSeats.map(Number);
-  
         setSelectedBus(busData);
       } catch (error) {
         toast.error("Failed to fetch bus. Please try again.");
@@ -37,7 +37,7 @@ const SeatAvailability = () => {
     };
     fetchBuses();
   }, [id]);
-  
+
   const getSeatLabel = (seatNumber) => {
     const row = Math.floor((seatNumber - 1) / 4);
     const col = ((seatNumber - 1) % 4) + 1;
@@ -54,13 +54,27 @@ const SeatAvailability = () => {
     }
 
     const isSelected = selectedSeats.includes(seatNumber);
-
     const newSelectedSeats = isSelected
       ? selectedSeats.filter((num) => num !== seatNumber)
       : [...selectedSeats, seatNumber];
 
     setSelectedSeats(newSelectedSeats);
     setTotalPrice(newSelectedSeats.length * selectedBus.pricePerSeat);
+  };
+
+  const handleProceedToPayment = () => {
+    if (selectedSeats.length === 0) {
+      toast.error("Please select at least one seat.");
+      return;
+    }
+
+    navigate("/payment", {
+      state: {
+        busId: selectedBus._id,
+        seats: selectedSeats,
+        totalPrice,
+      },
+    });
   };
 
   if (loading) {
@@ -92,14 +106,17 @@ const SeatAvailability = () => {
           {selectedBus.image && (
             <div className="mb-4 sm:mb-6">
               <img
-              src={selectedBus.image.startsWith("http") ? selectedBus.image : `http://localhost:3001${selectedBus.image}`}
-              alt="Bus"
-              className="w-full h-48 sm:h-64 object-cover rounded-lg shadow-sm"
-              onError={(e) => {
-                e.target.src = "/default-bus-image.jpg"; // Fallback if image fails
-              }}
-            />
-
+                src={
+                  selectedBus.image.startsWith("http")
+                    ? selectedBus.image
+                    : `http://localhost:3001${selectedBus.image}`
+                }
+                alt="Bus"
+                className="w-full h-48 sm:h-64 object-cover rounded-lg shadow-sm"
+                onError={(e) => {
+                  e.target.src = "/default-bus-image.jpg"; // Fallback image
+                }}
+              />
             </div>
           )}
 
@@ -109,7 +126,9 @@ const SeatAvailability = () => {
               <FaCalendarAlt className="text-gray-600" size={20} />
               <div>
                 <p className="text-gray-600 font-semibold">Trip Date</p>
-                <p className="text-gray-800 text-base sm:text-lg">{new Date(selectedBus.tripDate).toLocaleDateString("en-US")}</p>
+                <p className="text-gray-800 text-base sm:text-lg">
+                  {new Date(selectedBus.tripDate).toLocaleDateString("en-US")}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3 sm:gap-4">
@@ -154,7 +173,10 @@ const SeatAvailability = () => {
           </div>
 
           {/* Continue to Payment Button */}
-          <button className="mt-4 sm:mt-6 w-full bg-green-600 text-white py-2 sm:py-3 rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 text-base sm:text-lg font-semibold">
+          <button
+            onClick={handleProceedToPayment}
+            className="mt-4 sm:mt-6 w-full bg-green-600 text-white py-2 sm:py-3 rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 text-base sm:text-lg font-semibold"
+          >
             Continue to Payment
           </button>
         </div>
@@ -203,7 +225,6 @@ const SeatAvailability = () => {
                       return (
                         <div key={seatNumber} className={`${gapStyle}`}>
                           <button
-                            key={seatNumber}
                             onClick={() => handleSeatSelection(seatNumber)}
                             disabled={isBooked}
                             className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg font-bold transition-colors 

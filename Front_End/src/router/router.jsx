@@ -14,6 +14,9 @@ import Vendor_Dashboard from "../Pages/Vendor_Dashboard";
 import Tickets from "../Pages/tickets";
 import Seat_Selection from "../Pages/Seat_Selection";
 import Vehicle_Seats from "../Pages/Vehicle_Seats";
+import KhaltiPayment from "../Component/KhaltiPayment";
+import PaymentCallback from "../Pages/PaymentCallback";
+import MyBookings from "../Pages/MyBookings";
 
 const router = createBrowserRouter([
     {
@@ -78,6 +81,18 @@ const router = createBrowserRouter([
   {
     path: '/Vehicle/:id',
     element: <Vehicle_Seats/>
+  },
+  {
+    path: '/payment',
+    element: <KhaltiPayment/>
+  },
+  {
+    path: '/payment/callback',
+    element: <PaymentCallback/>
+  },
+  {
+    path:'my-bookings',
+    element: <MyBookings/>
   }
       ]
     }

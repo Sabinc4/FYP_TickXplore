@@ -20,12 +20,13 @@ const VehicleReservation = () => {
     }
   }, [id]);
 
+  // ✅ Fetch All Vehicles
   const fetchVehicles = async () => {
     setLoading(true);
     try {
       const response = await axios.get("http://localhost:3001/api/vehicles");
-      console.log("Fetched Vehicles:", response.data); // ✅ Debugging
-  
+      console.log("Fetched Vehicles:", response.data); // Debugging
+
       if (response.data.vehicles && response.data.vehicles.length > 0) {
         setVehicles(response.data.vehicles);
         setSelectedVehicle(response.data.vehicles[0]); // Default to the first vehicle
@@ -40,8 +41,8 @@ const VehicleReservation = () => {
       setLoading(false);
     }
   };
-  
 
+  // ✅ Fetch a Specific Vehicle by ID
   const fetchVehicleById = async (vehicleId) => {
     setLoading(true);
     try {
@@ -56,37 +57,44 @@ const VehicleReservation = () => {
     }
   };
 
-  const handleReservationConfirmation = async () => {
+  // ✅ Handle Payment & Reservation with Khalti
+  const handlePaymentAndReservation = async () => {
     if (!selectedVehicle || !takeOffDate) {
       toast.error("Please select a vehicle and a take-off date");
       return;
     }
 
     try {
-      const reservationResponse = await axios.post(
-        `http://localhost:3001/api/vehicles/reserve/${selectedVehicle._id}`,
-        {
-          userId: "user123", // Replace with real user ID
-          takeOffDate,
-          fullVehicle: true,
-        }
-      );
+      const userId = localStorage.getItem("userId"); // Get logged-in user ID
+      if (!userId) {
+        toast.error("User not logged in.");
+        return;
+      }
 
-      toast.success("Reservation successful! " + reservationResponse.data.message);
-      setVehicles(vehicles.filter((v) => v._id !== selectedVehicle._id));
-      setSelectedVehicle(null);
-      setTakeOffDate("");
+      // 🔗 Initiate Khalti Payment
+      const paymentResponse = await axios.post("http://localhost:3001/api/payments/initiate", {
+        type: "vehicle",
+        itemId: selectedVehicle._id,
+        userInfo: {
+          name: "John Doe", // Replace with actual user info
+          email: "john@example.com",
+          phone: "9800000000",
+        },
+        takeOffDate,
+        userId,
+      });
+
+      if (paymentResponse.data.payment_url) {
+        // Redirect to Khalti payment page
+        window.location.href = paymentResponse.data.payment_url;
+      } else {
+        toast.error("Payment initiation failed.");
+      }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Reservation failed");
+      console.error("❌ Payment Error:", error);
+      toast.error("Failed to initiate payment.");
     }
   };
-
-  useEffect(() => {
-    if (selectedVehicle) {
-      console.log("Selected Vehicle:", selectedVehicle);
-      console.log("Selected Vehicle Price:", selectedVehicle.price);
-    }
-  }, [selectedVehicle]);
 
   if (loading) {
     return (
@@ -137,26 +145,21 @@ const VehicleReservation = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Vehicle</label>
                 <select
-                className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-                onChange={(e) => {
-                  const selectedId = e.target.value;
-                  const vehicle = vehicles.find((v) => v._id === selectedId);
-                  setSelectedVehicle(vehicle);
-                }}
-                value={selectedVehicle?._id || ""}
-              >
-                <option value="" disabled>Select a Vehicle</option>
-                {vehicles.length > 0 ? (
-                  vehicles.map((vehicle) => (
+                  className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                  onChange={(e) => {
+                    const selectedId = e.target.value;
+                    const vehicle = vehicles.find((v) => v._id === selectedId);
+                    setSelectedVehicle(vehicle);
+                  }}
+                  value={selectedVehicle?._id || ""}
+                >
+                  <option value="" disabled>Select a Vehicle</option>
+                  {vehicles.map((vehicle) => (
                     <option key={vehicle._id} value={vehicle._id}>
                       {vehicle.name} - {vehicle.pickupPoint} → {vehicle.dropPoint}
                     </option>
-                  ))
-                ) : (
-                  <option disabled>No Vehicles Available</option>
-                )}
-              </select>
-
+                  ))}
+                </select>
               </div>
 
               {selectedVehicle && (
@@ -211,7 +214,7 @@ const VehicleReservation = () => {
                   />
 
                   <button
-                    onClick={handleReservationConfirmation}
+                    onClick={handlePaymentAndReservation}
                     className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                   >
                     Confirm Reservation
@@ -236,6 +239,7 @@ const VehicleReservation = () => {
   );
 };
 
+// ✅ Reusable Components
 const DetailItem = ({ label, value }) => (
   <div className="flex justify-between items-center">
     <span className="text-gray-600 font-medium">{label}:</span>

@@ -3,7 +3,7 @@ const {
   getUsers,
   getVendors,
   getAdmins,
-  getAdminById, // ✅ Fetch single admin
+  getAdminById,
   getStats,
   toggleVendorStatus,
   editUser,
@@ -27,7 +27,7 @@ router.delete("/delete-vendor/:id", deleteVendor);
 
 // ✅ Admin Routes
 router.get("/get-admins", getAdmins);
-router.get("/get-admin/:id", getAdminById); // ✅ Fix for fetching a single admin
+router.get("/get-admin/:id", getAdminById); 
 router.get("/get-stats", getStats);
 
 module.exports = router;

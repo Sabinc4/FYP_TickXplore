@@ -1,10 +1,33 @@
 const express = require("express");
-const { getPrice } = require("../controllers/bookingController");
-
 const router = express.Router();
+const Booking = require("../models/Booking");
 
-// ✅ Define routes and call controller functions
-router.post("/get-price", getPrice);
+// ✅ Fetch all bookings for a user
+// ✅ Get all bookings for a user
+router.get("/user/:userId", async (req, res) => {
+  try {
+    const userId = req.params.userId;
 
-// ✅ Export router
+    // Fetch bookings and populate the busId field
+    const bookings = await Booking.find({ userId }).populate("busId");
+
+    res.status(200).json(bookings);
+  } catch (err) {
+    console.error("Error fetching bookings:", err);
+    res.status(500).json({ message: "Failed to fetch bookings." });
+  }
+});
+
+// ✅ Cancel a booking
+router.delete("/:bookingId", async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    await Booking.findByIdAndDelete(bookingId);
+    res.status(200).json({ message: "Booking cancelled successfully" });
+  } catch (error) {
+    console.error("Error cancelling booking:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 module.exports = router;

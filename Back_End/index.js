@@ -50,24 +50,24 @@ const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
-const bookingRoutes = require("./routes/bookingRoutes");
 const busRoutes = require("./routes/busRoutes");
 const userRoutes = require("./routes/userRoutes");
 const homepageRoutes = require("./routes/homepageRoutes");
 const touristAreaRoutes = require("./routes/touristAreaRoutes");
-const paymentRoutes = require("./routes/paymentRoutes");
+const paymentRoutes = require("./routes/payment");
+const bookingRoutes = require("./routes/bookingRoutes");
 
 // ✅ API Routes
 app.use("/auth", authRoutes);
 app.use("/admin", adminRoutes);
 app.use("/vendor", vendorRoutes);
 app.use("/users", userRoutes);
-app.use("/booking", bookingRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/buses", busRoutes);
 app.use("/api", homepageRoutes);
 app.use("/api/tourist-areas", touristAreaRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/bookings", bookingRoutes);
 
 // ✅ Health Check Route
 app.get("/health", (req, res) => {
