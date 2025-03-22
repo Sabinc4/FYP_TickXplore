@@ -3,6 +3,7 @@ const router = express.Router();
 const axios = require("axios");
 const Booking = require("../models/Booking");
 const Bus = require("../models/Bus");
+const Vehicle = require("../models/Vehicle");
 
 const KHALTI_BASE_URL = "https://dev.khalti.com/api/v2/epayment/initiate/";
 const KHALTI_LOOKUP_URL = "https://dev.khalti.com/api/v2/epayment/lookup/";
@@ -10,48 +11,93 @@ const KHALTI_LOOKUP_URL = "https://dev.khalti.com/api/v2/epayment/lookup/";
 // ✅ INITIATE PAYMENT
 router.post("/initiate", async (req, res) => {
   try {
-    const { type, itemId, userInfo, seats, userId } = req.body;
+    const { type, itemId, userInfo, seats, userId, takeOffDate } = req.body;
 
-    if (type !== "bus") return res.status(400).json({ message: "Only bus payments supported." });
-    if (!itemId || !userInfo || !userId || !seats || seats.length === 0) {
+    if (!itemId || !userInfo || !userId) {
       return res.status(400).json({ message: "Missing required fields." });
     }
 
-    const bus = await Bus.findById(itemId);
-    if (!bus) return res.status(404).json({ message: "Bus not found." });
+    let totalPrice = 0;
+    let booking;
+    let orderId = "";
+    let productName = "";
+    let productDetails = [];
+    let productType = "";
 
-    const totalPrice = bus.pricePerSeat * seats.length;
+    // 🚌 Bus Payment
+    if (type === "bus") {
+      if (!seats || seats.length === 0) {
+        return res.status(400).json({ message: "Seats are required for bus booking." });
+      }
 
-    const booking = new Booking({
-      userId,
-      busId: bus._id,
-      selectedSeats: seats,
-      totalPrice,
-      status: "Pending",
-    });
+      const bus = await Bus.findById(itemId);
+      if (!bus) return res.status(404).json({ message: "Bus not found." });
 
-    await booking.save();
+      totalPrice = bus.pricePerSeat * seats.length;
 
-    const orderId = `bus-${booking._id}-${Date.now()}`;
-    const payload = {
-      return_url: process.env.KHALTI_RETURN_URL,
-      website_url: process.env.KHALTI_WEBSITE_URL,
-      amount: totalPrice * 100,
-      purchase_order_id: orderId,
-      purchase_order_name: `${bus.name} (${bus.pickupPoint} → ${bus.dropPoint})`,
-      customer_info: {
-        name: userInfo.name,
-        email: userInfo.email,
-        phone: userInfo.phone,
-      },
-      product_details: [{
+      booking = new Booking({
+        userId,
+        busId: bus._id,
+        selectedSeats: seats,
+        totalPrice,
+        status: "Pending",
+      });
+
+      productName = `${bus.name} (${bus.pickupPoint} → ${bus.dropPoint})`;
+      productDetails = [{
         identity: bus._id.toString(),
         name: bus.name,
         total_price: totalPrice * 100,
         quantity: 1,
         unit_price: totalPrice * 100,
-      }],
-      merchant_extra: "bus",
+      }];
+      productType = "bus";
+      orderId = `bus-${booking._id}-${Date.now()}`;
+    }
+
+    // 🚙 Vehicle Payment
+    else if (type === "vehicle") {
+      const vehicle = await Vehicle.findById(itemId);
+      if (!vehicle) return res.status(404).json({ message: "Vehicle not found." });
+
+      totalPrice = vehicle.price;
+
+      booking = new Booking({
+        userId,
+        vehicleId: vehicle._id,
+        totalPrice,
+        status: "Pending",
+        reservationDate: takeOffDate || new Date(),
+      });
+
+      productName = `${vehicle.name} (${vehicle.pickupPoint} → ${vehicle.dropPoint})`;
+      productDetails = [{
+        identity: vehicle._id.toString(),
+        name: vehicle.name,
+        total_price: totalPrice * 100,
+        quantity: 1,
+        unit_price: totalPrice * 100,
+      }];
+      productType = "vehicle";
+      orderId = `vehicle-${booking._id}-${Date.now()}`;
+    }
+
+    // ❌ Invalid Type
+    else {
+      return res.status(400).json({ message: "Invalid payment type." });
+    }
+
+    await booking.save();
+
+    const payload = {
+      return_url: process.env.KHALTI_RETURN_URL,
+      website_url: process.env.KHALTI_WEBSITE_URL,
+      amount: totalPrice * 100,
+      purchase_order_id: orderId,
+      purchase_order_name: productName,
+      customer_info: userInfo,
+      product_details: productDetails,
+      merchant_extra: productType,
       merchant_username: "tickxplore",
     };
 
@@ -110,7 +156,6 @@ router.post("/verify", async (req, res) => {
   }
 });
 
-// ✅ HANDLE CALLBACK FROM KHALTI REDIRECT
 // ✅ HANDLE CALLBACK FROM KHALTI REDIRECT
 router.get("/callback", async (req, res) => {
   try {

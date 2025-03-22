@@ -13,11 +13,17 @@ const VehicleReservation = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (id) {
-      fetchVehicleById(id);
-    } else {
-      fetchVehicles();
-    }
+    const fetchAll = async () => {
+      await fetchVehicles();
+      if (id) {
+        const vehicle = vehicles.find((v) => v._id === id);
+        if (vehicle) {
+          setSelectedVehicle(vehicle);
+        }
+      }
+    };
+
+    fetchAll();
   }, [id]);
 
   // ✅ Fetch All Vehicles
@@ -29,7 +35,9 @@ const VehicleReservation = () => {
 
       if (response.data.vehicles && response.data.vehicles.length > 0) {
         setVehicles(response.data.vehicles);
-        setSelectedVehicle(response.data.vehicles[0]); // Default to the first vehicle
+        // Default to the first available vehicle
+        const availableVehicle = response.data.vehicles.find((v) => v.isAvailable);
+        setSelectedVehicle(availableVehicle || null);
       } else {
         toast.warning("No available vehicles.");
         setVehicles([]);
@@ -42,25 +50,30 @@ const VehicleReservation = () => {
     }
   };
 
-  // ✅ Fetch a Specific Vehicle by ID
-  const fetchVehicleById = async (vehicleId) => {
-    setLoading(true);
-    try {
-      const response = await axios.get(`http://localhost:3001/api/vehicles/${vehicleId}`);
-      console.log("Fetched Vehicle Data:", response.data);
-      setSelectedVehicle(response.data.vehicle);
-    } catch (error) {
-      console.error("Error fetching vehicle:", error);
-      toast.error(error.response?.data?.message || "Failed to fetch vehicle details");
-    } finally {
-      setLoading(false);
-    }
+  const isVehicleBookedOnDate = (vehicle, selectedDate) => {
+    if (!vehicle) return false;
+
+    // If the vehicle has a scheduled departure date, it is already booked
+    if (vehicle.takeOffDate) return true;
+
+    if (!selectedDate) return false;
+
+    const selected = new Date(selectedDate).toDateString();
+    const scheduledDeparture = vehicle.takeOffDate ? new Date(vehicle.takeOffDate).toDateString() : null;
+
+    // Check if the selected date matches the scheduled departure date
+    return scheduledDeparture === selected;
   };
 
-  // ✅ Handle Payment & Reservation with Khalti
+  // ✅ Handle Payment & Reservation
   const handlePaymentAndReservation = async () => {
     if (!selectedVehicle || !takeOffDate) {
       toast.error("Please select a vehicle and a take-off date");
+      return;
+    }
+
+    if (isVehicleBookedOnDate(selectedVehicle, takeOffDate)) {
+      toast.error("This vehicle is already booked.");
       return;
     }
 
@@ -71,7 +84,7 @@ const VehicleReservation = () => {
         return;
       }
 
-      // 🔗 Initiate Khalti Payment
+      // 🔗 Initiate Payment
       const paymentResponse = await axios.post("http://localhost:3001/api/payments/initiate", {
         type: "vehicle",
         itemId: selectedVehicle._id,
@@ -85,8 +98,11 @@ const VehicleReservation = () => {
       });
 
       if (paymentResponse.data.payment_url) {
-        // Redirect to Khalti payment page
+        // Redirect to payment page
         window.location.href = paymentResponse.data.payment_url;
+
+        // Refresh the vehicle list after booking
+        await fetchVehicles();
       } else {
         toast.error("Payment initiation failed.");
       }
@@ -155,8 +171,13 @@ const VehicleReservation = () => {
                 >
                   <option value="" disabled>Select a Vehicle</option>
                   {vehicles.map((vehicle) => (
-                    <option key={vehicle._id} value={vehicle._id}>
+                    <option
+                      key={vehicle._id}
+                      value={vehicle._id}
+                      disabled={isVehicleBookedOnDate(vehicle, takeOffDate)} // Disable if booked on the selected date
+                    >
                       {vehicle.name} - {vehicle.pickupPoint} → {vehicle.dropPoint}
+                      {isVehicleBookedOnDate(vehicle, takeOffDate) && " (Booked)"} {/* Show "Booked" label */}
                     </option>
                   ))}
                 </select>
@@ -192,6 +213,11 @@ const VehicleReservation = () => {
                           : "Not scheduled"
                       }
                     />
+                    {selectedVehicle?.takeOffDate && (
+                      <div className="text-red-600 font-semibold">
+                        This vehicle is already booked and cannot be reserved again.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -211,15 +237,23 @@ const VehicleReservation = () => {
                     value={takeOffDate}
                     onChange={(e) => setTakeOffDate(e.target.value)}
                     min={new Date().toISOString().split("T")[0]}
+                    disabled={!!selectedVehicle?.takeOffDate} // Disable if the vehicle has a scheduled departure date
                   />
 
                   <button
                     onClick={handlePaymentAndReservation}
                     className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                    disabled={!!selectedVehicle?.takeOffDate} // Disable if the vehicle has a scheduled departure date
                   >
                     Confirm Reservation
                     <FiArrowRight className="w-5 h-5" />
                   </button>
+
+                  {selectedVehicle?.takeOffDate && (
+                    <div className="text-red-600 font-semibold">
+                      This vehicle is already booked and cannot be reserved again.
+                    </div>
+                  )}
                 </div>
               </div>
 
