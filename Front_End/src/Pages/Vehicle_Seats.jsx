@@ -13,17 +13,13 @@ const VehicleReservation = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAll = async () => {
-      await fetchVehicles();
-      if (id) {
-        const vehicle = vehicles.find((v) => v._id === id);
-        if (vehicle) {
-          setSelectedVehicle(vehicle);
-        }
-      }
-    };
+    fetchVehicles();
+  }, []);
 
-    fetchAll();
+  useEffect(() => {
+    if (id) {
+      fetchVehicleById(id);
+    }
   }, [id]);
 
   // ✅ Fetch All Vehicles
@@ -34,9 +30,19 @@ const VehicleReservation = () => {
       console.log("Fetched Vehicles:", response.data); // Debugging
 
       if (response.data.vehicles && response.data.vehicles.length > 0) {
-        setVehicles(response.data.vehicles);
-        // Default to the first available vehicle
-        const availableVehicle = response.data.vehicles.find((v) => v.isAvailable);
+        const vehiclesWithAvailability = await Promise.all(
+          response.data.vehicles.map(async (vehicle) => {
+            const bookingsResponse = await axios.get(
+              `http://localhost:3001/api/bookings/vehicle/${vehicle._id}`
+            );
+            // Check if there are any blocking bookings (pending or confirmed)
+            const isAvailable = bookingsResponse.data.length === 0;
+            return { ...vehicle, isAvailable };
+          })
+        );
+
+        setVehicles(vehiclesWithAvailability);
+        const availableVehicle = vehiclesWithAvailability.find((v) => v.isAvailable);
         setSelectedVehicle(availableVehicle || null);
       } else {
         toast.warning("No available vehicles.");
@@ -50,19 +56,23 @@ const VehicleReservation = () => {
     }
   };
 
-  const isVehicleBookedOnDate = (vehicle, selectedDate) => {
-    if (!vehicle) return false;
-
-    // If the vehicle has a scheduled departure date, it is already booked
-    if (vehicle.takeOffDate) return true;
-
-    if (!selectedDate) return false;
-
-    const selected = new Date(selectedDate).toDateString();
-    const scheduledDeparture = vehicle.takeOffDate ? new Date(vehicle.takeOffDate).toDateString() : null;
-
-    // Check if the selected date matches the scheduled departure date
-    return scheduledDeparture === selected;
+  // ✅ Fetch a Specific Vehicle by ID
+  const fetchVehicleById = async (vehicleId) => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`http://localhost:3001/api/vehicles/${vehicleId}`);
+      const bookingsResponse = await axios.get(
+        `http://localhost:3001/api/bookings/vehicle/${vehicleId}`
+      );
+      // Check if there are any blocking bookings (pending or confirmed)
+      const isAvailable = bookingsResponse.data.length === 0;
+      setSelectedVehicle({ ...response.data.vehicle, isAvailable });
+    } catch (error) {
+      console.error("Error fetching vehicle:", error);
+      toast.error(error.response?.data?.message || "Failed to fetch vehicle details");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ✅ Handle Payment & Reservation
@@ -72,7 +82,7 @@ const VehicleReservation = () => {
       return;
     }
 
-    if (isVehicleBookedOnDate(selectedVehicle, takeOffDate)) {
+    if (!selectedVehicle.isAvailable) {
       toast.error("This vehicle is already booked.");
       return;
     }
@@ -100,9 +110,6 @@ const VehicleReservation = () => {
       if (paymentResponse.data.payment_url) {
         // Redirect to payment page
         window.location.href = paymentResponse.data.payment_url;
-
-        // Refresh the vehicle list after booking
-        await fetchVehicles();
       } else {
         toast.error("Payment initiation failed.");
       }
@@ -174,10 +181,10 @@ const VehicleReservation = () => {
                     <option
                       key={vehicle._id}
                       value={vehicle._id}
-                      disabled={isVehicleBookedOnDate(vehicle, takeOffDate)} // Disable if booked on the selected date
+                      disabled={!vehicle.isAvailable} // Disable unavailable vehicles
                     >
                       {vehicle.name} - {vehicle.pickupPoint} → {vehicle.dropPoint}
-                      {isVehicleBookedOnDate(vehicle, takeOffDate) && " (Booked)"} {/* Show "Booked" label */}
+                      {!vehicle.isAvailable && " (Booked)"} {/* Show "Booked" label */}
                     </option>
                   ))}
                 </select>
@@ -213,10 +220,8 @@ const VehicleReservation = () => {
                           : "Not scheduled"
                       }
                     />
-                    {selectedVehicle?.takeOffDate && (
-                      <div className="text-red-600 font-semibold">
-                        This vehicle is already booked and cannot be reserved again.
-                      </div>
+                    {!selectedVehicle.isAvailable && (
+                      <div className="text-red-600 font-semibold">This vehicle is already booked.</div>
                     )}
                   </div>
                 </div>
@@ -237,23 +242,16 @@ const VehicleReservation = () => {
                     value={takeOffDate}
                     onChange={(e) => setTakeOffDate(e.target.value)}
                     min={new Date().toISOString().split("T")[0]}
-                    disabled={!!selectedVehicle?.takeOffDate} // Disable if the vehicle has a scheduled departure date
                   />
 
                   <button
                     onClick={handlePaymentAndReservation}
                     className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                    disabled={!!selectedVehicle?.takeOffDate} // Disable if the vehicle has a scheduled departure date
+                    disabled={!selectedVehicle?.isAvailable} // Disable button if vehicle is booked
                   >
                     Confirm Reservation
                     <FiArrowRight className="w-5 h-5" />
                   </button>
-
-                  {selectedVehicle?.takeOffDate && (
-                    <div className="text-red-600 font-semibold">
-                      This vehicle is already booked and cannot be reserved again.
-                    </div>
-                  )}
                 </div>
               </div>
 
