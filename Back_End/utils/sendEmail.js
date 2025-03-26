@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
 
 const sendEmail = async (to, subject, html) => {
   const mailOptions = {
-    from: `"TickXplore" <${process.env.EMAIL}>`,
+    from: `"TickXplore" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     html,
@@ -19,13 +19,13 @@ const sendEmail = async (to, subject, html) => {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log("✅ Email sent to:", to);
+    console.log("Email sent to:", to);
     return {
       success: true,
       messageId: info.messageId,
     };
   } catch (err) {
-    console.error("❌ Error sending email:", err);
+    console.error("Error sending email:", err);
     throw new Error(`Failed to send email: ${err.message}`);
   }
 };

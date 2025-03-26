@@ -1,7 +1,10 @@
 const bcrypt = require("bcryptjs");
 const Admin = require("../models/Admin");
+const User = require('../models/User');
+const Vendor = require('../models/Vendor');
 const generateToken = require("../utils/generateToken");
-const sendEmail = require("../utils/sendEmail"); 
+const sendEmail = require("../utils/sendEmail");
+const Booking = require("../models/Booking"); 
 
 //Create New Admin
 exports.createAdmin = async (req, res) => {
@@ -250,5 +253,87 @@ exports.deleteAdmin = async (req, res) => {
     res.json({ message: "Admin deleted" });
   } catch (err) {
     res.status(500).json({ message: "Error deleting admin", error: err.message });
+  }
+};
+
+exports.editUserByAdmin = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const { name } = req.body;
+
+    const updatedUser = await User.findByIdAndUpdate(userId, { name }, { new: true });
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({ message: "User updated successfully", user: updatedUser });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update user", error });
+  }
+};
+
+// Delete User
+exports.deleteUserByAdmin = async (req, res) => {
+  try {
+    const deletedUser = await User.findByIdAndDelete(req.params.userId);
+    if (!deletedUser) return res.status(404).json({ message: "User not found" });
+
+    res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete user", error });
+  }
+};
+
+// Edit Vendor
+exports.editVendorByAdmin = async (req, res) => {
+  try {
+    const vendorId = req.params.vendorId;
+    const { vendorName } = req.body;
+
+    const updatedVendor = await Vendor.findByIdAndUpdate(vendorId, { vendorName }, { new: true });
+
+    if (!updatedVendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    res.json({ message: "Vendor updated successfully", vendor: updatedVendor });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update vendor", error });
+  }
+};
+
+// Delete Vendor
+exports.deleteVendorByAdmin = async (req, res) => {
+  try {
+    const deletedVendor = await Vendor.findByIdAndDelete(req.params.vendorId);
+    if (!deletedVendor) return res.status(404).json({ message: "Vendor not found" });
+
+    res.json({ message: "Vendor deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete vendor", error });
+  }
+};
+
+exports.getAllBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find()
+      .populate("userId", "name email")
+      .populate("busId", "name pickupPoint dropPoint")
+      .populate("vehicleId", "name price")
+      .sort({ createdAt: -1 });
+
+    // Rename populated fields for frontend clarity
+    const formatted = bookings.map(b => ({
+      ...b._doc, // extract plain object
+      user: b.userId,
+      bus: b.busId,
+      vehicle: b.vehicleId
+    }));
+
+    res.status(200).json({ bookings: formatted });
+  } catch (err) {
+    console.error("Admin Bookings Error:", err.message);
+    res.status(500).json({ message: "Failed to fetch bookings", error: err.message });
   }
 };

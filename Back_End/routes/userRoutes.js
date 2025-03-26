@@ -11,8 +11,6 @@ router.post("/reset-password", userController.resetPassword);
 
 // Protected (Token Required)
 router.get("/profile", verifyToken, userController.getProfile);
-
-// Admin
 router.get("/", userController.getAllUsers);
 router.get("/:id", userController.getUserById);
 router.put("/:id", userController.updateUser);

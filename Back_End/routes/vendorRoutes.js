@@ -11,11 +11,9 @@ router.post("/reset-password", vendorController.resetPassword);
 
 //Vendor Protected Route (Profile)
 router.get("/profile", verifyToken, vendorController.getProfile);   
-
-//Admin-Only Routes for Vendor Management
 router.get("/", vendorController.getAllVendors);                   
 router.get("/:id", vendorController.getVendorById);                 
-router.put("/:id", vendorController.updateVendor);                  
+router.put("/:id", vendorController.updateVendor);
 router.delete("/:id", vendorController.deleteVendor);               
 
 module.exports = router;

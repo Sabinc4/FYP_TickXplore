@@ -208,21 +208,34 @@ exports.toggleVendorStatus = async (req, res) => {
   }
 };
 
-//Admin: Delete Vendor
-exports.deleteVendor = async (req, res) => {
+exports.updateVendor = async (req, res) => {
   try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid Vendor ID format" });
-    }
-
-    const deletedVendor = await Vendor.findByIdAndDelete(id);
-    if (!deletedVendor) {
+    const updatedVendor = await Vendor.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    if (!updatedVendor) {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
-
-    res.status(200).json({ success: true, message: "Vendor deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    res.status(200).json({ success: true, message: "Vendor updated successfully", vendor: updatedVendor });
+  } catch (err) {
+    console.error("Update vendor error:", err);
+    res.status(500).json({ success: false, message: "Failed to update vendor", error: err.message });
   }
 };
+
+exports.deleteVendor = async (req, res) => {
+  try {
+    const deleted = await Vendor.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: "Vendor not found" });
+    }
+    res.status(200).json({ success: true, message: "Vendor deleted successfully" });
+  } catch (err) {
+    console.error("Delete vendor error:", err);
+    res.status(500).json({ success: false, message: "Failed to delete vendor", error: err.message });
+  }
+};
+
+

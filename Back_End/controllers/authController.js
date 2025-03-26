@@ -6,6 +6,7 @@ const generateToken = require("../utils/generateToken");
 const sendOTP = require("../utils/sendOTP");
 const generateOTP = require("../utils/generateOTP");
 const sendEmail = require("../utils/sendEmail");
+const Booking = require("../models/Booking");
 
 // SIGN-IN Controller: Send OTP for login
 exports.signIn = async (req, res) => {
@@ -17,13 +18,23 @@ exports.signIn = async (req, res) => {
 
     const models = [AdminModel, VendorModel, UserModel];
     let user = null;
+    let role = null;
+
     for (const model of models) {
       user = await model.findOne({ email });
-      if (user) break;
+      if (user) {
+        role = model.modelName.toLowerCase(); // "admin", "vendor", or "user"
+        break;
+      }
     }
 
     if (!user) {
       return res.status(400).json({ message: "User not found. Please check your email." });
+    }
+
+    // 🔒 Check if vendor is active
+    if (role === "vendor" && user.isActive === false) {
+      return res.status(403).json({ message: "Your vendor account is not active" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -32,9 +43,9 @@ exports.signIn = async (req, res) => {
     }
 
     const otp = generateOTP();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); 
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    await sendOTP(email, otp); 
+    await sendOTP(email, otp);
 
     user.otp = otp;
     user.otpExpires = otpExpiry;
@@ -51,6 +62,7 @@ exports.signIn = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 // OTP Verification: Second step of login after user enters OTP
 exports.verifyOTP = async (req, res) => {
@@ -236,6 +248,20 @@ exports.resetPassword = async (req, res) => {
     res.json({ success: true, message: "Password reset successful" });
   } catch (err) {
     res.status(500).json({ message: "Error resetting password", error: err.message });
+  }
+};
+
+exports.getAllBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find()
+      .populate("userId", "name email")
+      .populate("busId", "name pickupPoint dropPoint")
+      .populate("vehicleId", "name price");
+
+    res.status(200).json({ bookings });
+  } catch (err) {
+    console.error("Admin Bookings Error:", err.message);
+    res.status(500).json({ message: "Failed to fetch bookings", error: err.message });
   }
 };
 

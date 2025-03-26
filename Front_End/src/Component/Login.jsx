@@ -62,7 +62,9 @@ export default function Login() {
         toast.error(
           "Your vendor account is not active. Please wait for admin approval."
         );
-      }
+        setLoading(false); 
+        return; 
+      }      
       else if (response.data?.token) {
         handleLoginSuccess(response.data);
       }
