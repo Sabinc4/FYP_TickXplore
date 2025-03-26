@@ -1,6 +1,6 @@
 import React from "react";
 
-const DataTable = ({ title, data, fields, onEdit, onDelete }) => (
+const DataTable = ({ title, data, fields, onEdit, onDelete, onToggleStatus }) => (
   <div className="p-6 bg-white shadow-md rounded-lg">
     <h2 className="text-2xl font-semibold mb-6 text-gray-800">{title}</h2>
     <table className="w-full border border-gray-300 rounded-lg">
@@ -11,6 +11,9 @@ const DataTable = ({ title, data, fields, onEdit, onDelete }) => (
               {key.charAt(0).toUpperCase() + key.slice(1)}
             </th>
           ))}
+          {onToggleStatus && (
+            <th className="border border-gray-300 px-6 py-3">Status</th>
+          )}
           {(onEdit || onDelete) && (
             <th className="border border-gray-300 px-6 py-3">Actions</th>
           )}
@@ -24,6 +27,18 @@ const DataTable = ({ title, data, fields, onEdit, onDelete }) => (
                 {String(item[field])}
               </td>
             ))}
+            {onToggleStatus && (
+              <td className="border border-gray-300 px-6 py-3">
+                <button
+                  onClick={() => onToggleStatus(item._id)}
+                  className={`px-3 py-1 rounded-md text-white ${
+                    item.isActive ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
+                  }`}
+                >
+                  {item.isActive ? "Deactivate" : "Activate"}
+                </button>
+              </td>
+            )}
             {(onEdit || onDelete) && (
               <td className="border border-gray-300 px-6 py-3 flex gap-2">
                 {onEdit && (

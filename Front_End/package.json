@@ -10,11 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "aos": "^2.3.4",
     "axios": "^1.7.9",
     "chart.js": "^4.4.7",
     "cors": "^2.8.5",
     "firebase": "^11.3.0",
+    "framer-motion": "^12.5.0",
     "localforage": "^1.10.0",
     "lucide-react": "^0.468.0",
     "match-sorter": "^8.0.0",
@@ -27,6 +29,7 @@
     "react-scroll": "^1.9.2",
     "react-slick": "^0.30.3",
     "react-spinners": "^0.15.0",
+    "react-to-print": "^3.0.5",
     "react-toastify": "^11.0.3",
     "recharts": "^2.15.1",
     "slick-carousel": "^1.8.1",

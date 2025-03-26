@@ -357,12 +357,11 @@ const TransportCard = ({ item, type, onEdit, onDelete }) => (
           </>
         ) : (
           <>
-          <InfoItem label="Price" value={`Rs. ${item.price}`} />
-          <InfoItem label="Capacity" value={item.capacity} />
-          <InfoItem label="Status" value={item.isAvailable ? "Available" : "Reserved"} />
-          <InfoItem label="Pickup" value={item.pickupPoint} />
-          <InfoItem label="Drop" value={item.dropPoint} />
-          </>
+        <InfoItem label="Price" value={`Rs. ${item.price}`} />
+        <InfoItem label="Capacity" value={item.capacity} />
+        <InfoItem label="Status" value={item.isAvailable ? "Available" : "Reserved"} />
+        <InfoItem label="Take Off Date" value={item.takeOffDate ? new Date(item.takeOffDate).toLocaleDateString() : "Not set"} />
+      </>
         )}
       </div>
       <div className="flex justify-between items-center text-sm text-gray-500">
@@ -418,14 +417,13 @@ const AddEditForm = ({
     price: vehicle?.price || "",
     capacity: vehicle?.capacity || "",
     image: "",
-    pickupPoint: vehicle?.pickupPoint || bus?.pickupPoint || "",
-    dropPoint: vehicle?.dropPoint || bus?.dropPoint || "",
+    pickupPoint:  bus?.pickupPoint || "",
+    dropPoint:  bus?.dropPoint || "",
     totalSeats: bus?.totalSeats || "",
     isAvailable: vehicle?.isAvailable || true,
-    tripDate: vehicle?.tripDate ? new Date(vehicle.tripDate).toISOString().split("T")[0] : "",
-    takeOffDate: (vehicle?.takeOffDate || bus?.takeOffDate) ? 
-      new Date(vehicle?.takeOffDate || bus?.takeOffDate).toISOString().split("T")[0] : 
-      "",
+    takeOffDate: (vehicle?.takeOffDate || bus?.takeOffDate)
+      ? new Date(vehicle?.takeOffDate || bus?.takeOffDate).toISOString().split("T")[0]
+      : "",
   });
 
   const [imagePreview, setImagePreview] = useState(null);
@@ -459,7 +457,7 @@ const AddEditForm = ({
         toast.error('Please select a take-off date');
         return;
       }
-      
+
       if (formData.image instanceof File) {
         formDataToSend.append("image", formData.image);
       }
@@ -487,7 +485,6 @@ const AddEditForm = ({
       setIsSubmitting(false);
     }
   };
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl w-full max-w-2xl p-6 space-y-4">
@@ -499,9 +496,16 @@ const AddEditForm = ({
         </div>
 
         <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
-          <FormInput label="Name" name="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+          {/* Common Field */}
+          <FormInput
+            label="Name"
+            name="name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          />
 
-          {type === "vehicles" && (
+          {/* Vehicle Price or Bus Price per Seat */}
+          {type === "vehicles" ? (
             <FormInput
               label="Price"
               type="number"
@@ -509,9 +513,7 @@ const AddEditForm = ({
               value={formData.price}
               onChange={(e) => setFormData({ ...formData, price: e.target.value })}
             />
-          )}
-
-          {type === "buses" && (
+          ) : (
             <FormInput
               label="Price per Seat"
               type="number"
@@ -521,20 +523,61 @@ const AddEditForm = ({
             />
           )}
 
-          <FormInput label="Pickup Point" name="pickupPoint" value={formData.pickupPoint} onChange={(e) => setFormData({ ...formData, pickupPoint: e.target.value })} />
-          <FormInput label="Drop Point" name="dropPoint" value={formData.dropPoint} onChange={(e) => setFormData({ ...formData, dropPoint: e.target.value })} />
-          {type === "buses" ? (
-            <FormInput label="Total Seats" type="number" name="totalSeats" value={formData.totalSeats} onChange={(e) => setFormData({ ...formData, totalSeats: e.target.value })} />
-          ) : (
-            <FormInput label="Capacity" type="number" name="capacity" value={formData.capacity} onChange={(e) => setFormData({ ...formData, capacity: e.target.value })} />
+          {/* Bus-specific fields */}
+          {type === "buses" && (
+            <>
+              <FormInput
+                label="Pickup Point"
+                name="pickupPoint"
+                value={formData.pickupPoint}
+                onChange={(e) => setFormData({ ...formData, pickupPoint: e.target.value })}
+              />
+              <FormInput
+                label="Drop Point"
+                name="dropPoint"
+                value={formData.dropPoint}
+                onChange={(e) => setFormData({ ...formData, dropPoint: e.target.value })}
+              />
+            </>
           )}
-          <FormInput label="Trip Date" type="date" name="tripDate" value={formData.tripDate} onChange={(e) => setFormData({ ...formData, tripDate: e.target.value })} />
-          <FormInput label="Take Off Date" type="date" name="takeOffDate" value={formData.takeOffDate} onChange={(e) => setFormData({ ...formData, takeOffDate: e.target.value })} />
+
+          {/* Seats or Capacity */}
+          {type === "buses" ? (
+            <FormInput
+              label="Total Seats"
+              type="number"
+              name="totalSeats"
+              value={formData.totalSeats}
+              onChange={(e) => setFormData({ ...formData, totalSeats: e.target.value })}
+            />
+          ) : (
+            <FormInput
+              label="Capacity"
+              type="number"
+              name="capacity"
+              value={formData.capacity}
+              onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+            />
+          )}
+
+          {/* Common Date Field */}
+          <FormInput
+            label="Take Off Date"
+            type="date"
+            name="takeOffDate"
+            value={formData.takeOffDate}
+            onChange={(e) => setFormData({ ...formData, takeOffDate: e.target.value })}
+          />
 
           {/* Image Upload */}
           <div className="col-span-2">
             <label className="text-sm font-medium text-gray-700">Upload Image</label>
-            <input type="file" accept="image/*" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500" onChange={handleImageChange} />
+            <input
+              type="file"
+              accept="image/*"
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              onChange={handleImageChange}
+            />
             {imagePreview && (
               <div className="mt-2">
                 <img src={imagePreview} alt="Preview" className="w-32 h-32 object-cover rounded-lg" />
@@ -542,10 +585,20 @@ const AddEditForm = ({
             )}
           </div>
 
-          {/* Submit & Cancel Buttons */}
+          {/* Buttons */}
           <div className="col-span-2 flex justify-end gap-3 mt-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
               {isSubmitting ? "Submitting..." : isAdding ? "Add" : "Save Changes"}
             </button>
           </div>

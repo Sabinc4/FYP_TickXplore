@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const HomepageContent = require("../models/HomepageContent");
 
-// ✅ Get Homepage Content
+//Get Homepage Content
 exports.getHomepageContent = async (req, res) => {
   try {
     const homepageContent = await HomepageContent.findOne();
@@ -15,11 +15,9 @@ exports.getHomepageContent = async (req, res) => {
   }
 };
 
-// ✅ Update Homepage Content with File Upload
+// Update Homepage Content with File Upload
 exports.updateHomepageContent = async (req, res) => {
     try {
-      console.log("Received request:", req.body);
-      console.log("Received files:", req.files); // Debugging line
   
       if (!req.files || !req.files.backgroundImage) {
         return res.status(400).json({ message: "No file uploaded" });

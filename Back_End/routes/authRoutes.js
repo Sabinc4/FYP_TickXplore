@@ -1,25 +1,19 @@
 const express = require("express");
-const { signIn, signUp } = require("../controllers/authController");
-const rateLimit = require("express-rate-limit");
-const { body } = require("express-validator");
-
 const router = express.Router();
+const adminController = require("../controllers/adminController");
+const vendorController = require("../controllers/vendorController");
+const userController = require("../controllers/userController");
+const authController = require("../controllers/authController")
+const { signIn, signUp } = require("../controllers/authController");
+const { verifyOTP } = require("../controllers/verifyOTP"); 
 
-//Limit login attempts to prevent brute-force attacks
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 login requests per window
-  message: { message: " Too many login attempts. Please try again later." },
-});
-
-//Validation for sign-up
-const validateSignUp = [
-  body("email").isEmail().withMessage(" Invalid email format"),
-  body("password").isLength({ min: 6 }).withMessage(" Password must be at least 6 characters"),
-];
-
-//Authentication Routes (NO JWT REQUIRED)
-router.post("/sign-in", loginLimiter, signIn);
-router.post("/sign-up", validateSignUp, signUp);
+router.post("/sign-in", signIn);
+router.post("/sign-up", signUp);
+router.post("/verify-otp", verifyOTP); 
+router.post("/forgot-password/admin", adminController.forgotPassword); 
+router.post("/forgot-password/vendor", vendorController.forgotPassword); 
+router.post("/forgot-password/user", userController.forgotPassword);
+router.post("/verify-reset-otp", authController.verifyResetOtp);
+router.post("/reset-password", authController.resetPassword);
 
 module.exports = router;

@@ -4,9 +4,7 @@ import Nav from "../Component/Nav";
 import "../../src/App.css";
 import Footer from "../Component/Footer";
 
-
 const Main = () => {
-
   return (
     <div className="bg-prigmayBG">
       {
@@ -17,8 +15,7 @@ const Main = () => {
         </div>
         <Footer/>
         </div>
-      }
-       
+      } 
     </div>
   )
 };

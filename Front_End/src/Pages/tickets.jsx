@@ -45,6 +45,7 @@ const BusTickets = () => {
       return response.data;
     } catch (error) {
       toast.error("Failed to fetch data. Please try again.");
+      console.error("Error fetching data:", error);
       throw error;
     }
   };
@@ -79,6 +80,7 @@ const BusTickets = () => {
       setDropLocations(allDropPoints);
     } catch (error) {
       toast.error("Failed to load locations. Please refresh the page.");
+      console.error("Error in fetchLocations:", error);
     }
   };
 
@@ -105,78 +107,83 @@ const BusTickets = () => {
     return true;
   };
 
-  // Handle search for buses and vehicles
   const handleSearch = async () => {
     if (!validateForm()) return;
-
+  
     setFetching(true);
     try {
       const [busesData, vehiclesData] = await Promise.all([
         fetchData("http://localhost:3001/api/buses"),
         fetchData("http://localhost:3001/api/vehicles"),
       ]);
-
-      console.log("Buses API Response:", busesData); // Debug buses data
-      console.log("Vehicles API Response:", vehiclesData); // Debug vehicles data
-
+  
       const allBuses = busesData.buses || [];
       const allVehicles = vehiclesData.vehicles || [];
-
-      // Filter buses
+  
+      // Filter buses (unchanged)
       const filteredBuses = allBuses.filter((bus) => {
-        const busDate = new Date(bus.takeOffDate).toISOString().split("T")[0];
-        return (
-          bus.pickupPoint.toLowerCase() === formData.pickupPoint.toLowerCase() &&
-          bus.dropPoint.toLowerCase() === formData.droppingPoint.toLowerCase() &&
-          busDate === formData.date &&
-          bus.totalSeats - bus.bookedSeats.length > 0 &&
-          bus.pricePerSeat > 0 // Ensure price is valid
-        );
+        const busDate = bus.takeOffDate ? new Date(bus.takeOffDate).toISOString().split('T')[0] : null;
+        const matchesLocation = 
+          bus.pickupPoint?.toLowerCase() === formData.pickupPoint.toLowerCase() &&
+          bus.dropPoint?.toLowerCase() === formData.droppingPoint.toLowerCase();
+        
+        const matchesDate = busDate === formData.date;
+        const hasAvailableSeats = (bus.totalSeats - (bus.bookedSeats?.length || 0)) > 0;
+        const hasValidPrice = bus.pricePerSeat > 0;
+  
+        return matchesLocation && matchesDate && hasAvailableSeats && hasValidPrice;
       });
-
-      // Filter vehicles (whole-vehicle reservation)
+  
+      // Modified vehicle filtering - only check date if no pickup/drop points
       const filteredVehicles = allVehicles.filter((vehicle) => {
-        const vehicleDate = new Date(vehicle.takeOffDate).toISOString().split("T")[0];
-        return (
-          vehicle.pickupPoint.toLowerCase() === formData.pickupPoint.toLowerCase() &&
-          vehicle.dropPoint.toLowerCase() === formData.droppingPoint.toLowerCase() &&
-          vehicleDate === formData.date &&
-          vehicle.isAvailable // Only show available vehicles
-        );
+        const vehicleDate = vehicle.takeOffDate ? new Date(vehicle.takeOffDate).toISOString().split('T')[0] : null;
+        const matchesDate = vehicleDate === formData.date;
+        const isAvailable = vehicle.isAvailable !== false;
+        const hasValidPrice = vehicle.price > 0;
+  
+        // Check if vehicle has pickup/drop points
+        const hasLocationData = vehicle.pickupPoint && vehicle.dropPoint;
+        
+        if (hasLocationData) {
+          // If vehicle has location data, check both location and date
+          const matchesLocation = 
+            vehicle.pickupPoint.toLowerCase() === formData.pickupPoint.toLowerCase() &&
+            vehicle.dropPoint.toLowerCase() === formData.droppingPoint.toLowerCase();
+          
+          return matchesLocation && matchesDate && isAvailable && hasValidPrice;
+        } else {
+          // If no location data, just check date and availability
+          return matchesDate && isAvailable && hasValidPrice;
+        }
       });
-
-      console.log("FILTERED BUSES:", filteredBuses); // Debug filtered buses
-      console.log("FILTERED VEHICLES:", filteredVehicles); // Debug filtered vehicles
-
-      // Add image URLs and available seats
+  
+      // Rest of your processing remains the same...
       const busesWithDetails = filteredBuses.map((bus) => ({
         ...bus,
         imageUrl: bus.image
           ? new URL(bus.image, "http://localhost:3001").href
           : "/default-bus-image.jpg",
         availableSeats: bus.totalSeats - bus.bookedSeats.length,
-        price: bus.pricePerSeat || "N/A", // Ensure price is included
+        price: bus.pricePerSeat || "N/A",
       }));
-
+  
       const vehiclesWithDetails = filteredVehicles.map((vehicle) => ({
         ...vehicle,
         imageUrl: vehicle.image
           ? new URL(vehicle.image, "http://localhost:3001").href
           : "/default-vehicle-image.jpg",
-        price: vehicle.price || "N/A", // Ensure price is included
+        price: vehicle.price || "N/A",
       }));
-
-      console.log("Buses with Details:", busesWithDetails); // Debug buses with details
-      console.log("Vehicles with Details:", vehiclesWithDetails); // Debug vehicles with details
-
+  
       setBuses(busesWithDetails);
       setVehicles(vehiclesWithDetails);
-
+  
       if (filteredBuses.length === 0 && filteredVehicles.length === 0) {
         toast.info("No available buses or vehicles found for selected criteria");
       }
     } catch (err) {
       toast.error("Search failed. Please check your connection.");
+      console.error("Search error:", err);
     } finally {
       setFetching(false);
     }
@@ -186,17 +193,15 @@ const BusTickets = () => {
   const handleViewSeats = (id, type) => {
     if (type === "bus") {
       const selectedBus = buses.find((bus) => bus._id === id);
-      console.log("Selected Bus Data:", selectedBus); // Log the selected bus data
-      navigate(`/Seat_Selection/${id}`); // Navigate with bus ID only
+      console.log("Selected Bus Data:", selectedBus); 
+      navigate(`/Seat_Selection/${id}`); 
     } else {
-      navigate(`/Vehicle/${id}`); // Navigate with vehicle ID only
+      navigate(`/Vehicle/${id}`); 
     }
   };
-
   return (
     <div className="max-w-5xl mx-auto mt-10 p-4 sm:p-6 bg-white shadow-lg rounded-md">
       <ToastContainer position="top-right" autoClose={3000} />
-
       <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
         Search Bus Tickets
       </h2>
@@ -302,8 +307,9 @@ const BusTickets = () => {
       {/* Results Section */}
       <div className="mt-8 space-y-6">
         {fetching ? (
-          <div className="flex justify-center">
-            <FaSpinner className="animate-spin text-4xl text-blue-600" />
+          <div className="flex justify-center py-8">
+            <FaSpinner className="animate-spin text-4xl text-blue-600 mr-4" />
+            <span className="text-lg text-gray-600">Searching for available transport...</span>
           </div>
         ) : (
           <>
@@ -342,10 +348,16 @@ const BusTickets = () => {
             )}
 
             {/* No Results Message */}
-            {buses.length === 0 && vehicles.length === 0 && (
-              <p className="text-center text-gray-500 py-8">
-                No available buses or vehicles found. Try different search criteria.
-              </p>
+            {!fetching && buses.length === 0 && vehicles.length === 0 && (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <FaInfoCircle className="mx-auto text-4xl text-gray-400 mb-4" />
+                <h4 className="text-lg font-medium text-gray-700">No transport found</h4>
+                <p className="text-gray-500 mt-2">
+                  {formData.pickupPoint || formData.droppingPoint || formData.date
+                    ? "No available buses or vehicles match your search criteria."
+                    : "Please enter your travel details to search for available transport."}
+                </p>
+              </div>
             )}
           </>
         )}

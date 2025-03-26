@@ -1,13 +1,8 @@
 const mongoose = require("mongoose");
 const uniqueValidator = require("mongoose-unique-validator");
-const AutoIncrement = require("mongoose-sequence")(mongoose);
 
 const VendorSchema = new mongoose.Schema(
   {
-    vendorId: {
-      type: Number,
-      unique: true,
-    },
     vendorName: {
       type: String,
       required: true,
@@ -26,6 +21,12 @@ const VendorSchema = new mongoose.Schema(
       lowercase: true,
       match: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/,
     },
+    phoneNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      match: /^[0-9]{7,15}$/, // Accepts 7–15 digit phone numbers
+    },
     password: {
       type: String,
       required: true,
@@ -34,22 +35,24 @@ const VendorSchema = new mongoose.Schema(
     role: {
       type: String,
       required: true,
-      enum: ["vendor"], 
+      enum: ["vendor"],
       default: "vendor",
     },
     isActive: {
       type: Boolean,
-      default: true, 
+      default: false, 
     },
+    resetCode: String,
+    resetCodeExpires: Date,
+
+    otp: { type: String },
+    otpExpires: { type: Date }
   },
   { timestamps: true }
 );
 
-//Apply unique validator plugin
+// Apply unique validation
 VendorSchema.plugin(uniqueValidator, { message: "{PATH} must be unique." });
-
-//Auto-increment vendorId with a starting sequence
-VendorSchema.plugin(AutoIncrement, { inc_field: "vendorId", start_seq: 0 });
 
 const VendorModel = mongoose.model("Vendor", VendorSchema);
 module.exports = VendorModel;

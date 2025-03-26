@@ -1,0 +1,61 @@
+const nodemailer = require("nodemailer");
+require("dotenv").config();
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const sendEmail = async (to, subject, html) => {
+  const mailOptions = {
+    from: `"TickXplore" <${process.env.EMAIL}>`,
+    to,
+    subject,
+    html,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("✅ Email sent to:", to);
+    return {
+      success: true,
+      messageId: info.messageId,
+    };
+  } catch (err) {
+    console.error("❌ Error sending email:", err);
+    throw new Error(`Failed to send email: ${err.message}`);
+  }
+};
+
+// Specific function for password reset emails
+const sendResetEmail = async (email, resetUrl) => {
+  const subject = "Password Reset Request - TickXplore";
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #2563eb;">Password Reset Request</h2>
+      <p>You requested to reset your password for TickXplore. Click the button below to proceed:</p>
+      <a href="${resetUrl}" 
+         style="display: inline-block; padding: 12px 24px; background-color: #2563eb; 
+                color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">
+        Reset Password
+      </a>
+      <p>If you didn't request this, please ignore this email.</p>
+      <p style="font-size: 12px; color: #6b7280;">This link will expire in 1 hour.</p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+      <p style="font-size: 12px; color: #6b7280;">
+        If the button doesn't work, copy and paste this link into your browser:<br>
+        ${resetUrl}
+      </p>
+    </div>
+  `;
+
+  return sendEmail(email, subject, html);
+};
+
+module.exports = {
+  sendEmail,
+  sendResetEmail
+};

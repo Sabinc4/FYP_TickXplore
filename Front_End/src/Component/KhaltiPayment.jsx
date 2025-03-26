@@ -49,24 +49,18 @@ const Payment = () => {
       }
   
     } catch (err) {
-      console.error("❌ Payment Error:", err.response?.data || err.message);
+      console.error("Payment Error:", err.response?.data || err.message);
       toast.error(err.response?.data?.message || "Payment failed.");
     } finally {
       setLoading(false);
     }
   };
-  
-  
-  
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">Confirm Your Payment</h1>
-
       <div className="bg-white shadow-lg rounded-lg p-6 w-full max-w-md">
         <p className="text-lg text-gray-700 mb-3">Seats Selected: {seats.join(", ")}</p>
         <p className="text-lg text-gray-700 mb-3">Total Price: Rs. {totalPrice}</p>
-
         <button
           onClick={handlePayment}
           className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 text-lg font-semibold mt-4"

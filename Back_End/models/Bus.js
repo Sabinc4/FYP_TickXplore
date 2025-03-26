@@ -12,7 +12,7 @@ const BusSchema = new mongoose.Schema(
     dropPoint: { type: String, required: true, trim: true },
     totalSeats: { type: Number, required: true, min: 1 },
 
-    bookedSeats: [{ type: Number, min: 1, default: [] }], // ✅ Default to empty array
+    bookedSeats: [{ type: Number, min: 1, default: [] }], 
 
     tripDate: { type: Date, required: true },
     takeOffDate: { type: Date, required: true },
@@ -20,12 +20,12 @@ const BusSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// 🎯 Virtual field to calculate remaining seats dynamically
+//Virtual field to calculate remaining seats dynamically
 BusSchema.virtual("remainingSeats").get(function () {
   return this.totalSeats - (this.bookedSeats ? this.bookedSeats.length : 0);
 });
 
-// ✅ Include virtuals & getters in JSON output
+//Include virtuals & getters in JSON output
 BusSchema.set("toJSON", { virtuals: true, getters: true });
 BusSchema.set("toObject", { virtuals: true, getters: true });
 

@@ -14,7 +14,7 @@ const TouristVisit = () => {
         const response = await axios.get("http://localhost:3001/api/tourist-areas");
         setAreas(response.data);
       } catch (error) {
-        console.error("❌ Error fetching tourist areas:", error);
+        console.error("Error fetching tourist areas:", error);
         setError("Failed to load tourist areas. Please try again.");
       } finally {
         setLoading(false);

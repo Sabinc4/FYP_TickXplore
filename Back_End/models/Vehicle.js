@@ -3,8 +3,6 @@ const mongoose = require("mongoose");
 const vehicleSchema = new mongoose.Schema({
   name: String,
   image: String,
-  pickupPoint: String,
-  dropPoint: String,
   capacity: Number,
   price: Number,
   vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor" },
@@ -13,7 +11,10 @@ const vehicleSchema = new mongoose.Schema({
   reservations: [
     {
       userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-      takeOffDate: Date,
+      reservedFrom: Date,
+      reservedUntil: Date,
+      pickupPoint: String,
+      dropPoint: String,
     },
   ],
 });

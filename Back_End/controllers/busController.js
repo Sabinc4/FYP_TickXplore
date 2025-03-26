@@ -22,7 +22,7 @@ const handleFileUpload = (file, res) => {
   const imagePath = `/uploads/${file.name}`;
   file.mv(`.${imagePath}`, (err) => {
     if (err) {
-      console.error("❌ File Upload Error:", err);
+      console.error("File Upload Error:", err);
       return res.status(500).json({
         success: false,
         message: "File upload failed",
@@ -33,11 +33,11 @@ const handleFileUpload = (file, res) => {
   return imagePath;
 };
 
-// ✅ Create Bus (Handles File Upload & JSON Data)
+//Create Bus 
 exports.createBus = async (req, res) => {
   try {
-    console.log("✅ Received Data:", req.body);
-    console.log("✅ Received Files:", req.files); // Debugging
+    console.log("Received Data:", req.body);
+    console.log("Received Files:", req.files); // Debugging
 
     const {
       vendorId,
@@ -74,7 +74,7 @@ exports.createBus = async (req, res) => {
         message: "Invalid pricePerSeat value",
       });
     }
-    console.log("✅ Price Per Seat:", pricePerSeatNumber); // Log the value
+    console.log("Price Per Seat:", pricePerSeatNumber);
 
     // Ensure bookedSeats is an array
     let bookedSeats = [];
@@ -84,14 +84,14 @@ exports.createBus = async (req, res) => {
           ? req.body.bookedSeats
           : JSON.parse(req.body.bookedSeats);
       } catch (error) {
-        console.error("❌ Error parsing bookedSeats:", error);
+        console.error("Error parsing bookedSeats:", error);
         return res.status(400).json({
           success: false,
           message: "Invalid bookedSeats format",
         });
       }
     }
-    console.log("✅ Final bookedSeats:", bookedSeats);
+    console.log("Final bookedSeats:", bookedSeats);
 
     // Handle Image Upload
     const imagePath = handleFileUpload(req.files?.image, res);
@@ -101,7 +101,7 @@ exports.createBus = async (req, res) => {
     const newBus = new Bus({
       vendorId,
       name,
-      pricePerSeat: pricePerSeatNumber, // Use the converted number
+      pricePerSeat: pricePerSeatNumber,
       image: imagePath,
       pickupPoint,
       dropPoint,
@@ -118,7 +118,7 @@ exports.createBus = async (req, res) => {
       bus: newBus,
     });
   } catch (error) {
-    console.error("❌ Error creating bus:", error);
+    console.error("Error creating bus:", error);
     res.status(500).json({
       success: false,
       message: "Failed to create bus",
@@ -127,10 +127,10 @@ exports.createBus = async (req, res) => {
   }
 };
 
-// ✅ Get All Buses (Handles Homepage, Admin, and Vendor Requests)
+// ✅ Get All Buses
 exports.getAllBuses = async (req, res) => {
   try {
-    console.log("✅ Query Params:", req.query);
+    console.log("Query Params:", req.query);
 
     const { vendorId, admin, homepage } = req.query;
     let buses;
@@ -152,16 +152,15 @@ exports.getAllBuses = async (req, res) => {
       });
     }
 
-    // Convert Image Path to Full URL
     const busesWithImages = buses.map((bus) => ({
       ...bus.toObject(),
       image: bus.image ? `http://localhost:3001${bus.image}` : null,
     }));
 
-    console.log("✅ Fetched Buses:", busesWithImages); // Log the fetched buses
+    console.log("Fetched Buses:", busesWithImages); // Log the fetched buses
     res.status(200).json({ success: true, buses: busesWithImages });
   } catch (error) {
-    console.error("❌ Error fetching buses:", error);
+    console.error("Error fetching buses:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch buses",
@@ -170,7 +169,7 @@ exports.getAllBuses = async (req, res) => {
   }
 };
 
-// ✅ Get Bus by ID
+//Get Bus by ID
 exports.getBusById = async (req, res) => {
   try {
     const bus = await Bus.findById(req.params.id);
@@ -182,7 +181,7 @@ exports.getBusById = async (req, res) => {
     }
     res.status(200).json({ success: true, bus });
   } catch (error) {
-    console.error("❌ Error fetching bus:", error);
+    console.error("Error fetching bus:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch bus",
@@ -191,7 +190,7 @@ exports.getBusById = async (req, res) => {
   }
 };
 
-// ✅ Update Bus (Supports Partial Updates)
+//Update Bus
 exports.updateBus = async (req, res) => {
   try {
     const bus = await Bus.findById(req.params.id);
@@ -202,7 +201,7 @@ exports.updateBus = async (req, res) => {
       });
     }
 
-    console.log("✅ Updating Bus:", req.body);
+    console.log("Updating Bus:", req.body);
 
     // Update provided fields
     Object.keys(req.body).forEach((key) => {
@@ -211,7 +210,7 @@ exports.updateBus = async (req, res) => {
       }
     });
 
-    // Handle pricePerSeat (ensure it's a number)
+    // Handle pricePerSeat
     if (req.body.pricePerSeat) {
       const pricePerSeatNumber = Number(req.body.pricePerSeat);
       if (isNaN(pricePerSeatNumber)) {
@@ -221,7 +220,7 @@ exports.updateBus = async (req, res) => {
         });
       }
       bus.pricePerSeat = pricePerSeatNumber;
-      console.log("✅ Updated Bus Price Per Seat:", bus.pricePerSeat); // Log the value
+      console.log("Updated Bus Price Per Seat:", bus.pricePerSeat);
     }
 
     // Handle bookedSeats
@@ -231,7 +230,7 @@ exports.updateBus = async (req, res) => {
           ? req.body.bookedSeats
           : JSON.parse(req.body.bookedSeats);
       } catch (error) {
-        console.error("❌ Error parsing bookedSeats:", error);
+        console.error("Error parsing bookedSeats:", error);
         return res.status(400).json({
           success: false,
           message: "Invalid bookedSeats format",
@@ -253,7 +252,7 @@ exports.updateBus = async (req, res) => {
       bus,
     });
   } catch (error) {
-    console.error("❌ Error updating bus:", error);
+    console.error("Error updating bus:", error);
     res.status(500).json({
       success: false,
       message: "Failed to update bus",
@@ -287,7 +286,7 @@ exports.deleteBus = async (req, res) => {
       message: "Bus deleted successfully",
     });
   } catch (error) {
-    console.error("❌ Error deleting bus:", error);
+    console.error("Error deleting bus:", error);
     res.status(500).json({
       success: false,
       message: "Failed to delete bus",

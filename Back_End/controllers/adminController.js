@@ -1,191 +1,254 @@
-const mongoose = require("mongoose");
-const UserModel = require("../models/User");
-const VendorModel = require("../models/Vendor");
-const AdminModel = require("../models/Admin");
-const VehicleModel = require("../models/Vehicle");
-const BusModel = require("../models/Bus");
+const bcrypt = require("bcryptjs");
+const Admin = require("../models/Admin");
+const generateToken = require("../utils/generateToken");
+const sendEmail = require("../utils/sendEmail"); 
 
-// ✅ Error Handler Function
-const handleError = (res, error, action) => {
-  console.error(`❌ Error ${action}:`, error);
-  res.status(500).json({ message: `❌ Error ${action}`, error: error.message });
-};
-
-// ✅ FETCH USERS (Only Required Fields)
-exports.getUsers = async (req, res) => {
+//Create New Admin
+exports.createAdmin = async (req, res) => {
   try {
-    const users = await UserModel.find({}, "userId name email location role");
-    res.status(200).json({ success: true, users });
-  } catch (error) {
-    handleError(res, error, "fetching users");
+    const { name, location, email, phoneNumber, password } = req.body;
+
+    const existing = await Admin.findOne({ email });
+    if (existing) return res.status(400).json({ message: "Email already registered" });
+
+    const hashed = await bcrypt.hash(password, 10);
+    const admin = await Admin.create({ name, location, email, phoneNumber, password: hashed });
+
+    res.status(201).json({ message: "Admin created successfully", admin });
+  } catch (err) {
+    res.status(500).json({ message: "Error creating admin", error: err.message });
   }
 };
 
-// ✅ FETCH VENDORS
-exports.getVendors = async (req, res) => {
+//Admin Login
+exports.loginAdmin = async (req, res) => {
   try {
-    const vendors = await VendorModel.find({}, "vendorId vendorName email vendorLocation role isActive");
-    res.status(200).json({ success: true, vendors });
-  } catch (error) {
-    handleError(res, error, "fetching vendors");
-  }
-};
+    const { email, password } = req.body;
+    const admin = await Admin.findOne({ email });
+    if (!admin) return res.status(404).json({ message: "Admin not found" });
 
-// ✅ FETCH ADMINS
-exports.getAdmins = async (req, res) => {
-  try {
-    const admins = await AdminModel.find({}, "adminId name email location role");
-    res.status(200).json({ success: true, admins });
-  } catch (error) {
-    handleError(res, error, "fetching admins");
-  }
-};
+    const match = await bcrypt.compare(password, admin.password);
+    if (!match) return res.status(401).json({ message: "Invalid password" });
 
-// ✅ FETCH DASHBOARD STATS
-exports.getStats = async (req, res) => {
-  try {
-    const usersCount = await UserModel.countDocuments();
-    const vendorsCount = await VendorModel.countDocuments();
-    const adminsCount = await AdminModel.countDocuments();
-    const vehiclesCount = await VehicleModel.countDocuments();
-    const busesCount = await BusModel.countDocuments();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    admin.otp = otp;
+    admin.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await admin.save();
+
+    await sendEmail(admin.email, "TickXplore - Admin OTP", `<p>Your OTP is <b>${otp}</b></p>`);
 
     res.status(200).json({
-      success: true,
-      stats: {
-        users: usersCount || 0,
-        vendors: vendorsCount || 0,
-        admins: adminsCount || 0,
-        vehicles: vehiclesCount || 0,
-        buses: busesCount || 0,
+      message: "OTP sent to email",
+      userId: admin._id,
+      requireOTP: true
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Login error", error: err.message });
+  }
+};
+
+//Verify Admin OTP
+exports.verifyAdminOTP = async (req, res) => {
+  try {
+    const { email, otp, userId } = req.body;
+
+    // Step 1: Find the admin by ID and email
+    const admin = await Admin.findOne({ _id: userId, email });
+
+    // Step 2: Validate OTP
+    if (!admin || admin.otp !== otp || new Date() > admin.otpExpires) {
+      return res.status(401).json({ message: "Invalid or expired OTP" });
+    }
+
+    // Step 3: Clear OTP fields
+    admin.otp = undefined;
+    admin.otpExpires = undefined;
+    await admin.save();
+
+    // ✅ Step 4: Generate token with all 3 arguments (_id, role, email)
+    const token = generateToken(admin._id, admin.role, admin.email);
+
+    // Step 5: Return success
+    res.status(200).json({
+      message: "OTP verified",
+      token,
+      user: {
+        _id: admin._id,
+        email: admin.email,
+        role: admin.role,
+        name: admin.name,
       },
     });
-  } catch (error) {
-    handleError(res, error, "fetching stats");
-  }
-};
 
-// ✅ TOGGLE VENDOR STATUS
-exports.toggleVendorStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "⚠️ Invalid Vendor ID format" });
-    }
-
-    const vendor = await VendorModel.findById(id);
-    if (!vendor) return res.status(404).json({ message: "❌ Vendor not found" });
-
-    vendor.isActive = !vendor.isActive;
-    await vendor.save();
-
-    res.status(200).json({
-      success: true,
-      message: `✅ Vendor is now ${vendor.isActive ? "Active" : "Inactive"}`,
-      vendor: { vendorId: vendor.vendorId, vendorName: vendor.vendorName, isActive: vendor.isActive },
+  } catch (err) {
+    console.error("OTP verification error:", err);
+    res.status(500).json({
+      message: "OTP verification error",
+      error: err.message,
     });
-  } catch (error) {
-    handleError(res, error, "updating vendor status");
   }
 };
 
-// ✅ EDIT USER (Fixed)
-exports.editUser = async (req, res) => {
+
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
   try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "⚠️ Invalid User ID format" });
+    const admin = await AdminModel.findOne({ email });
+
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
     }
 
-    const { name, email } = req.body;
-    const updatedUser = await UserModel.findByIdAndUpdate(
-      id,
-      { name, email },
-      { new: true, runValidators: true }
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    admin.resetCode = resetCode;
+    admin.resetCodeExpires = Date.now() + 10 * 60 * 1000; 
+
+    await admin.save();
+
+    // Send reset code email
+    await sendEmail(
+      email,
+      "Password Reset OTP",
+      `<p>Your reset code is <b>${resetCode}</b>. It expires in 10 minutes.</p>`
     );
 
-    if (!updatedUser) return res.status(404).json({ message: "❌ User not found" });
-
-    res.status(200).json({ message: "✅ User updated successfully", updatedUser });
-  } catch (error) {
-    handleError(res, error, "updating user");
+    return res.status(200).json({
+      message: "Password reset code sent to your email",
+    });
+  } catch (err) {
+    console.error("Error sending reset code:", err);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: err.message,
+    });
   }
 };
 
-// ✅ DELETE USER
-exports.deleteUser = async (req, res) => {
+//Reset Password
+exports.resetPassword = async (req, res) => {
   try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "⚠️ Invalid User ID format" });
+    const { email, code, newPassword } = req.body;
+    const admin = await Admin.findOne({ email });
+
+    if (!admin || admin.resetCode !== code || Date.now() > admin.resetCodeExpires) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
-    const deletedUser = await UserModel.findByIdAndDelete(id);
-    if (!deletedUser) return res.status(404).json({ message: "❌ User not found" });
+    admin.password = await bcrypt.hash(newPassword, 10);
+    admin.resetCode = undefined;
+    admin.resetCodeExpires = undefined;
+    await admin.save();
 
-    res.status(200).json({ message: "✅ User deleted successfully", deletedUser });
-  } catch (error) {
-    handleError(res, error, "deleting user");
+    res.json({ message: "Password reset successful" });
+  } catch (err) {
+    res.status(500).json({ message: "Error resetting password", error: err.message });
   }
 };
 
-// ✅ FETCH SINGLE ADMIN
+//Get Profile
+exports.getProfile = async (req, res) => {
+  try {
+    const admin = await Admin.findById(req.user.id).select("-password");
+    if (!admin) return res.status(404).json({ message: "Admin not found" });
+
+    res.json({ admin });
+  } catch (err) {
+    res.status(500).json({ message: "Error getting profile", error: err.message });
+  }
+};
+
+//Get All Admins
+exports.getAllAdmins = async (req, res) => {
+  try {
+    const admins = await Admin.find().select("-password");
+    res.json({ admins });
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching admins", error: err.message });
+  }
+};
+
+//Get Admin By ID
 exports.getAdminById = async (req, res) => {
   try {
     const { id } = req.params;
-    const admin = await AdminModel.findById(id);
+    const admin = await Admin.findById(id).select("-password");
+
     if (!admin) {
-      return res.status(404).json({ success: false, message: "❌ Admin not found" });
+      return res.status(404).json({ message: "Admin not found" });
     }
+
     res.status(200).json({ success: true, admin });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching admin by ID", error: err.message });
   }
 };
 
-
-// ✅ EDIT VENDOR (Fixed)
-exports.editVendor = async (req, res) => {
+//Update Admin
+exports.updateAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "⚠️ Invalid Vendor ID format" });
+    const updateFields = req.body;
+
+    if (updateFields.password) {
+      updateFields.password = await bcrypt.hash(updateFields.password, 10);
     }
 
-    const { vendorName } = req.body;
-    if (!vendorName) {
-      return res.status(400).json({ message: "⚠️ Vendor name is required" });
-    }
-
-    const updatedVendor = await VendorModel.findByIdAndUpdate(
-      id,
-      { vendorName },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedVendor) return res.status(404).json({ message: "❌ Vendor not found" });
-
-    res.status(200).json({ message: "✅ Vendor updated successfully", updatedVendor });
-  } catch (error) {
-    console.error("❌ Error updating vendor:", error);
-    res.status(500).json({ message: "❌ Error updating vendor", error: error.message });
+    const updated = await Admin.findByIdAndUpdate(id, updateFields, { new: true }).select("-password");
+    res.json({ message: "Admin updated", admin: updated });
+  } catch (err) {
+    res.status(500).json({ message: "Error updating admin", error: err.message });
   }
 };
 
-
-// ✅ DELETE VENDOR
-exports.deleteVendor = async (req, res) => {
+exports.toggleVendorStatus = async (req, res) => {
   try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "⚠️ Invalid Vendor ID format" });
+    const { vendorId } = req.params;
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
     }
 
-    const deletedVendor = await VendorModel.findByIdAndDelete(id);
-    if (!deletedVendor) return res.status(404).json({ message: "❌ Vendor not found" });
+    //Toggle isActive
+    vendor.isActive = !vendor.isActive;
+    await vendor.save();
 
-    res.status(200).json({ message: "✅ Vendor deleted successfully", deletedVendor });
+    //Send email if vendor was just activated
+    if (vendor.isActive) {
+      console.log("📧 Sending activation email to:", vendor.email);
+      await sendEmail(
+        vendor.email,
+        "🎉 Your Vendor Account is Now Active",
+        `
+          <h2>Hello ${vendor.vendorName},</h2>
+          <p>🎉 Great news! Your vendor account on <strong>TickXplore</strong> has been activated by the admin.</p>
+          <p>You can now log in and start managing your listings!</p>
+          <p><a href="http://localhost:5173/login">Click here to log in</a></p>
+          <br/>
+          <p>Welcome aboard!<br/>— Team TickXplore</p>
+        `
+      );
+    }
+
+    res.status(200).json({
+      message: `Vendor ${vendor.isActive ? "activated" : "deactivated"} successfully`,
+      vendor,
+    });
+
   } catch (error) {
-    handleError(res, error, "deleting vendor");
+    console.error("Error toggling vendor status:", error);
+    res.status(500).json({ message: "Failed to toggle vendor status" });
+  }
+};
+
+//Delete Admin
+exports.deleteAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Admin.findByIdAndDelete(id);
+    res.json({ message: "Admin deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Error deleting admin", error: err.message });
   }
 };

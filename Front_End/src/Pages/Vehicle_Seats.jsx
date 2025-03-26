@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FiCalendar, FiArrowRight, FiRefreshCw } from "react-icons/fi";
+import { FiCalendar, FiArrowRight, FiRefreshCw, FiMapPin } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 const VehicleReservation = () => {
@@ -10,114 +10,119 @@ const VehicleReservation = () => {
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [takeOffDate, setTakeOffDate] = useState("");
+  const [pickupPoint, setPickupPoint] = useState("");
+  const [dropPoint, setDropPoint] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // Fetch all vehicles
   useEffect(() => {
     fetchVehicles();
   }, []);
 
+  // Fetch a specific vehicle by ID
   useEffect(() => {
     if (id) {
       fetchVehicleById(id);
     }
   }, [id]);
 
-  // ✅ Fetch All Vehicles
   const fetchVehicles = async () => {
     setLoading(true);
     try {
       const response = await axios.get("http://localhost:3001/api/vehicles");
-      console.log("Fetched Vehicles:", response.data); // Debugging
-
-      if (response.data.vehicles && response.data.vehicles.length > 0) {
-        const vehiclesWithAvailability = await Promise.all(
-          response.data.vehicles.map(async (vehicle) => {
-            const bookingsResponse = await axios.get(
-              `http://localhost:3001/api/bookings/vehicle/${vehicle._id}`
-            );
-            // Check if there are any blocking bookings (pending or confirmed)
-            const isAvailable = bookingsResponse.data.length === 0;
-            return { ...vehicle, isAvailable };
-          })
-        );
-
-        setVehicles(vehiclesWithAvailability);
-        const availableVehicle = vehiclesWithAvailability.find((v) => v.isAvailable);
-        setSelectedVehicle(availableVehicle || null);
-      } else {
-        toast.warning("No available vehicles.");
-        setVehicles([]);
-      }
+      const vehiclesWithAvailability = await Promise.all(
+        response.data.vehicles.map(async (vehicle) => {
+          const reservationsResponse = await axios.get(
+            `http://localhost:3001/api/reservations/vehicle/${vehicle._id}`
+          );
+          const isAvailable = reservationsResponse.data.length === 0;
+          return { ...vehicle, isAvailable };
+        })
+      );
+      setVehicles(vehiclesWithAvailability);
+      setSelectedVehicle(vehiclesWithAvailability[0] || null);
     } catch (error) {
-      console.error("Error fetching vehicles:", error);
-      toast.error(error.response?.data?.message || "Failed to fetch vehicles");
+      toast.error("Failed to fetch vehicles. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Fetch a Specific Vehicle by ID
   const fetchVehicleById = async (vehicleId) => {
     setLoading(true);
     try {
       const response = await axios.get(`http://localhost:3001/api/vehicles/${vehicleId}`);
-      const bookingsResponse = await axios.get(
-        `http://localhost:3001/api/bookings/vehicle/${vehicleId}`
+      const reservationsResponse = await axios.get(
+        `http://localhost:3001/api/reservations/vehicle/${vehicleId}`
       );
-      // Check if there are any blocking bookings (pending or confirmed)
-      const isAvailable = bookingsResponse.data.length === 0;
+      const isAvailable = reservationsResponse.data.length === 0;
       setSelectedVehicle({ ...response.data.vehicle, isAvailable });
     } catch (error) {
-      console.error("Error fetching vehicle:", error);
-      toast.error(error.response?.data?.message || "Failed to fetch vehicle details");
+      toast.error("Failed to fetch vehicle details.");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Handle Payment & Reservation
   const handlePaymentAndReservation = async () => {
-    if (!selectedVehicle || !takeOffDate) {
-      toast.error("Please select a vehicle and a take-off date");
+    if (!selectedVehicle || !takeOffDate || !pickupPoint || !dropPoint) {
+      toast.error("Please fill all required fields.");
       return;
     }
-
-    if (!selectedVehicle.isAvailable) {
-      toast.error("This vehicle is already booked.");
-      return;
-    }
-
+  
+    // Double-check availability before proceeding
+    const available = await checkAvailabilityBeforeBooking();
+    if (!available) return;
+  
     try {
-      const userId = localStorage.getItem("userId"); // Get logged-in user ID
+      const userId = localStorage.getItem("userId");
       if (!userId) {
-        toast.error("User not logged in.");
+        toast.error("Please log in to make a reservation.");
         return;
       }
-
-      // 🔗 Initiate Payment
+  
       const paymentResponse = await axios.post("http://localhost:3001/api/payments/initiate", {
         type: "vehicle",
         itemId: selectedVehicle._id,
         userInfo: {
-          name: "John Doe", // Replace with actual user info
+          name: "John Doe",
           email: "john@example.com",
           phone: "9800000000",
         },
         takeOffDate,
+        pickupPoint,
+        dropPoint,
         userId,
       });
-
+  
       if (paymentResponse.data.payment_url) {
-        // Redirect to payment page
         window.location.href = paymentResponse.data.payment_url;
       } else {
         toast.error("Payment initiation failed.");
       }
     } catch (error) {
-      console.error("❌ Payment Error:", error);
       toast.error("Failed to initiate payment.");
     }
   };
+
+  const checkAvailabilityBeforeBooking = async () => {
+    try {
+      const res = await axios.get(
+        `http://localhost:3001/api/reservations/vehicle/${selectedVehicle._id}`
+      );
+  
+      if (res.data.length > 0) {
+        toast.error("This vehicle just got reserved. Please choose another.");
+        fetchVehicles(); 
+        return false;
+      }
+  
+      return true;
+    } catch (error) {
+      toast.error("Could not verify vehicle availability.");
+      return false;
+    }
+  };  
 
   if (loading) {
     return (
@@ -126,6 +131,8 @@ const VehicleReservation = () => {
       </div>
     );
   }
+
+
 
   if (!selectedVehicle && vehicles.length === 0) {
     return (
@@ -181,10 +188,10 @@ const VehicleReservation = () => {
                     <option
                       key={vehicle._id}
                       value={vehicle._id}
-                      disabled={!vehicle.isAvailable} // Disable unavailable vehicles
+                      disabled={!vehicle.isAvailable}
                     >
-                      {vehicle.name} - {vehicle.pickupPoint} → {vehicle.dropPoint}
-                      {!vehicle.isAvailable && " (Booked)"} {/* Show "Booked" label */}
+                      {vehicle.name} - {vehicle.capacity} seats
+                      {!vehicle.isAvailable && " (Booked)"}
                     </option>
                   ))}
                 </select>
@@ -194,7 +201,7 @@ const VehicleReservation = () => {
                 <div className="bg-gray-50 p-4 sm:p-6 rounded-xl space-y-4">
                   <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden">
                     <img
-                      src={selectedVehicle.image}
+                      src={selectedVehicle.image || "/default-vehicle.jpg"}
                       alt={selectedVehicle.name}
                       className="w-full h-full object-cover"
                       onError={(e) => (e.target.src = "/default-vehicle.jpg")}
@@ -202,37 +209,29 @@ const VehicleReservation = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <DetailItem label="Vehicle Name" value={selectedVehicle?.name || "N/A"} />
-                    <DetailItem label="Pickup Location" value={selectedVehicle?.pickupPoint || "Not Available"} />
-                    <DetailItem label="Drop Location" value={selectedVehicle?.dropPoint || "Not Available"} />
-                    <DetailItem label="Price" value={selectedVehicle?.price ? `Rs. ${selectedVehicle.price}` : "N/A"} />
-                    <DetailItem label="Capacity" value={`${selectedVehicle?.capacity || "Unknown"} seats`} />
+                    <DetailItem label="Vehicle Name" value={selectedVehicle.name} />
+                    <DetailItem label="Capacity" value={`${selectedVehicle.capacity} seats`} />
+                    <DetailItem label="Price" value={`Rs. ${selectedVehicle.price}`} />
                     <DetailItem
-                      label="Scheduled Departure"
+                      label="Status"
                       value={
-                        selectedVehicle?.takeOffDate
-                          ? new Date(selectedVehicle.takeOffDate).toLocaleDateString("en-US", {
-                              weekday: "long",
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })
-                          : "Not scheduled"
+                        <span className={`font-semibold ${
+                          selectedVehicle.isAvailable ? "text-green-600" : "text-red-600"
+                        }`}>
+                          {selectedVehicle.isAvailable ? "Available" : "Booked"}
+                        </span>
                       }
                     />
-                    {!selectedVehicle.isAvailable && (
-                      <div className="text-red-600 font-semibold">This vehicle is already booked.</div>
-                    )}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Reservation Section */}
+            {/* Reservation Form */}
             <div className="space-y-6">
               <div className="bg-blue-50 p-4 sm:p-6 rounded-xl border-2 border-blue-100">
                 <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
-                  <FiCalendar className="w-5 h-5" /> Select Departure Date
+                  <FiCalendar className="w-5 h-5" /> Reservation Details
                 </h3>
 
                 <div className="space-y-4">
@@ -243,26 +242,33 @@ const VehicleReservation = () => {
                     onChange={(e) => setTakeOffDate(e.target.value)}
                     min={new Date().toISOString().split("T")[0]}
                   />
+                  <input
+                    type="text"
+                    placeholder="Pickup Location"
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                    value={pickupPoint}
+                    onChange={(e) => setPickupPoint(e.target.value)}
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="Drop-off Location"
+                    className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                    value={dropPoint}
+                    onChange={(e) => setDropPoint(e.target.value)}
+                    required
+                  />
 
                   <button
                     onClick={handlePaymentAndReservation}
                     className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                    disabled={!selectedVehicle?.isAvailable} // Disable button if vehicle is booked
+                    disabled={!selectedVehicle?.isAvailable}
                   >
                     Confirm Reservation
                     <FiArrowRight className="w-5 h-5" />
                   </button>
                 </div>
               </div>
-
-              {selectedVehicle && (
-                <div className="bg-gray-50 p-4 sm:p-6 rounded-xl space-y-4">
-                  <h4 className="text-lg font-semibold text-gray-900">Reservation Summary</h4>
-                  <div className="space-y-2">
-                    <SummaryItem label="Total Amount" value={selectedVehicle.price} isTotal />
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -271,20 +277,11 @@ const VehicleReservation = () => {
   );
 };
 
-// ✅ Reusable Components
+// Helper Components
 const DetailItem = ({ label, value }) => (
   <div className="flex justify-between items-center">
     <span className="text-gray-600 font-medium">{label}:</span>
     <span className="text-gray-900 font-semibold">{value}</span>
-  </div>
-);
-
-const SummaryItem = ({ label, value, isTotal }) => (
-  <div className="flex justify-between items-center">
-    <span className={`text-gray-600 ${isTotal ? "font-semibold" : ""}`}>{label}</span>
-    <span className={`text-gray-900 ${isTotal ? "text-xl font-bold" : "font-medium"}`}>
-      Rs. {typeof value === "number" ? value.toFixed(2) : value}
-    </span>
   </div>
 );
 

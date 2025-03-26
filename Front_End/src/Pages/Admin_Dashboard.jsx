@@ -21,20 +21,24 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-
+  const token = localStorage.getItem("token");
+  const config = {
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+};
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [usersRes, vendorsRes, adminsRes, busesRes, vehiclesRes] =
-        await Promise.all([
-          axios.get("http://localhost:3001/admin/get-users"),
-          axios.get("http://localhost:3001/admin/get-vendors"),
-          axios.get("http://localhost:3001/admin/get-admins"),
-          axios.get("http://localhost:3001/api/buses?admin=true"),
-          axios.get("http://localhost:3001/api/vehicles?admin=true"),
-        ]);
-
+      await Promise.all([
+        axios.get("http://localhost:3001/admin/dashboard/get-users", config),
+        axios.get("http://localhost:3001/admin/dashboard/get-vendors", config),
+        axios.get("http://localhost:3001/admin/dashboard/get-admins", config),
+        axios.get("http://localhost:3001/api/buses?admin=true", config),
+        axios.get("http://localhost:3001/api/vehicles?admin=true", config),
+      ]);
       setUsers(usersRes.data.users || []);
       setVendors(vendorsRes.data.vendors || []);
       setAdmins(adminsRes.data.admins || []);
@@ -54,16 +58,25 @@ const AdminDashboard = () => {
 
   const toggleVendorStatus = async (vendorId) => {
     try {
+      const token = localStorage.getItem("token"); // Get token from localStorage
+      // Call the backend API to activate/deactivate the vendor
       const response = await axios.put(
-        `http://localhost:3001/admin/toggle-vendor/${vendorId}`
+        `http://localhost:3001/admin/toggle-vendor/${vendorId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, 
+          },
+        }
       );
+      // Show success message
       toast.success(response.data.message);
+      // Refresh the list of vendors to reflect the change
       fetchData();
     } catch (error) {
       toast.error("Failed to update vendor status.");
     }
   };
-
   const filterData = (data, fields) => {
     if (!searchQuery) return data;
     return data.filter((item) =>
@@ -72,7 +85,6 @@ const AdminDashboard = () => {
       )
     );
   };
-
   const handleEditUser = (user) => {
     const updatedName = prompt("Enter new name:", user.name);
     if (!updatedName || updatedName.trim() === "") {
@@ -92,10 +104,8 @@ const AdminDashboard = () => {
         toast.error(error.response?.data?.message || "Failed to update user.");
       });
   };
-
   const handleDeleteUser = (userId) => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
-
     axios
       .delete(`http://localhost:3001/admin/delete-user/${userId}`)
       .then((response) => {
@@ -108,16 +118,15 @@ const AdminDashboard = () => {
   const handleEditVendor = (vendor) => {
     const updatedName = prompt("Enter new vendor name:", vendor.vendorName);
     if (!updatedName) return;
-
     axios
       .put(`http://localhost:3001/admin/edit-vendor/${vendor._id}`, { vendorName: updatedName })
       .then((response) => {
-        console.log("✅ Vendor updated:", response.data);
+        console.log("Vendor updated:", response.data);
         toast.success(response.data.message);
         fetchData();
       })
       .catch((error) => {
-        console.error("❌ Failed to update vendor:", error.response ? error.response.data : error);
+        console.error("Failed to update vendor:", error.response ? error.response.data : error);
         toast.error(error.response?.data?.message || "Failed to update vendor.");
       });
   };
@@ -269,13 +278,14 @@ const AdminDashboard = () => {
 
                 {activeSection === "vendors" && (
                   <DataTable
-                    title="Vendors"
-                    data={filterData(vendors, ["vendorName", "email", "isActive"])}
-                    fields={["vendorName", "email", "isActive"]}
-                    onEdit={handleEditVendor}
-                    onDelete={handleDeleteVendor}
-                  />
-                )}
+                  title="Vendors"
+                  data={filterData(vendors, ["vendorName", "email", "isActive"])}
+                  fields={["vendorName", "email", "isActive"]}
+                  onEdit={handleEditVendor}
+                  onDelete={handleDeleteVendor}
+                  onToggleStatus={toggleVendorStatus} 
+                />
+                )}                
 
                 {activeSection === "admins" && (
                   <DataTable

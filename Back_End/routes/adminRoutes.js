@@ -1,33 +1,33 @@
 const express = require("express");
-const {
-  getUsers,
-  getVendors,
-  getAdmins,
-  getAdminById,
-  getStats,
-  toggleVendorStatus,
-  editUser,
-  editVendor,
-  deleteUser,
-  deleteVendor,
-} = require("../controllers/adminController");
-
 const router = express.Router();
 
-// ✅ User Routes
-router.get("/get-users", getUsers);
-router.put("/edit-user/:id", editUser);
-router.delete("/delete-user/:id", deleteUser);
+const vendorController = require("../controllers/vendorController");
+const adminController = require("../controllers/adminController");
+const { protect, authorize } = require("../middleware/authMiddleware"); 
 
-// ✅ Vendor Routes
-router.get("/get-vendors", getVendors);
-router.put("/edit-vendor/:id", editVendor);
-router.put("/toggle-vendor/:id", toggleVendorStatus);
-router.delete("/delete-vendor/:id", deleteVendor);
+// If verifyToken is used for profile only, you can keep it
+const verifyToken = require("../middleware/verifyToken");
 
-// ✅ Admin Routes
-router.get("/get-admins", getAdmins);
-router.get("/get-admin/:id", getAdminById); 
-router.get("/get-stats", getStats);
+//Auth Routes
+router.post("/register", adminController.createAdmin); 
+router.post("/login", adminController.loginAdmin);
+router.post("/verify-otp", adminController.verifyAdminOTP);
+router.post("/forgot-password", adminController.forgotPassword);
+router.post("/reset-password", adminController.resetPassword);
+
+//Admin Routes
+router.get("/", adminController.getAllAdmins);
+router.get("/profile", verifyToken, adminController.getProfile);
+router.get("/:id", adminController.getAdminById);
+router.put("/:id", adminController.updateAdmin);
+router.delete("/:id", adminController.deleteAdmin);
+
+//Toggle Vendor Activation
+router.put(
+  "/toggle-vendor/:vendorId",
+  protect,
+  authorize("admin"),
+  vendorController.toggleVendorStatus
+);
 
 module.exports = router;

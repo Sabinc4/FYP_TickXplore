@@ -1,13 +1,8 @@
 const mongoose = require("mongoose");
 const uniqueValidator = require("mongoose-unique-validator");
-const AutoIncrement = require("mongoose-sequence")(mongoose);
 
 const UserSchema = new mongoose.Schema(
   {
-    userId: {
-      type: Number,
-      unique: true,
-    },
     name: {
       type: String,
       required: true,
@@ -26,6 +21,12 @@ const UserSchema = new mongoose.Schema(
       lowercase: true,
       match: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/,
     },
+    phoneNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      match: /^[0-9]{7,15}$/,
+    },
     password: {
       type: String,
       required: true,
@@ -34,18 +35,21 @@ const UserSchema = new mongoose.Schema(
     role: {
       type: String,
       required: true,
-      enum: ["user", "vendor", "admin"], // Ensure role is one of these values
-      default: "user", //default role
+      enum: ["user"], 
+      default: "user",
     },
+    resetCode: String,
+    resetCodeExpires: Date,
+
+    otp: { type: String },
+    otpExpires: { type: Date }
   },
+  
   { timestamps: true }
 );
 
-//Apply unique validator plugin
+// Apply unique validator
 UserSchema.plugin(uniqueValidator, { message: "{PATH} must be unique." });
-
-// Auto-increment userId with a starting sequence
-UserSchema.plugin(AutoIncrement, { inc_field: "userId", start_seq: 1 });
 
 const UserModel = mongoose.model("User", UserSchema);
 module.exports = UserModel;

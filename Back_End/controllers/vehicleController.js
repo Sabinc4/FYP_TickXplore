@@ -3,264 +3,206 @@ const Vehicle = require("../models/Vehicle");
 const path = require("path");
 const fs = require("fs");
 
-// 🔹 Helper function to validate required fields
+//Validate Required Fields
 const validateRequiredFields = (fields, res) => {
   const missingFields = Object.keys(fields).filter((key) => !fields[key]);
   if (missingFields.length > 0) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       message: `Missing required fields: ${missingFields.join(", ")}`,
     });
+    return false;
   }
-  return null;
+  return true;
 };
 
-// 🔹 Helper function to handle file upload
-const handleFileUpload = (file, res) => {
-  if (!file) return null;
-
-  const uploadPath = path.join(__dirname, "..", "uploads", file.name);
-  file.mv(uploadPath, (err) => {
-    if (err) {
-      console.error("❌ File Upload Error:", err);
-      return res.status(500).json({
-        success: false,
-        message: "File upload failed",
-        error: err.message,
-      });
-    }
-  });
-
-  return `/uploads/${file.name}`;
-};
-
+//Create Vehicle
 exports.createVehicle = async (req, res) => {
   try {
-    console.log("✅ Received Data:", req.body);
-    console.log("✅ Received Files:", req.files);
+    const { vendorId, name, price, capacity, takeOffDate } = req.body;
 
-    if (!req.files || !req.files.image) {
-      return res.status(400).json({ success: false, message: "Image file is required." });
-    }
+    if (!validateRequiredFields({ vendorId, name, price, capacity, takeOffDate }, res)) return;
 
-    const { vendorId, name, price, pickupPoint, dropPoint, capacity, takeOffDate } = req.body;
-
-    // Validate required fields
-    if (!vendorId || !name || !price || !pickupPoint || !dropPoint || !capacity || !takeOffDate) {
-      return res.status(400).json({ success: false, message: "All fields are required." });
-    }
-
-    // ✅ Convert vendorId properly
+    // Convert vendorId
     let objectIdVendorId;
     try {
       objectIdVendorId = new mongoose.Types.ObjectId(vendorId);
-    } catch (error) {
-      return res.status(400).json({ success: false, message: "Invalid vendorId format." });
-    }
-
-    // Convert price and capacity to numbers
-    const priceNumber = Number(price);
-    const capacityNumber = Number(capacity);
-    if (isNaN(priceNumber) || isNaN(capacityNumber)) {
-      return res.status(400).json({ success: false, message: "Invalid price or capacity value" });
+    } catch {
+      return res.status(400).json({ success: false, message: "Invalid vendor ID format." });
     }
 
     // Handle Image Upload
-    const file = req.files.image;
-    const uploadPath = `uploads/${Date.now()}_${file.name}`;
-    file.mv(uploadPath, (err) => {
-      if (err) {
-        console.error("❌ File Upload Error:", err);
-        return res.status(500).json({ success: false, message: "File upload failed", error: err.message });
-      }
-    });
+    if (!req.files || !req.files.image) {
+      return res.status(400).json({ success: false, message: "Image is required." });
+    }
 
-    // ✅ Create new vehicle with correct vendorId format
+    const file = req.files.image;
+    const fileName = file.name;
+    const uploadPath = path.join("uploads", fileName);
+    const absolutePath = path.join(__dirname, "..", uploadPath);
+
+    // If image doesn't exist, then save it. Otherwise, reuse the existing image.
+    if (!fs.existsSync(absolutePath)) {
+      await file.mv(absolutePath);
+    }
+
+    const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${fileName}`;
+
     const newVehicle = new Vehicle({
-      vendorId: objectIdVendorId, // ✅ Use converted ObjectId
+      vendorId: objectIdVendorId,
       name,
-      price: priceNumber,
-      capacity: capacityNumber,
-      image: `http://localhost:3001/${uploadPath}`,
-      pickupPoint,
-      dropPoint,
+      price: Number(price),
+      capacity: Number(capacity),
       takeOffDate,
+      image: imageUrl,
       isAvailable: true,
       reservations: [],
     });
 
     await newVehicle.save();
-    res.status(201).json({
-      success: true,
-      message: "Vehicle added successfully",
-      vehicle: newVehicle,
-    });
+    res.status(201).json({ success: true, message: "Vehicle added successfully.", vehicle: newVehicle });
   } catch (error) {
-    console.error("❌ Error creating vehicle:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to create vehicle",
-      error: error.message,
-    });
+    console.error("Error creating vehicle:", error);
+    res.status(500).json({ success: false, message: "Failed to create vehicle.", error: error.message });
   }
 };
 
-// ✅ Get All Vehicles
+
+//Get All Vehicles
 exports.getAllVehicles = async (req, res) => {
   try {
     const { vendorId, admin } = req.query;
-    let query = {};
-
-    if (admin === "true") {
-      query = {}; // Admin sees all vehicles
-    } else if (vendorId) {
-      query = { vendorId }; // Vendor sees only their vehicles
-    }
-
-    // ✅ Populate vendor details (name, email)
+    const query = admin === "true" ? {} : vendorId ? { vendorId } : {};
     const vehicles = await Vehicle.find(query).populate("vendorId", "name email");
 
     if (!vehicles.length) {
       return res.status(404).json({ success: false, message: "No vehicles found." });
     }
 
-    // Add full image URL to each vehicle
-    const vehiclesWithFullImageUrl = vehicles.map((vehicle) => ({
-      ...vehicle.toObject(),
-      image: vehicle.image ? `http://localhost:3001${vehicle.image}` : null,
-    }));
-
-    res.status(200).json({ success: true, vehicles: vehiclesWithFullImageUrl });
+    res.status(200).json({
+      success: true,
+      vehicles: vehicles.map(vehicle => ({
+        ...vehicle.toObject(),
+        image: vehicle.image || null,
+      })),
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to fetch vehicles", error: error.message });
+    res.status(500).json({ success: false, message: "Failed to fetch vehicles.", error: error.message });
   }
 };
 
-// ✅ Get a Single Vehicle by ID
+//Get Vehicle by ID
 exports.getVehicleById = async (req, res) => {
   try {
     const vehicle = await Vehicle.findById(req.params.id).populate("vendorId", "name email");
-
     if (!vehicle) {
-      return res.status(404).json({ success: false, message: "Vehicle not found" });
+      return res.status(404).json({ success: false, message: "Vehicle not found." });
     }
-
-    // Ensure the image path is absolute (with backend URL)
-    const vehicleWithFullImageUrl = {
-      ...vehicle.toObject(),
-      image: vehicle.image ? `http://localhost:3001${vehicle.image}` : null, // ✅ Ensure full image path
-    };
-
-    res.status(200).json({ success: true, vehicle: vehicleWithFullImageUrl });
+    res.status(200).json({
+      success: true,
+      vehicle: {
+        ...vehicle.toObject(),
+        image: vehicle.image || null,
+      },
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to fetch vehicle", error: error.message });
+    res.status(500).json({ success: false, message: "Failed to fetch vehicle.", error: error.message });
   }
 };
 
-
-// ✅ Update a Vehicle
+//Update Vehicle
 exports.updateVehicle = async (req, res) => {
   try {
-    console.log("✅ Updating Vehicle:", req.body);
-    console.log("✅ Received Files:", req.files);
+    const { id } = req.params;
+    const { vendorId, name, price, capacity, takeOffDate, isAvailable } = req.body;
 
-    const { id } = req.params; // Vehicle ID from URL
-    const { vendorId, name, price, pickupPoint, dropPoint, capacity, takeOffDate, isAvailable } = req.body;
-
-    // ✅ Find the Vehicle
     const vehicle = await Vehicle.findById(id);
     if (!vehicle) {
-      return res.status(404).json({ success: false, message: "Vehicle not found" });
+      return res.status(404).json({ success: false, message: "Vehicle not found." });
     }
 
-    // ✅ Convert vendorId properly
+    // Convert vendorId if present
     let objectIdVendorId;
     if (vendorId) {
       try {
         objectIdVendorId = new mongoose.Types.ObjectId(vendorId);
-      } catch (error) {
-        return res.status(400).json({ success: false, message: "Invalid vendorId format." });
+      } catch {
+        return res.status(400).json({ success: false, message: "Invalid vendor ID format." });
       }
     }
 
-    // ✅ Convert price and capacity to numbers if provided
-    const priceNumber = price ? Number(price) : vehicle.price;
-    const capacityNumber = capacity ? Number(capacity) : vehicle.capacity;
-    if ((price && isNaN(priceNumber)) || (capacity && isNaN(capacityNumber))) {
-      return res.status(400).json({ success: false, message: "Invalid price or capacity value" });
-    }
-
-    // ✅ Handle Image Update
-    let updatedImage = vehicle.image; // Keep old image if no new image is provided
+    // Handle image update
     if (req.files?.image) {
-      // Delete old image file
-      if (vehicle.image) {
-        const oldImagePath = path.join(__dirname, "..", vehicle.image.replace("http://localhost:3001/", ""));
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
-      }
-
-      // Upload new image
       const file = req.files.image;
-      const uploadPath = `uploads/${Date.now()}_${file.name}`;
-      file.mv(uploadPath, (err) => {
-        if (err) {
-          console.error("❌ File Upload Error:", err);
-          return res.status(500).json({ success: false, message: "File upload failed", error: err.message });
-        }
-      });
+      const fileName = `${vendorId || vehicle.vendorId}_${file.name}`;
+      const uploadPath = path.join("uploads", fileName);
+      const absolutePath = path.join(__dirname, "..", uploadPath);
 
-      updatedImage = `http://localhost:3001/${uploadPath}`; // Save new image URL
+      // Delete old image if exists
+      if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
+
+      await file.mv(absolutePath);
+      vehicle.image = `${req.protocol}://${req.get("host")}/uploads/${fileName}`;
     }
 
-    // ✅ Update Vehicle Data
-    vehicle.name = name || vehicle.name;
-    vehicle.price = priceNumber;
-    vehicle.capacity = capacityNumber;
-    vehicle.pickupPoint = pickupPoint || vehicle.pickupPoint;
-    vehicle.dropPoint = dropPoint || vehicle.dropPoint;
-    vehicle.takeOffDate = takeOffDate || vehicle.takeOffDate;
-    vehicle.isAvailable = isAvailable !== undefined ? isAvailable : vehicle.isAvailable;
-    vehicle.image = updatedImage;
-    if (vendorId) vehicle.vendorId = objectIdVendorId; // Update vendorId if provided
+    // Update fields
+    if (vendorId) vehicle.vendorId = objectIdVendorId;
+    if (name) vehicle.name = name;
+    if (price) vehicle.price = Number(price);
+    if (capacity) vehicle.capacity = Number(capacity);
+    if (takeOffDate) vehicle.takeOffDate = takeOffDate;
+    if (isAvailable !== undefined) vehicle.isAvailable = isAvailable;
 
     await vehicle.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Vehicle updated successfully",
-      vehicle,
-    });
+    res.status(200).json({ success: true, message: "Vehicle updated successfully.", vehicle });
   } catch (error) {
-    console.error("❌ Error updating vehicle:", error);
-    res.status(500).json({ success: false, message: "Failed to update vehicle", error: error.message });
+    res.status(500).json({ success: false, message: "Failed to update vehicle.", error: error.message });
   }
 };
 
-// ✅ Delete a Vehicle
+//Delete Vehicle
 exports.deleteVehicle = async (req, res) => {
   try {
     const vehicle = await Vehicle.findById(req.params.id);
-    if (!vehicle) {
-      return res.status(404).json({ success: false, message: "Vehicle not found" });
-    }
+    if (!vehicle) return res.status(404).json({ success: false, message: "Vehicle not found." });
 
-    // Delete Image File if Exists
     if (vehicle.image) {
-      const filePath = path.join(__dirname, "..", vehicle.image);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+      const filePath = path.join(__dirname, "..", vehicle.image.replace(`${req.protocol}://${req.get("host")}/`, ""));
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
     await vehicle.deleteOne();
-    res.status(200).json({ success: true, message: "Vehicle deleted successfully" });
+    res.status(200).json({ success: true, message: "Vehicle deleted successfully." });
   } catch (error) {
-    console.error("❌ Error deleting vehicle:", error);
-    res.status(500).json({ success: false, message: "Failed to delete vehicle", error: error.message });
+    res.status(500).json({ success: false, message: "Failed to delete vehicle.", error: error.message });
   }
 };
 
-// ✅ Export All Functions
-module.exports = exports;
+// Reserve Vehicle
+exports.reserveVehicle = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, reservedFrom, reservedUntil, pickupPoint, dropPoint } = req.body;
+
+    if (!validateRequiredFields({ userId, reservedFrom, reservedUntil, pickupPoint, dropPoint }, res)) return;
+
+    const vehicle = await Vehicle.findById(id);
+    if (!vehicle) return res.status(404).json({ success: false, message: "Vehicle not found." });
+
+    const isAvailable = vehicle.reservations.every(reservation =>
+      new Date(reservedUntil) < new Date(reservation.reservedFrom) ||
+      new Date(reservedFrom) > new Date(reservation.reservedUntil)
+    );
+
+    if (!isAvailable) {
+      return res.status(400).json({ success: false, message: "Vehicle is not available for the requested dates." });
+    }
+
+    vehicle.reservations.push({ userId, reservedFrom, reservedUntil, pickupPoint, dropPoint });
+    await vehicle.save();
+
+    res.status(201).json({ success: true, message: "Reservation successful.", vehicle });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to reserve vehicle.", error: error.message });
+  }
+};

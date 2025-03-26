@@ -15,38 +15,34 @@ const Profile = () => {
   const [error, setError] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "", location: "", role: "" });
-
   useEffect(() => {
-    console.log("✅ Profile Component Mounted");
+    console.log("Profile Component Mounted");
 
-    // ✅ Fetch from localStorage
+    //Fetch from localStorage
     const loggedIn = localStorage.getItem("userLoggedIn");
     const storedUserRole = localStorage.getItem("userRole");
     const storedId = localStorage.getItem(
       storedUserRole === "admin" ? "adminId" : storedUserRole === "vendor" ? "vendorId" : "userId"
     );
 
-    console.log("📌 Stored Role:", storedUserRole);
-    console.log("📌 Stored ID:", storedId);
+    console.log("Stored Role:", storedUserRole);
+    console.log("Stored ID:", storedId);
 
     if (!loggedIn || loggedIn !== "true") {
-      console.error("❌ User not logged in. Redirecting...");
+      console.error("User not logged in. Redirecting...");
       navigate("/sign-in");
       return;
     }
-
     if (!storedUserRole || !storedId) {
-      console.error("❌ No role or ID found in localStorage.");
+      console.error("No role or ID found in localStorage.");
       setError("No role or ID found. Please log in again.");
       setLoading(false);
       return;
     }
-
     setUserRole(storedUserRole);
-
     const endpoint = getEndpoint(storedUserRole);
     const apiUrl = `http://localhost:3001/${endpoint}/${storedId}`;
-    console.log(`🔗 Fetching user data from: ${apiUrl}`);
+    console.log(`Fetching user data from: ${apiUrl}`);
 
     fetch(apiUrl)
       .then((response) => {
@@ -56,7 +52,7 @@ const Profile = () => {
         return response.json();
       })
       .then((data) => {
-        console.log("📡 API Response:", data);
+        console.log(" API Response:", data);
 
         const profileData = data.admin || data.vendor || data.user;
         if (!data.success || !profileData) {
@@ -74,7 +70,7 @@ const Profile = () => {
         setLoading(false);
       })
       .catch((err) => {
-        console.error("❌ Error fetching user data:", err);
+        console.error("Error fetching user data:", err);
         setError(err.message);
         setLoading(false);
       });
@@ -85,7 +81,7 @@ const Profile = () => {
 
   const handleSave = () => {
     if (!formData.name.trim()) {
-      alert("⚠️ Name cannot be empty.");
+      alert(" Name cannot be empty.");
       return;
     }
     const endpoint = getEndpoint(userRole);
@@ -113,9 +109,9 @@ const Profile = () => {
       .catch(() => setError("Error deleting account"));
   };
 
-  if (loading) return <div className="text-center mt-8">⏳ Loading profile...</div>;
-  if (error) return <div className="text-center mt-8 text-red-600">❌ {error}</div>;
-  if (!user) return <div className="text-center mt-8">⚠️ No user data available.</div>;
+  if (loading) return <div className="text-center mt-8">Loading profile...</div>;
+  if (error) return <div className="text-center mt-8 text-red-600"> {error}</div>;
+  if (!user) return <div className="text-center mt-8">No user data available.</div>;
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center">

@@ -1,16 +1,12 @@
 const mongoose = require("mongoose");
 const uniqueValidator = require("mongoose-unique-validator");
-const AutoIncrement = require("mongoose-sequence")(mongoose);
 
 const AdminSchema = new mongoose.Schema(
   {
-    adminId: {
-      type: Number,
-      unique: true,
-    },
     name: {
       type: String,
       required: true,
+      trim: true,
     },
     location: {
       type: String,
@@ -25,24 +21,32 @@ const AdminSchema = new mongoose.Schema(
       lowercase: true,
       match: /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/,
     },
+    phoneNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      match: /^[0-9]{7,15}$/, // Accepts 7–15 digits
+    },
+    resetCode: String,
+resetCodeExpires: Date,
     role: {
       type: String,
       required: true,
+      default: "admin",
     },
     password: {
       type: String,
       required: true,
-      minlength: 6, 
+      minlength: 6,
     },
+    otp: { type: String },
+    otpExpires: { type: Date }
   },
   { timestamps: true }
 );
 
-//Apply unique validator plugin
+// Apply unique validator plugin
 AdminSchema.plugin(uniqueValidator, { message: "{PATH} must be unique." });
-
-//Auto-increment adminId (Uses _id as reference)
-AdminSchema.plugin(AutoIncrement, { inc_field: "adminId", start_seq: 0 });
 
 const AdminModel = mongoose.model("Admin", AdminSchema);
 module.exports = AdminModel;

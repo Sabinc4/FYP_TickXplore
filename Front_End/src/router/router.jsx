@@ -17,6 +17,7 @@ import Vehicle_Seats from "../Pages/Vehicle_Seats";
 import KhaltiPayment from "../Component/KhaltiPayment";
 import PaymentCallback from "../Pages/PaymentCallback";
 import MyBookings from "../Pages/MyBookings";
+import ProtectedRoute from "./ProtectedRoute";  // ProtectedRoute
 
 const router = createBrowserRouter([
     {
@@ -27,77 +28,85 @@ const router = createBrowserRouter([
             <Main/>
             </>    
         ),
-    
-
-    children: [
-        {
-          path: '/',
-          element: <Home/>,
-        },
-        {
-          path: '/tickets',
-          element:<Tickets/>,
-        },
-        {
-            path: '/about-us',
-            element: <AboutUs/>,
-          },
-        {
-            path:'/tourist-areas',
-            element: <Tourist_Areas/>
-        },
-        {
-          path:'/sign-in',
-          element: <Login/>
-      },
-      {
-        path:'/signup',
-        element: <Registration/>
-    },
-    {
-      path:'/vehicle-bookings',
-      element: <Vehicle_Booking/>
-  },
-  {
-    path:'/faqs',
-    element: <FAQs/>
-  },
-  {
-    path:'/profile',
-    element: <Profile/>
-  },
-  {
-    path:'/Admin_Dashboard',
-    element: <Admin_Dashboard/>
-  },
-  {
-    path: '/Vendor_Dashboard',
-    element: <Vendor_Dashboard/>
-  },
-  {
-    path: '/Seat_Selection/:id',
-    element: <Seat_Selection />
-  },
-  {
-    path: '/Vehicle/:id',
-    element: <Vehicle_Seats/>
-  },
-  {
-    path: '/payment',
-    element: <KhaltiPayment/>
-  },
-  {
-    path: '/payment/callback',
-    element: <PaymentCallback/>
-  },
-  {
-    path:'my-bookings',
-    element: <MyBookings/>
-  }
-      ]
+        children: [
+            {
+                path: '/',
+                element: <Home />,
+            },
+            {
+                path: '/tickets',
+                element: <Tickets />,
+            },
+            {
+                path: '/about-us',
+                element: <AboutUs />,
+            },
+            {
+                path: '/tourist-areas',
+                element: <Tourist_Areas />
+            },
+            {
+                path: '/sign-in',
+                element: <Login />
+            },
+            {
+                path: '/signup',
+                element: <Registration />
+            },
+            {
+                path: '/vehicle-bookings',
+                element: <Vehicle_Booking />
+            },
+            {
+                path: '/faqs',
+                element: <FAQs />
+            },
+            {
+                path: '/profile',
+                element: <Profile />
+            },
+            {
+                path: '/Admin_Dashboard',
+                element: (
+                    <ProtectedRoute allowedRoles={["admin"]}>
+                        <Admin_Dashboard />
+                    </ProtectedRoute>
+                )
+            },
+            {
+                path: '/Vendor_Dashboard',
+                element: (
+                    <ProtectedRoute allowedRoles={["vendor"]}>
+                        <Vendor_Dashboard />
+                    </ProtectedRoute>
+                )
+            },
+            {
+                path: '/Seat_Selection/:id',
+                element: <Seat_Selection />
+            },
+            {
+                path: '/Vehicle/:id',
+                element: <Vehicle_Seats />
+            },
+            {
+                path: '/payment',
+                element: <KhaltiPayment />
+            },
+            {
+                path: '/payment/callback',
+                element: <PaymentCallback />
+            },
+            {
+                path: 'my-bookings',
+                element: (
+                    <ProtectedRoute allowedRoles={["user"]}>
+                        <MyBookings />
+                    </ProtectedRoute>
+                )
+            }
+        ]
     }
 ]);
 
-
 export default router;
-
