@@ -1,19 +1,16 @@
 const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
-const verifyToken = require("../middleware/verifyToken");
 
-// Public
-router.post("/register", userController.registerUser);
-router.post("/login", userController.loginUser);
-router.post("/forgot-password", userController.forgotPassword);
-router.post("/reset-password", userController.resetPassword);
+// User Authentication Routes
+router.post("/forgot-password", userController.forgotPassword); // Initiates password reset
+router.post("/reset-password", userController.resetPassword); // Resets password
 
-// Protected (Token Required)
-router.get("/profile", verifyToken, userController.getProfile);
-router.get("/", userController.getAllUsers);
-router.get("/:id", userController.getUserById);
-router.put("/:id", userController.updateUser);
-router.delete("/:id", userController.deleteUser);
+// Protected Routes
+router.get("/profile", userController.getProfile); // Fetch user profile
+router.get("/", userController.getAllUsers); // Get all users (for admin)
+router.get("/:id", userController.getUserById); // Get a user by ID
+router.put("/:id", userController.updateUser); // Update user details
+router.delete("/:id", userController.deleteUser); // Delete a user
 
 module.exports = router;

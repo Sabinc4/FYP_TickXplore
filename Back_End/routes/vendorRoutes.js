@@ -1,19 +1,21 @@
 const express = require("express");
 const router = express.Router();
 const vendorController = require("../controllers/vendorController");
-const verifyToken = require("../middleware/verifyToken"); //protected routes
 
-//Public Routes
-router.post("/register", vendorController.registerVendor);          
-router.post("/login", vendorController.loginVendor);                
-router.post("/forgot-password", vendorController.forgotPassword);   
-router.post("/reset-password", vendorController.resetPassword);     
+// Vendor Authentication Routes
+router.post("/forgot-password", vendorController.forgotPassword); 
+router.post("/reset-password", vendorController.resetPassword);  
 
-//Vendor Protected Route (Profile)
-router.get("/profile", verifyToken, vendorController.getProfile);   
-router.get("/", vendorController.getAllVendors);                   
-router.get("/:id", vendorController.getVendorById);                 
-router.put("/:id", vendorController.updateVendor);
-router.delete("/:id", vendorController.deleteVendor);               
+// Admin Routes to Get and Manage Vendors
+router.get("/", vendorController.getAllVendors);  
+router.get("/:id", vendorController.getVendorById); 
+router.put("/:id", vendorController.updateVendor);  
+router.delete("/:id", vendorController.deleteVendor);  
+
+// Vendor Profile Routes (Protected)
+router.get("/profile", vendorController.getProfile);  
+
+// Toggle Vendor Status (Activate/Deactivate)
+router.patch("/status/:vendorId", vendorController.toggleVendorStatus);  
 
 module.exports = router;

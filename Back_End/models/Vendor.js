@@ -46,7 +46,11 @@ const VendorSchema = new mongoose.Schema(
     resetCodeExpires: Date,
 
     otp: { type: String },
-    otpExpires: { type: Date }
+    otpExpires: { type: Date },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

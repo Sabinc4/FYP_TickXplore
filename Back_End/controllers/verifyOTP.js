@@ -1,100 +1,46 @@
-const UserModel = require("../models/User");
-const VendorModel = require("../models/Vendor");
-const AdminModel = require("../models/Admin");
-const generateToken = require("../utils/generateToken");
+const mongoose = require("mongoose");
+const UserModel = require('../models/User');
+const AdminModel = require('../models/Admin');
+const VendorModel = require('../models/Vendor');
+
 
 exports.verifyOTP = async (req, res) => {
+  const { email, otp, role } = req.body;
+
+  let userModel;
+
+  // Check the role and choose the correct model
+  if (role === "user") {
+    userModel = UserModel;
+  } else if (role === "vendor") {
+    userModel = VendorModel;
+  } else if (role === "admin") {
+    userModel = AdminModel;
+  } else {
+    return res.status(400).json({ message: "Invalid role" });
+  }
+
   try {
-    const { email, otp, userId } = req.body;
-
-    if (!email || !otp || !userId) {
-      return res.status(400).json({
-        success: false,
-        message: "Email, User ID, and OTP are required",
-      });
-    }
-
-    // Sanitize input
-    const sanitizedEmail = email.toString().trim();
-    const sanitizedOTP = otp.toString().trim();
-    const sanitizedUserId = userId.toString().trim();
-
-    console.log("OTP VERIFICATION STARTED");
-    console.log("Received:", { email, otp, userId });
-    console.log("Sanitized:", { sanitizedEmail, sanitizedOTP, sanitizedUserId });
-
-    // Validate OTP format (6-digit)
-    if (!/^\d{6}$/.test(sanitizedOTP)) {
-      return res.status(400).json({
-        success: false,
-        message: "OTP must be a 6-digit number",
-      });
-    }
-
-    // Try finding the user in all models using both userId and email
-    const user =
-      (await UserModel.findOne({ _id: sanitizedUserId, email: sanitizedEmail })) ||
-      (await VendorModel.findOne({ _id: sanitizedUserId, email: sanitizedEmail })) ||
-      (await AdminModel.findOne({ _id: sanitizedUserId, email: sanitizedEmail }));
-
-    console.log("User found:", user?._id?.toString(), "OTP stored:", user?.otp);
+    console.log('Verifying OTP for email:', email, 'with role:', role); // Debugging line
+    const user = await userModel.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
+      return res.status(400).json({ message: "User not found." });
     }
 
-    // Check if OTP exists and matches
-    if (!user.otp || user.otp !== sanitizedOTP) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid OTP",
-      });
+    // Check OTP validity and expiration
+    if (user.otp !== otp || Date.now() > user.otpExpires) {
+      return res.status(400).json({ message: "Invalid or expired OTP." });
     }
 
-    // Check OTP expiration
-    if (user.otpExpires && new Date() > user.otpExpires) {
-      return res.status(401).json({
-        success: false,
-        message: "OTP has expired",
-      });
-    }
-
-    //FIXED: Generate token with correct format
-    const token = generateToken(user._id, user.role, user.email);
-
-    // Clear OTP fields
-    user.otp = undefined;
-    user.otpExpires = undefined;
+    // Mark user as verified
+    user.isVerified = true;
+    user.otp = null; // Clear OTP
+    user.otpExpires = null; // Clear OTP expiration time
     await user.save();
 
-    // Prepare user data to return
-    const userData = {
-      _id: user._id,
-      email: user.email,
-      role: user.role,
-      name: user.name || user.vendorName,
-      ...(user.role === "vendor" && {
-        vendorName: user.vendorName,
-        vendorLocation: user.vendorLocation,
-      }),
-    };
-
-    return res.status(200).json({
-      success: true,
-      message: "OTP verified successfully",
-      token,
-      user: userData,
-    });
-
-  } catch (err) {
-    console.error("OTP verification error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: err.message,
-    });
+    res.status(200).json({ success: true, message: "OTP verified successfully." });
+  } catch (error) {
+    res.status(500).json({ message: "Error verifying OTP", error: error.message });
   }
 };

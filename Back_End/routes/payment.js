@@ -33,12 +33,9 @@ router.post("/initiate", async (req, res) => {
     let productName = "";
     let productDetails = [];
 
-    //BUS Booking
     if (type === "bus") {
       if (!seats || seats.length === 0) {
-        return res
-          .status(400)
-          .json({ message: "Seats are required for bus booking." });
+        return res.status(400).json({ message: "Seats are required for bus booking." });
       }
 
       const bus = await Bus.findById(itemId);
@@ -47,44 +44,36 @@ router.post("/initiate", async (req, res) => {
       totalPrice = bus.pricePerSeat * seats.length;
       productName = `${bus.name} (${bus.pickupPoint} → ${bus.dropPoint})`;
 
-      productDetails = [
-        {
-          identity: bus._id.toString(),
-          name: bus.name,
-          total_price: totalPrice * 100,
-          quantity: 1,
-          unit_price: totalPrice * 100,
-        },
-      ];
+      productDetails = [{
+        identity: bus._id.toString(),
+        name: bus.name,
+        total_price: totalPrice * 100,
+        quantity: 1,
+        unit_price: totalPrice * 100,
+      }];
     }
 
-    //VEHICLE Booking
     else if (type === "vehicle") {
       const vehicle = await Vehicle.findById(itemId);
-      if (!vehicle) {
-        return res.status(404).json({ message: "Vehicle not found." });
-      }
+      if (!vehicle) return res.status(404).json({ message: "Vehicle not found." });
 
       totalPrice = vehicle.price;
       productName = vehicle.name;
 
-      productDetails = [
-        {
-          identity: vehicle._id.toString(),
-          name: vehicle.name,
-          total_price: totalPrice * 100,
-          quantity: 1,
-          unit_price: totalPrice * 100,
-        },
-      ];
+      productDetails = [{
+        identity: vehicle._id.toString(),
+        name: vehicle.name,
+        total_price: totalPrice * 100,
+        quantity: 1,
+        unit_price: totalPrice * 100,
+      }];
     }
 
-    //Invalid Type
     else {
       return res.status(400).json({ message: "Invalid booking type." });
     }
 
-    //Include all metadata needed for later booking creation
+    const orderId = `order-${Date.now()}`;
     const metadata = {
       type,
       itemId,
@@ -95,15 +84,19 @@ router.post("/initiate", async (req, res) => {
       dropPoint,
     };
 
+    // 💾 Store temporarily in memory (fallback in callback)
+    global.khaltiTempStore = global.khaltiTempStore || new Map();
+    global.khaltiTempStore.set(orderId, metadata);
+
     const payload = {
       return_url: process.env.KHALTI_RETURN_URL,
       website_url: process.env.KHALTI_WEBSITE_URL,
       amount: totalPrice * 100,
-      purchase_order_id: `order-${Date.now()}`,
+      purchase_order_id: orderId,
       purchase_order_name: productName,
       customer_info: userInfo,
       product_details: productDetails,
-      merchant_data: JSON.stringify(metadata),
+      merchant_extra: JSON.stringify(metadata),
       merchant_username: "tickxplore",
     };
 
@@ -122,17 +115,18 @@ router.post("/initiate", async (req, res) => {
       payment_url: khaltiRes.data.payment_url,
       pidx: khaltiRes.data.pidx,
     });
+
   } catch (err) {
     console.error("INITIATE ERROR:", err.message || err);
-    return res
-      .status(500)
-      .json({ message: "Failed to initiate payment", error: err.message });
+    return res.status(500).json({ message: "Failed to initiate payment", error: err.message });
   }
 });
 
 
+
 router.post("/verify", async (req, res) => {
   const { pidx } = req.body;
+
   if (!pidx) return res.status(400).json({ message: "Missing pidx" });
 
   try {
@@ -143,42 +137,47 @@ router.post("/verify", async (req, res) => {
       },
     });
 
-    if (lookupRes.data.status !== "Completed") {
+    const payment = lookupRes.data;
+
+    if (payment.status !== "Completed") {
       return res.status(400).json({ message: "Payment not completed" });
     }
 
-    console.log("lookupRes.data:", lookupRes.data);
-    console.warn("Skipping merchant_data validation in /verify");
-
-    //Just mark booking as Booked if it exists
     const booking = await Booking.findOne({ transactionId: pidx });
+
     if (!booking) {
       return res.status(404).json({
         message: "Booking not found. It should have been created via /callback.",
       });
     }
 
+    // Already verified
     if (booking.status === "Booked") {
       return res.status(200).json({ message: "Already verified", status: "Booked" });
     }
 
+    // Update booking status
     booking.status = "Booked";
     await booking.save();
 
-    return res.status(200).json({ message: "Payment verified successfully", status: "Booked" });
+    return res.status(200).json({
+      message: "Payment verified successfully",
+      status: "Booked",
+      bookingId: booking._id,
+    });
 
   } catch (err) {
     console.error("VERIFY ERROR:", err.message || err);
-    return res.status(500).json({ message: "Failed to verify payment", error: err.message });
+    return res.status(500).json({
+      message: "Failed to verify payment",
+      error: err.message,
+    });
   }
 });
 
-
-
-
 router.get("/callback", async (req, res) => {
   try {
-    const { pidx, status, extra } = req.query;
+    const { pidx, status, purchase_order_id } = req.query;
 
     if (!pidx || status !== "Completed") {
       return res.status(400).json({ error: "Invalid payment details" });
@@ -191,23 +190,28 @@ router.get("/callback", async (req, res) => {
       },
     });
 
-    if (lookupRes.data.status !== "Completed") {
+    const paymentData = lookupRes.data;
+
+    if (paymentData.status !== "Completed") {
       return res.status(400).json({ error: "Payment verification failed" });
     }
 
-    //Use merchant_extra if available, else fallback to extra from query
-    let rawExtra = lookupRes.data.merchant_data || req.query.data;
+    // 🌐 Try all possible locations for metadata
+    let rawExtra = paymentData.merchant_extra || paymentData.merchant_data || paymentData.extra || req.query.data;
 
-    if (!rawExtra) {
-      return res.status(400).json({ error: "Missing merchant_data in response and URL" });
-    }
-    
     let metadata;
-    try {
-      metadata = JSON.parse(rawExtra);
-    } catch (err) {
-      return res.status(400).json({ error: "Invalid JSON in merchant_data or data param", details: err.message });
-    }    
+    if (rawExtra) {
+      try {
+        metadata = typeof rawExtra === "string" ? JSON.parse(rawExtra) : rawExtra;
+      } catch (err) {
+        return res.status(400).json({ error: "Invalid JSON in metadata", details: err.message });
+      }
+    } else if (global.khaltiTempStore?.has(purchase_order_id)) {
+      metadata = global.khaltiTempStore.get(purchase_order_id);
+      console.log("💡 Retrieved metadata from memory for:", purchase_order_id);
+    } else {
+      return res.status(400).json({ error: "Missing metadata in response and memory" });
+    }
 
     const { type, itemId, userId, seats, takeOffDate, pickupPoint, dropPoint } = metadata;
 
@@ -231,6 +235,7 @@ router.get("/callback", async (req, res) => {
         totalPrice,
         status: "Booked",
         transactionId: pidx,
+        takeOffDate: bus.takeOffDate || bus.tripDate || new Date(takeOffDate),
       });
 
       await booking.save();
@@ -292,6 +297,8 @@ router.get("/callback", async (req, res) => {
     return res.status(500).json({ error: "Internal server error", details: err.message });
   }
 });
+
+
 
 // GET MY BOOKINGS
 router.get("/my-bookings", async (req, res) => {

@@ -1,103 +1,17 @@
 const bcrypt = require("bcryptjs");
 const Admin = require("../models/Admin");
-const User = require('../models/User');
-const Vendor = require('../models/Vendor');
+const User = require("../models/User");
+const Vendor = require("../models/Vendor");
 const generateToken = require("../utils/generateToken");
 const sendEmail = require("../utils/sendEmail");
-const Booking = require("../models/Booking"); 
+const Booking = require("../models/Booking");
 
-//Create New Admin
-exports.createAdmin = async (req, res) => {
-  try {
-    const { name, location, email, phoneNumber, password } = req.body;
-
-    const existing = await Admin.findOne({ email });
-    if (existing) return res.status(400).json({ message: "Email already registered" });
-
-    const hashed = await bcrypt.hash(password, 10);
-    const admin = await Admin.create({ name, location, email, phoneNumber, password: hashed });
-
-    res.status(201).json({ message: "Admin created successfully", admin });
-  } catch (err) {
-    res.status(500).json({ message: "Error creating admin", error: err.message });
-  }
-};
-
-//Admin Login
-exports.loginAdmin = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const admin = await Admin.findOne({ email });
-    if (!admin) return res.status(404).json({ message: "Admin not found" });
-
-    const match = await bcrypt.compare(password, admin.password);
-    if (!match) return res.status(401).json({ message: "Invalid password" });
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    admin.otp = otp;
-    admin.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-    await admin.save();
-
-    await sendEmail(admin.email, "TickXplore - Admin OTP", `<p>Your OTP is <b>${otp}</b></p>`);
-
-    res.status(200).json({
-      message: "OTP sent to email",
-      userId: admin._id,
-      requireOTP: true
-    });
-  } catch (err) {
-    res.status(500).json({ message: "Login error", error: err.message });
-  }
-};
-
-//Verify Admin OTP
-exports.verifyAdminOTP = async (req, res) => {
-  try {
-    const { email, otp, userId } = req.body;
-
-    // Step 1: Find the admin by ID and email
-    const admin = await Admin.findOne({ _id: userId, email });
-
-    // Step 2: Validate OTP
-    if (!admin || admin.otp !== otp || new Date() > admin.otpExpires) {
-      return res.status(401).json({ message: "Invalid or expired OTP" });
-    }
-
-    // Step 3: Clear OTP fields
-    admin.otp = undefined;
-    admin.otpExpires = undefined;
-    await admin.save();
-
-    // ✅ Step 4: Generate token with all 3 arguments (_id, role, email)
-    const token = generateToken(admin._id, admin.role, admin.email);
-
-    // Step 5: Return success
-    res.status(200).json({
-      message: "OTP verified",
-      token,
-      user: {
-        _id: admin._id,
-        email: admin.email,
-        role: admin.role,
-        name: admin.name,
-      },
-    });
-
-  } catch (err) {
-    console.error("OTP verification error:", err);
-    res.status(500).json({
-      message: "OTP verification error",
-      error: err.message,
-    });
-  }
-};
-
-
+// Forgot Password for Admin
 exports.forgotPassword = async (req, res) => {
   const { email } = req.body;
 
   try {
-    const admin = await AdminModel.findOne({ email });
+    const admin = await Admin.findOne({ email });
 
     if (!admin) {
       return res.status(404).json({ message: "Admin not found" });
@@ -105,11 +19,9 @@ exports.forgotPassword = async (req, res) => {
 
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
     admin.resetCode = resetCode;
-    admin.resetCodeExpires = Date.now() + 10 * 60 * 1000; 
-
+    admin.resetCodeExpires = Date.now() + 10 * 60 * 1000;
     await admin.save();
 
-    // Send reset code email
     await sendEmail(
       email,
       "Password Reset OTP",
@@ -128,7 +40,7 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-//Reset Password
+// Reset Password for Admin
 exports.resetPassword = async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
@@ -149,19 +61,18 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-//Get Profile
+// Get Admin Profile
 exports.getProfile = async (req, res) => {
   try {
     const admin = await Admin.findById(req.user.id).select("-password");
     if (!admin) return res.status(404).json({ message: "Admin not found" });
-
     res.json({ admin });
   } catch (err) {
     res.status(500).json({ message: "Error getting profile", error: err.message });
   }
 };
 
-//Get All Admins
+// Get All Admins
 exports.getAllAdmins = async (req, res) => {
   try {
     const admins = await Admin.find().select("-password");
@@ -171,7 +82,7 @@ exports.getAllAdmins = async (req, res) => {
   }
 };
 
-//Get Admin By ID
+// Get Admin by ID
 exports.getAdminById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -187,7 +98,7 @@ exports.getAdminById = async (req, res) => {
   }
 };
 
-//Update Admin
+// Update Admin
 exports.updateAdmin = async (req, res) => {
   try {
     const { id } = req.params;
@@ -204,6 +115,7 @@ exports.updateAdmin = async (req, res) => {
   }
 };
 
+// Toggle Vendor Status (Activate/Deactivate)
 exports.toggleVendorStatus = async (req, res) => {
   try {
     const { vendorId } = req.params;
@@ -213,11 +125,9 @@ exports.toggleVendorStatus = async (req, res) => {
       return res.status(404).json({ message: "Vendor not found" });
     }
 
-    //Toggle isActive
     vendor.isActive = !vendor.isActive;
     await vendor.save();
 
-    //Send email if vendor was just activated
     if (vendor.isActive) {
       console.log("📧 Sending activation email to:", vendor.email);
       await sendEmail(
@@ -238,14 +148,13 @@ exports.toggleVendorStatus = async (req, res) => {
       message: `Vendor ${vendor.isActive ? "activated" : "deactivated"} successfully`,
       vendor,
     });
-
   } catch (error) {
     console.error("Error toggling vendor status:", error);
     res.status(500).json({ message: "Failed to toggle vendor status" });
   }
 };
 
-//Delete Admin
+// Delete Admin
 exports.deleteAdmin = async (req, res) => {
   try {
     const { id } = req.params;
@@ -256,6 +165,7 @@ exports.deleteAdmin = async (req, res) => {
   }
 };
 
+// Edit User By Admin
 exports.editUserByAdmin = async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -273,7 +183,7 @@ exports.editUserByAdmin = async (req, res) => {
   }
 };
 
-// Delete User
+// Delete User by Admin
 exports.deleteUserByAdmin = async (req, res) => {
   try {
     const deletedUser = await User.findByIdAndDelete(req.params.userId);
@@ -285,7 +195,7 @@ exports.deleteUserByAdmin = async (req, res) => {
   }
 };
 
-// Edit Vendor
+// Edit Vendor by Admin
 exports.editVendorByAdmin = async (req, res) => {
   try {
     const vendorId = req.params.vendorId;
@@ -303,7 +213,7 @@ exports.editVendorByAdmin = async (req, res) => {
   }
 };
 
-// Delete Vendor
+// Delete Vendor by Admin
 exports.deleteVendorByAdmin = async (req, res) => {
   try {
     const deletedVendor = await Vendor.findByIdAndDelete(req.params.vendorId);
@@ -318,22 +228,23 @@ exports.deleteVendorByAdmin = async (req, res) => {
 exports.getAllBookings = async (req, res) => {
   try {
     const bookings = await Booking.find()
-      .populate("userId", "name email")
+      .populate("userId", "name email")  // Populating the name and email from the User model
       .populate("busId", "name pickupPoint dropPoint")
       .populate("vehicleId", "name price")
       .sort({ createdAt: -1 });
 
-    // Rename populated fields for frontend clarity
-    const formatted = bookings.map(b => ({
-      ...b._doc, // extract plain object
-      user: b.userId,
+    const formattedBookings = bookings.map(b => ({
+      ...b._doc,
+      user: b.userId,    // Adding the user object
       bus: b.busId,
       vehicle: b.vehicleId
     }));
 
-    res.status(200).json({ bookings: formatted });
+    res.status(200).json({ bookings: formattedBookings });
   } catch (err) {
     console.error("Admin Bookings Error:", err.message);
     res.status(500).json({ message: "Failed to fetch bookings", error: err.message });
   }
 };
+
+

@@ -11,9 +11,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otp, setOtp] = useState("");
-  const [showOtpModal, setShowOtpModal] = useState(false);
   const [showResetOtpModal, setShowResetOtpModal] = useState(false);
-  const [userId, setUserId] = useState(null);
   const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetSent, setResetSent] = useState(false);
@@ -37,28 +35,12 @@ export default function Login() {
     }
 
     try {
-      const response = await axios.post("http://localhost:3001/auth/sign-in", {
+      const response = await axios.post("http://localhost:3001/api/sign-in", {
         email,
         password,
       });
 
-      if (
-        response.data?.requireOTP === true ||
-        response.data?.message?.toLowerCase()?.includes("verify your otp")
-      ) {
-        const resolvedUserId = response.data.userId || response.data.user?._id;
-        if (!resolvedUserId) {
-          toast.error("User ID missing for OTP verification");
-          setLoading(false);
-          return;
-        }
-
-        localStorage.setItem("pendingUserId", resolvedUserId);
-        setUserId(resolvedUserId);
-        setShowOtpModal(true);
-        toast.success("OTP sent to your email!");
-      }
-      else if (response.data?.message?.toLowerCase().includes("not active")) {
+      if (response.data?.message?.toLowerCase().includes("not active")) {
         toast.error(
           "Your vendor account is not active. Please wait for admin approval."
         );
@@ -79,42 +61,6 @@ export default function Login() {
           ? "Invalid email or password"
           : "Login failed. Please try again.");
       toast.error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOtpSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    const resolvedUserId = userId || localStorage.getItem("pendingUserId");
-    if (!resolvedUserId) {
-      toast.error("User ID is missing. Please login again.");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const response = await axios.post(
-        "http://localhost:3001/auth/verify-otp",
-        { email, otp, userId: resolvedUserId }
-      );
-
-      if (response.data?.token) {
-        handleLoginSuccess(response.data);
-        setShowOtpModal(false);
-        setOtp("");
-        localStorage.removeItem("pendingUserId");
-      } else {
-        toast.error("OTP verification failed");
-      }
-    } catch (err) {
-      console.error("OTP Verification Failed:", err);
-      toast.error(
-        err.response?.data?.message || "Invalid OTP. Please try again."
-      );
-      setOtp("");
     } finally {
       setLoading(false);
     }
@@ -231,7 +177,7 @@ export default function Login() {
     window.dispatchEvent(new Event("storageUpdate"));
 
     const redirectPath = user.role === "admin" ? "/Admin_Dashboard" :
-                        user.role === "vendor" ? "/Vendor_Dashboard" : "/";
+                        user.role === "vendor" ? "/VendorDashboard" : "/";
     navigate(redirectPath);
     toast.success("Login successful!");
   };
@@ -239,52 +185,6 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <ToastContainer position="top-center" autoClose={5000} />
-
-      {/* Login OTP Modal */}
-      {showOtpModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
-            <div className="text-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-800">Verify Your Email</h3>
-              <p className="text-gray-600 mt-2">We've sent a 6-digit code to {email}</p>
-            </div>
-
-            <form onSubmit={handleOtpSubmit} className="space-y-6">
-              <div className="flex justify-center">
-                <input
-                  type="text"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                  placeholder="000000"
-                  className="w-64 p-4 border-2 border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-2xl font-mono tracking-widest"
-                  maxLength="6"
-                  required
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex flex-col space-y-4">
-                <button
-                  type="submit"
-                  disabled={loading || otp.length !== 6}
-                  className={`w-full py-3 px-4 rounded-lg text-white font-semibold shadow-md transition-colors ${
-                    loading || otp.length !== 6 ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-                  }`}
-                >
-                  {loading ? "Verifying..." : "Verify Code"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowOtpModal(false)}
-                  className="py-2 px-4 text-gray-600 hover:text-gray-800 font-medium"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Password Reset OTP Modal */}
       {showResetOtpModal && (
@@ -322,7 +222,7 @@ export default function Login() {
 
       {/* Main Card */}
       <div className={`w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden ${
-        showOtpModal || showResetOtpModal ? "blur-sm" : ""
+        showResetOtpModal ? "blur-sm" : ""
       }`}>
         <div className="p-8">
           <div className="text-center mb-8">

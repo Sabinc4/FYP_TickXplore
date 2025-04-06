@@ -1,164 +1,166 @@
 const bcrypt = require("bcryptjs");
+const mongoose = require('mongoose');
 const AdminModel = require('../models/Admin');
 const VendorModel = require('../models/Vendor');
 const UserModel = require('../models/User');
 const generateToken = require("../utils/generateToken");
-const sendOTP = require("../utils/sendOTP");
+const { sendEmail, sendSignupOTP } = require("../utils/sendEmail");
 const generateOTP = require("../utils/generateOTP");
-const sendEmail = require("../utils/sendEmail");
 const Booking = require("../models/Booking");
 
-// SIGN-IN Controller: Send OTP for login
-exports.signIn = async (req, res) => {
-  let { email, password } = req.body;
+exports.register = async (req, res) => {
+  console.log("Registration data received:", req.body);
+
+  const { name, location, email, phoneNumber, password, confirmPassword, role, vendorName, vendorLocation } = req.body;
 
   try {
-    email = email.trim();
-    password = password.trim();
-
-    const models = [AdminModel, VendorModel, UserModel];
-    let user = null;
-    let role = null;
-
-    for (const model of models) {
-      user = await model.findOne({ email });
-      if (user) {
-        role = model.modelName.toLowerCase(); // "admin", "vendor", or "user"
-        break;
-      }
-    }
-
-    if (!user) {
-      return res.status(400).json({ message: "User not found. Please check your email." });
-    }
-
-    // 🔒 Check if vendor is active
-    if (role === "vendor" && user.isActive === false) {
-      return res.status(403).json({ message: "Your vendor account is not active" });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Incorrect password." });
-    }
-
-    const otp = generateOTP();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-
-    await sendOTP(email, otp);
-
-    user.otp = otp;
-    user.otpExpires = otpExpiry;
-    await user.save();
-
-    return res.status(200).json({
-      message: "Login successful. Please verify your OTP.",
-      userId: user._id,
-      requireOTP: true
-    });
-
-  } catch (err) {
-    console.error("Sign-in error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-};
-
-
-// OTP Verification: Second step of login after user enters OTP
-exports.verifyOTP = async (req, res) => {
-  const { email, otp, userId } = req.body;
-
-  try {
-    const sanitizedEmail = email.trim();
-    const sanitizedOTP = otp.trim();
-    const sanitizedUserId = userId?.trim();
-
-    const models = [UserModel, VendorModel, AdminModel];
-    let user = null;
-
-    for (const model of models) {
-      user = await model.findOne({ _id: sanitizedUserId, email: sanitizedEmail });
-      if (user) break;
-    }
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    if (!user.otp || user.otp !== sanitizedOTP) {
-      return res.status(401).json({ message: "Invalid OTP." });
-    }
-
-    if (user.otpExpires && new Date() > user.otpExpires) {
-      return res.status(401).json({ message: "OTP has expired." });
-    }
-
-    const token = generateToken(user._id, user.role);
-
-    user.otp = undefined;
-    user.otpExpires = undefined;
-    await user.save();
-
-    return res.status(200).json({
-      message: "OTP verified successfully",
-      token,
-      user,
-    });
-  } catch (err) {
-    console.error("OTP verification error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
-  }
-};
-
-// SIGN-UP Controller
-exports.signUp = async (req, res) => {
-  let { name, email, password, confirmPassword, location, phoneNumber, role, vendorName, vendorLocation } = req.body;
-
-  try {
-    // Trim input fields to remove extra spaces
-    email = email.trim();
-    password = password.trim();
-    confirmPassword = confirmPassword.trim();
-    phoneNumber = phoneNumber.trim();
-
-    // Validate required fields
-    if (!email || !password || !confirmPassword || !location || !phoneNumber || !role) {
+    // Validate all required fields
+    if (!name || !location || !email || !phoneNumber || !password || !confirmPassword || !role || (role === "vendor" && (!vendorName || !vendorLocation))) {
       return res.status(400).json({ message: "All fields are required." });
     }
 
+    // Check password match
     if (password !== confirmPassword) {
       return res.status(400).json({ message: "Passwords do not match." });
     }
 
-    // Check if email already exists
-    const existingEmail = await UserModel.findOne({ email });
-    if (existingEmail) {
+    // Check if user already exists
+    const existingUser = await UserModel.findOne({ email });
+    if (existingUser) {
       return res.status(400).json({ message: "Email already exists." });
     }
 
-    // Generate OTP and send to email for verification
-    const otp = generateOTP();
-    await sendOTP(email, otp); // Send OTP to email
-
-    // Hash password securely
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
-    let newUser;
+    const otp = generateOTP();
 
-    // Create user based on role
+    let newUser;
     if (role === "user") {
-      newUser = await UserModel.create({ name, email, password: hashedPassword, location, phoneNumber, role: "user" });
+      newUser = await UserModel.create({
+        name,
+        location,
+        email,
+        phoneNumber,
+        password: hashedPassword,
+        role,
+        otp,
+        otpExpires: Date.now() + 10 * 60 * 1000,  // OTP expires in 10 minutes
+        isVerified: false,
+      });
     } else if (role === "vendor") {
-      newUser = await VendorModel.create({ vendorName, vendorLocation, email, password: hashedPassword, phoneNumber, role: "vendor", isActive: false });
+      newUser = await VendorModel.create({
+        name,
+        location,
+        vendorName,
+        vendorLocation,
+        email,
+        phoneNumber,
+        password: hashedPassword,
+        role,
+        otp,
+        otpExpires: Date.now() + 10 * 60 * 1000,
+        isVerified: false,
+      });
     } else if (role === "admin") {
-      newUser = await AdminModel.create({ name, email, password: hashedPassword, location, phoneNumber, role: "admin" });
+      newUser = await AdminModel.create({
+        name,
+        location,
+        email,
+        phoneNumber,
+        password: hashedPassword,
+        role,
+        otp,
+        otpExpires: Date.now() + 10 * 60 * 1000,
+        isVerified: false,
+      });
     }
 
-    res.status(200).json({ message: "Registration successful. Please verify your OTP." });
-  } catch (err) {
-    console.error("Sign-up error:", err);
-    res.status(500).json({ message: "Error during registration", error: err.message });
+    // Send OTP email
+    await sendSignupOTP(email, otp);
+
+    // Send welcome email for Gmail users
+    if (email.endsWith("@gmail.com")) {
+      const displayName = name || "there";
+      await sendEmail(email, " Welcome to TickXplore", `
+        <h2>Hello ${displayName},</h2>
+        <p>We're excited to have you onboard TickXplore!</p>
+        <p>Start exploring and booking your next adventure today!</p>
+      `);
+    }
+
+    res.status(201).json({
+      message: "Registration successful. Please verify the OTP sent to your email.",
+      user: { email, role, _id: newUser._id },
+    });
+  } catch (error) {
+    console.error("Registration error:", error.message);
+    res.status(500).json({ message: "Error during registration", error: error.message });
   }
 };
+
+
+// Sign-in Controller
+exports.signIn = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await UserModel.findOne({ email }) || 
+                 await VendorModel.findOne({ email }) || 
+                 await AdminModel.findOne({ email });
+
+    if (!user) return res.status(400).json({ message: "User not found." });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Incorrect password." });
+
+    if (!user.isVerified) {
+      return res.status(403).json({ message: "Account is not verified. Please verify your OTP." });
+    }
+
+    const token = generateToken(user._id, user.role);
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user: { _id: user._id, email: user.email, role: user.role },
+    });
+  } catch (error) {
+    console.error("Sign-in error:", error.message);
+    res.status(500).json({ message: "Error during sign-in", error: error.message });
+  }
+};
+
+exports.verifyOTP = async (req, res) => {
+  const { userId, otp } = req.body;
+  console.log("Verifying OTP for userId:", userId, "with OTP:", otp);
+
+  try {
+    // Ensure userId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    let user = await UserModel.findById(userId) || 
+               await VendorModel.findById(userId) || 
+               await AdminModel.findById(userId);
+
+    if (!user) return res.status(400).json({ message: "User not found." });
+
+    if (user.otp !== otp || Date.now() > user.otpExpires) {
+      return res.status(400).json({ message: "Invalid or expired OTP." });
+    }
+
+    user.isVerified = true;
+    user.otp = null;
+    user.otpExpires = null;
+    await user.save();
+
+    res.status(200).json({ message: "OTP verified successfully." });
+  } catch (error) {
+    console.error("OTP verification error:", error.message);
+    res.status(500).json({ message: "Error verifying OTP", error: error.message });
+  }
+};
+
 
 exports.forgotPassword = async (req, res) => {
   const { email } = req.body;
@@ -254,11 +256,19 @@ exports.resetPassword = async (req, res) => {
 exports.getAllBookings = async (req, res) => {
   try {
     const bookings = await Booking.find()
-      .populate("userId", "name email")
+      .populate("userId", "name email")  
       .populate("busId", "name pickupPoint dropPoint")
-      .populate("vehicleId", "name price");
+      .populate("vehicleId", "name price")
+      .sort({ createdAt: -1 });
 
-    res.status(200).json({ bookings });
+    const formattedBookings = bookings.map(b => ({
+      ...b._doc,
+      user: b.userId,    
+      bus: b.busId,
+      vehicle: b.vehicleId
+    }));
+
+    res.status(200).json({ bookings: formattedBookings });
   } catch (err) {
     console.error("Admin Bookings Error:", err.message);
     res.status(500).json({ message: "Failed to fetch bookings", error: err.message });

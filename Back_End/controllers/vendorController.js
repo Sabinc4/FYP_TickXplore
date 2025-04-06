@@ -3,76 +3,7 @@ const mongoose = require("mongoose");
 const Vendor = require("../models/Vendor");
 const generateToken = require("../utils/generateToken");
 const { sendEmail } = require("../utils/sendEmail");
-
-//Register Vendor
-exports.registerVendor = async (req, res) => {
-  try {
-    const { vendorName, vendorLocation, email, phoneNumber, password } = req.body;
-
-    if (!vendorName || !vendorLocation || !email || !phoneNumber || !password) {
-      return res.status(400).json({ success: false, message: "All fields are required" });
-    }
-
-    const existingVendor = await Vendor.findOne({ email });
-    if (existingVendor) {
-      return res.status(400).json({ success: false, message: "Email already registered" });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const vendor = await Vendor.create({
-      vendorName,
-      vendorLocation,
-      email,
-      phoneNumber,
-      password: hashedPassword,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Vendor registered successfully. Wait for admin activation.",
-      vendor: { _id: vendor._id, email: vendor.email, isActive: vendor.isActive },
-    });
-  } catch (error) {
-    console.error("Error registering vendor:", error.message);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
-
-// Login Vendor (Only if Active)
-exports.loginVendor = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const vendor = await Vendor.findOne({ email });
-
-    if (!vendor) return res.status(404).json({ success: false, message: "Vendor not found" });
-
-    const isMatch = await bcrypt.compare(password, vendor.password);
-    if (!isMatch) return res.status(401).json({ success: false, message: "Invalid credentials" });
-
-    if (!vendor.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: "Your vendor account is not yet activated by admin.",
-      });
-    }
-
-    const token = generateToken(vendor._id, vendor.role);
-    res.status(200).json({
-      success: true,
-      message: "Login successful",
-      token,
-      vendor: {
-        _id: vendor._id,
-        vendorName: vendor.vendorName,
-        email: vendor.email,
-        role: vendor.role,
-      },
-    });
-  } catch (error) {
-    console.error("Error logging in vendor:", error.message);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-};
+const generateOTP = require("../utils/generateOTP");
 
 // Get Vendor Profile
 exports.getProfile = async (req, res) => {
@@ -85,7 +16,7 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-//Forgot Password
+// Forgot Password
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -94,14 +25,10 @@ exports.forgotPassword = async (req, res) => {
 
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
     vendor.resetCode = resetCode;
-    vendor.resetCodeExpires = Date.now() + 10 * 60 * 1000;
+    vendor.resetCodeExpires = Date.now() + 10 * 60 * 1000; // Expiration time (10 minutes)
     await vendor.save();
 
-    await sendEmail(
-      email,
-      "TickXplore - Reset Password OTP",
-      `<p>Your reset code is <b>${resetCode}</b>. It expires in 10 minutes.</p>`
-    );
+    await sendEmail(email, "TickXplore - Reset Password OTP", `<p>Your OTP is <b>${resetCode}</b>. It will expire in 10 minutes.</p>`);
 
     res.json({ success: true, message: "Reset code sent to email" });
   } catch (error) {
@@ -109,7 +36,7 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-//Reset Password
+// Reset Password
 exports.resetPassword = async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
@@ -124,7 +51,7 @@ exports.resetPassword = async (req, res) => {
     vendor.resetCodeExpires = null;
     await vendor.save();
 
-    res.json({ success: true, message: "Password reset successful" });
+    res.json({ success: true, message: "Password reset successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to reset password" });
   }
@@ -172,13 +99,13 @@ exports.updateVendor = async (req, res) => {
       runValidators: true,
     });
 
-    // Optional: Notify vendor if activated
-    // if (req.body.isActive === true) {
-    //   await sendEmail(updatedVendor.email, "TickXplore - Account Activated", `<p>Your vendor account has been approved. You may now log in.</p>`);
-    // }
-
     if (!updatedVendor) {
       return res.status(404).json({ success: false, message: "Vendor not found" });
+    }
+
+    // Optional: Notify vendor if activated
+    if (req.body.isActive === true) {
+      await sendEmail(updatedVendor.email, "TickXplore - Account Activated", `<p>Your vendor account has been approved. You may now log in.</p>`);
     }
 
     res.status(200).json({ success: true, message: "Vendor updated successfully", updatedVendor });
@@ -187,7 +114,7 @@ exports.updateVendor = async (req, res) => {
   }
 };
 
-//ToggleVendorStatus
+// Toggle Vendor Status
 exports.toggleVendorStatus = async (req, res) => {
   try {
     const vendor = await Vendor.findById(req.params.vendorId);
@@ -208,26 +135,11 @@ exports.toggleVendorStatus = async (req, res) => {
   }
 };
 
-exports.updateVendor = async (req, res) => {
-  try {
-    const updatedVendor = await Vendor.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    if (!updatedVendor) {
-      return res.status(404).json({ success: false, message: "Vendor not found" });
-    }
-    res.status(200).json({ success: true, message: "Vendor updated successfully", vendor: updatedVendor });
-  } catch (err) {
-    console.error("Update vendor error:", err);
-    res.status(500).json({ success: false, message: "Failed to update vendor", error: err.message });
-  }
-};
-
+// Delete Vendor (Admin)
 exports.deleteVendor = async (req, res) => {
   try {
-    const deleted = await Vendor.findByIdAndDelete(req.params.id);
+    const { id } = req.params;
+    const deleted = await Vendor.findByIdAndDelete(id);
     if (!deleted) {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
@@ -237,5 +149,3 @@ exports.deleteVendor = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to delete vendor", error: err.message });
   }
 };
-
-
