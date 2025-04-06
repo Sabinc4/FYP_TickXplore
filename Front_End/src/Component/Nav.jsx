@@ -112,7 +112,7 @@ const Nav = () => {
               </div>
             ) : (
               <Link to="/sign-in">
-                <button className="py-2 px-6 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition">
+                <button className="py-3 px-6 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition">
                   Sign In
                 </button>
               </Link>

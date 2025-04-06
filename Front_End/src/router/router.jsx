@@ -129,6 +129,10 @@ const router = createBrowserRouter([
             path: "buses",
             element: <Buses />,
           },
+          {
+            path: "bookings", 
+            element: <Bookings />,
+          },
         ],
       },
       {
