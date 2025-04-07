@@ -27,7 +27,7 @@ import Users from "../Pages/Admin_Dashboard/Users";
 import Admin_Vendors from "../Pages/Admin_Dashboard/Admin_Vendors";
 import Admin_Buses from "../Pages/Admin_Dashboard/Admin_Buses";
 import Admin_Vehicles from "../Pages/Admin_Dashboard/Admin_Vehicles";
-import RefundRequestModal from "../Component/RefundRequestModal";
+import Refunds from "../Pages/refund";
 
 const router = createBrowserRouter([
   {
@@ -163,10 +163,10 @@ const router = createBrowserRouter([
         path: "/refunds",
         element: (
           <ProtectedRoute allowedRoles={["user"]}>
-            <RefundRequestModal />
+            <Refunds /> 
           </ProtectedRoute>
         ),
-      },
+      }
     ],
   },
 ]);

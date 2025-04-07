@@ -57,6 +57,8 @@ const touristAreaRoutes = require("./routes/touristAreaRoutes");
 const paymentRoutes = require("./routes/payment");
 const bookingRoutes = require("./routes/bookingRoutes");
 const adminDashboardRoutes = require("./routes/adminDashboardRoutes");
+const refundRoutes = require("./routes/refundRoutes");
+
 
 // API Routes
 app.use("/admin", authRoutes);
@@ -73,6 +75,7 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api", bookingRoutes);
 app.use("/admin/dashboard", adminDashboardRoutes);
 app.use("/api", authRoutes);
+app.use("/api/bookings", refundRoutes);
 
 // Health Check Route
 app.get("/health", (req, res) => {

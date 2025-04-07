@@ -1,6 +1,5 @@
 const jwt = require("jsonwebtoken");
 
-//PROTECT: Checks for a valid JWT token
 exports.protect = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -19,8 +18,6 @@ exports.protect = (req, res, next) => {
   }
 };
 
-
-// AUTHORIZE: Restricts access to allowed roles only
 exports.authorize = (...allowedRoles) => {
   return (req, res, next) => {
     const userRole = req.user?.role;
@@ -35,4 +32,3 @@ exports.authorize = (...allowedRoles) => {
     next();
   };
 };
-

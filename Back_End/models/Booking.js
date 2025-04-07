@@ -23,6 +23,11 @@ const BookingSchema = new mongoose.Schema(
     // 🔥 These fields are used only for vehicles (entered by user)
     pickupPoint: { type: String, trim: true },
     dropPoint: { type: String, trim: true },
+
+    // 🔁 Refund fields
+    isRefunded: { type: Boolean, default: false },
+    refundAmount: { type: Number, default: 0 },
+    refundDate: { type: Date }
   },
   { timestamps: true }
 );
