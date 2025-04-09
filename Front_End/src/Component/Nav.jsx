@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FaTimes } from "react-icons/fa";
 import { CiMenuBurger } from "react-icons/ci";
+import logo from "../Pictures/sabin-fav-icon.svg"; 
 
 const Nav = () => {
   const [click, setClick] = useState(false);
@@ -26,17 +27,15 @@ const Nav = () => {
       const role = localStorage.getItem("userRole");
       setUserRole(role || "");
     };
-  
-    updateNav(); 
+
+    updateNav();
     window.addEventListener("storageUpdate", updateNav);
-    return () => {
-      window.removeEventListener("storageUpdate", updateNav);
-    };
+    return () => window.removeEventListener("storageUpdate", updateNav);
   }, []);
-  
 
   const isActive = (path) =>
     location.pathname === path ? "text-white font-bold" : "hover:text-slate-100";
+
   const handleLogout = () => {
     localStorage.removeItem("userLoggedIn");
     localStorage.removeItem("userId");
@@ -44,17 +43,18 @@ const Nav = () => {
     localStorage.removeItem("userName");
     setUserLoggedIn(false);
     setDropdownOpen(false);
-    navigate("/");
+    navigate("/sign-in");
   };
+
   return (
     <nav className="bg-slate-900 text-slate-400 sticky top-0 z-50">
       <div className="flex justify-between items-center lg:py-5 px-8 py-4">
-        {/* Logo */}
-        <div className="flex items-center">
-          <span className="text-3xl font-bold text-white">TickXplore</span>
+        {/* Logo and Brand */}
+        <div className="flex items-center space-x-2">
+          <img src={logo} alt="TickXplore Logo" className="w-10 h-10" />
         </div>
-        
-        {/* Desktop Menu */}
+
+        {/* Desktop Nav */}
         <div className="hidden lg:flex items-center justify-end">
           <ul className="flex gap-12 text-[18px]">
             <Link to="/" className={isActive("/")}>
@@ -79,7 +79,7 @@ const Nav = () => {
                 >
                   <span className="text-xl">{userInitials}</span>
                   <span
-                    className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full flex items-center justify-center text-white text-xs"
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full text-xs flex items-center justify-center"
                     title="Logged In"
                   >
                     ✓
@@ -131,17 +131,17 @@ const Nav = () => {
       {/* Mobile Dropdown */}
       {click && (
         <div className="lg:hidden absolute top-16 left-0 right-0 bg-slate-100 transition z-40">
-          <ul className="text-center text-xl p-10">
-            <Link to="/" className={isActive("/")}>
+          <ul className="text-center text-xl p-10 text-slate-900">
+            <Link to="/" onClick={() => setClick(false)} className={isActive("/")}>
               <li className="cursor-pointer py-4">Home</li>
             </Link>
-            <Link to="/tourist-areas" className={isActive("/tourist-areas")}>
+            <Link to="/tourist-areas" onClick={() => setClick(false)} className={isActive("/tourist-areas")}>
               <li className="cursor-pointer py-4">Tourist Areas</li>
             </Link>
-            <Link to="/about-us" className={isActive("/about-us")}>
+            <Link to="/about-us" onClick={() => setClick(false)} className={isActive("/about-us")}>
               <li className="cursor-pointer py-4">About Us</li>
             </Link>
-            <Link to="/faqs" className={isActive("/faqs")}>
+            <Link to="/faqs" onClick={() => setClick(false)} className={isActive("/faqs")}>
               <li className="cursor-pointer py-4">FAQs</li>
             </Link>
           </ul>
