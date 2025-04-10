@@ -127,7 +127,7 @@ exports.createBus = async (req, res) => {
   }
 };
 
-// ✅ Get All Buses
+// Get All Buses
 exports.getAllBuses = async (req, res) => {
   try {
     console.log("Query Params:", req.query);
@@ -261,7 +261,7 @@ exports.updateBus = async (req, res) => {
   }
 };
 
-// ✅ Delete Bus
+// Delete Bus
 exports.deleteBus = async (req, res) => {
   try {
     const bus = await Bus.findById(req.params.id);

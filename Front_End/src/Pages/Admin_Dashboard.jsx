@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
+import jwtDecode from "jwt-decode";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
@@ -11,6 +12,7 @@ import EditModal from "../Component/Admin_EditModal";
 import DataTable from "../Component/Admin_DataTable";
 
 const AdminDashboard = () => {
+  // State management
   const [activeSection, setActiveSection] = useState("dashboard");
   const [users, setUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -18,11 +20,13 @@ const AdminDashboard = () => {
   const [buses, setBuses] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [bookingType, setBookingType] = useState('bus'); 
+  const [bookingType, setBookingType] = useState('bus');
   const itemsPerPage = 6;
   
   const [filters, setFilters] = useState({
@@ -37,7 +41,9 @@ const AdminDashboard = () => {
     dropPoint: ''
   });
 
+  // Authentication and configuration
   const token = localStorage.getItem("token");
+  const decodedToken = token ? jwtDecode(token) : null;
   const config = {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -45,31 +51,42 @@ const AdminDashboard = () => {
   };
 
   const [editModal, setEditModal] = useState({
-    isOpen: true,
+    isOpen: false,
     type: '',
     item: null,
-    field: 'fieldtoEdit'
+    field: ''
   });
 
+  // Data fetching
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [usersRes, vendorsRes, adminsRes, busesRes, vehiclesRes, bookingsRes] =
-        await Promise.all([
-          axios.get("http://localhost:3001/admin/dashboard/get-users", config),
-          axios.get("http://localhost:3001/admin/dashboard/get-vendors", config),
-          axios.get("http://localhost:3001/admin/dashboard/get-admins", config),
-          axios.get("http://localhost:3001/api/buses?admin=true", config),
-          axios.get("http://localhost:3001/api/vehicles?admin=true", config),
-          axios.get("http://localhost:3001/admin/bookings", config)
-        ]);
+      const [
+        usersRes, 
+        vendorsRes, 
+        adminsRes, 
+        busesRes, 
+        vehiclesRes, 
+        bookingsRes,
+        notificationsRes
+      ] = await Promise.all([
+        axios.get("http://localhost:3001/admin/dashboard/get-users", config),
+        axios.get("http://localhost:3001/admin/dashboard/get-vendors", config),
+        axios.get("http://localhost:3001/admin/dashboard/get-admins", config),
+        axios.get("http://localhost:3001/api/buses?admin=true", config),
+        axios.get("http://localhost:3001/api/vehicles?admin=true", config),
+        axios.get("http://localhost:3001/admin/bookings", config),
+        axios.get("http://localhost:3001/admin/notifications", config)
+      ]);
       
       setUsers(usersRes.data.users || []);
       setVendors(vendorsRes.data.vendors || []);
       setAdmins(adminsRes.data.admins || []);
       setBuses(busesRes.data.buses || busesRes.data.data || []);
       setVehicles(vehiclesRes.data.vehicles || vehiclesRes.data.data || []);
+      setNotifications(notificationsRes.data.notifications || []);
+      setUnreadCount(notificationsRes.data.unreadCount || 0);
       
       const formattedBookings = bookingsRes.data.bookings?.map(booking => ({
         ...booking,
@@ -90,6 +107,26 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Notification handling
+  const markNotificationsAsRead = async () => {
+    try {
+      await axios.put(
+        "http://localhost:3001/admin/notifications/mark-as-read",
+        {},
+        config
+      );
+      setUnreadCount(0);
+    } catch (error) {
+      toast.error("Failed to update notifications");
+    }
+  };
+
+  // User actions
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    window.location.href = "/login";
+  };
 
   const toggleVendorStatus = async (vendorId) => {
     try {
@@ -133,6 +170,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // Edit modal handling
   const handleEditClick = (item, type, field = '') => {
     let fieldToEdit = field;
   
@@ -150,7 +188,6 @@ const AdminDashboard = () => {
       field: fieldToEdit
     });
   };
-  
 
   const handleSaveEdit = async (newValue) => {
     try {
@@ -183,6 +220,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // Booking actions
   const handleCancelBooking = async (bookingId) => {
     if (!window.confirm("Are you sure you want to cancel this booking?")) return;
     try {
@@ -198,6 +236,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // Data filtering and pagination
   const filterData = (data, fields) => {
     if (!searchQuery) return data;
     return data.filter((item) =>
@@ -237,6 +276,19 @@ const AdminDashboard = () => {
 
   const totalPages = (data) => Math.ceil(data.length / itemsPerPage);
 
+  // Constants
+  const sections = [
+    "dashboard",
+    "users",
+    "vendors",
+    "admins",
+    "buses",
+    "vehicles",
+    "bookings",
+    "notifications",
+    "profile"
+  ];
+
   const dashboardData = [
     { name: "Users", count: users.length, color: "#3B82F6" },
     { name: "Vendors", count: vendors.length, color: "#10B981" },
@@ -246,6 +298,7 @@ const AdminDashboard = () => {
     { name: "Bookings", count: bookings.length, color: "#EC4899" },
   ];
 
+  // Components
   const BookingFilters = ({ bookingType }) => {
     return (
       <div className="bg-white p-4 rounded-lg shadow mb-4">
@@ -381,6 +434,7 @@ const AdminDashboard = () => {
     );
   };
 
+  // Main render
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50">
       <ToastContainer 
@@ -406,7 +460,7 @@ const AdminDashboard = () => {
                  editModal.field === 'vendorName' ? 'Vendor Name' : 'Status'}
       />
 
-      {/* Sidebar - Mobile First */}
+      {/* Mobile Navigation */}
       <div className="md:hidden bg-white shadow-md">
         <select
           value={activeSection}
@@ -414,44 +468,71 @@ const AdminDashboard = () => {
             setActiveSection(e.target.value);
             setSearchQuery("");
             setCurrentPage(1);
+            if (e.target.value === "notifications") {
+              markNotificationsAsRead();
+            }
           }}
           className="w-full p-3 border-b border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          {["dashboard", "users", "vendors", "admins", "buses", "vehicles", "bookings"].map(
-            (section) => (
-              <option key={section} value={section}>
-                {section.charAt(0).toUpperCase() + section.slice(1)}
-              </option>
-            )
-          )}
+          {sections.map((section) => (
+            <option key={section} value={section}>
+              {section.charAt(0).toUpperCase() + section.slice(1)}
+              {section === "notifications" && unreadCount > 0 && ` (${unreadCount})`}
+            </option>
+          ))}
         </select>
+        <button
+          onClick={handleLogout}
+          className="w-full p-3 bg-red-600 text-white hover:bg-red-700"
+        >
+          Logout
+        </button>
       </div>
 
-      {/* Sidebar - Desktop */}
+      {/* Desktop Sidebar */}
       <aside className="hidden md:block w-56 lg:w-64 bg-white shadow-xl p-4 lg:p-6 border-r">
-        <h2 className="text-xl lg:text-2xl font-bold mb-6 lg:mb-8 text-blue-700">Admin Dashboard</h2>
-        <ul className="space-y-2 lg:space-y-3">
-          {["dashboard", "users", "vendors", "admins", "buses", "vehicles", "bookings"].map(
-            (section) => (
-              <li
-                key={section}
-                className={`p-2 lg:p-3 cursor-pointer rounded-md transition-all ${
-                  activeSection === section
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "hover:bg-gray-200"
-                }`}
-                onClick={() => {
-                  setActiveSection(section);
-                  setSearchQuery("");
-                  setCurrentPage(1);
-                }}
-              >
-                <span className="text-sm lg:text-base">
-                  {section.charAt(0).toUpperCase() + section.slice(1)}
-                </span>
-              </li>
-            )
+        <div className="flex items-center justify-between mb-6 lg:mb-8">
+          <h2 className="text-xl lg:text-2xl font-bold text-blue-700">Admin Dashboard</h2>
+          {unreadCount > 0 && (
+            <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+              {unreadCount}
+            </span>
           )}
+        </div>
+        <ul className="space-y-2 lg:space-y-3">
+          {sections.map((section) => (
+            <li
+              key={section}
+              className={`p-2 lg:p-3 cursor-pointer rounded-md transition-all flex justify-between items-center ${
+                activeSection === section
+                  ? "bg-blue-600 text-white font-semibold"
+                  : "hover:bg-gray-200"
+              }`}
+              onClick={() => {
+                setActiveSection(section);
+                setSearchQuery("");
+                setCurrentPage(1);
+                if (section === "notifications") {
+                  markNotificationsAsRead();
+                }
+              }}
+            >
+              <span className="text-sm lg:text-base">
+                {section.charAt(0).toUpperCase() + section.slice(1)}
+              </span>
+              {section === "notifications" && unreadCount > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+            </li>
+          ))}
+          <li
+            className="p-2 lg:p-3 cursor-pointer rounded-md transition-all hover:bg-red-100 hover:text-red-700"
+            onClick={handleLogout}
+          >
+            <span className="text-sm lg:text-base">Logout</span>
+          </li>
         </ul>
       </aside>
 
@@ -477,209 +558,385 @@ const AdminDashboard = () => {
               </div>
             )}
 
-            {activeSection === "dashboard" ? (
+            {activeSection === "dashboard" && (
               <div className="space-y-6 md:space-y-8">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Dashboard Overview</h1>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                   {dashboardData.map((item) => (
                     <div
                       key={item.name}
-                      className="bg-white p-4 md:p-6 rounded-lg md:rounded-xl shadow-sm md:shadow-md hover:shadow-md md:hover:shadow-lg transition-all"
-                      style={{ borderLeft: `4px solid ${item.color}` }}
+                      className="bg-white p-4 md:p-6 rounded-lg shadow-md border-l-4"
+                      style={{ borderColor: item.color }}
                     >
-                      <h3 className="text-sm md:text-lg font-semibold text-gray-700">
+                      <h3 className="text-lg md:text-xl font-semibold text-gray-700">
                         {item.name}
                       </h3>
-                      <p 
-                        className="text-2xl md:text-3xl font-bold mt-1 md:mt-2" 
-                        style={{ color: item.color }}
-                      >
+                      <p className="text-2xl md:text-3xl font-bold mt-2" style={{ color: item.color }}>
                         {item.count}
                       </p>
                     </div>
                   ))}
                 </div>
 
-                <div className="bg-white p-4 md:p-6 rounded-lg md:rounded-xl shadow-sm md:shadow-md">
-                  <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Entity Distribution</h2>
-                  <div className="h-64 md:h-80">
+                <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
+                  <h2 className="text-xl font-semibold mb-4">Recent Bookings</h2>
+                  <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={dashboardData}>
+                      <BarChart
+                        data={bookings.slice(0, 10).map(booking => ({
+                          ...booking,
+                          date: new Date(booking.createdAt).toLocaleDateString()
+                        }))}
+                        margin={{
+                          top: 5,
+                          right: 30,
+                          left: 20,
+                          bottom: 5,
+                        }}
+                      >
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
+                        <XAxis dataKey="date" />
                         <YAxis />
                         <Tooltip />
                         <Legend />
-                        <Bar
-                          dataKey="count"
-                          name="Total Count"
-                          fill="#3B82F6"
-                          radius={[4, 4, 0, 0]}
-                        />
+                        <Bar dataKey="totalPrice" fill="#8884d8" name="Booking Amount" />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
               </div>
-            ) : (
-              <>
-                <div className="mb-4 md:mb-6">
-                  <input
-                    type="text"
-                    placeholder={`Search ${activeSection}...`}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full p-2 md:p-3 border border-gray-300 rounded-md md:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
-                  />
+            )}
+
+            {activeSection === "profile" && (
+              <div className="bg-white p-6 rounded-lg shadow">
+                <h2 className="text-2xl font-bold mb-6">Admin Profile</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <div className="bg-gray-100 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold mb-4">Personal Information</h3>
+                      <div className="space-y-3">
+                        <p><span className="font-medium">Name:</span> {decodedToken?.name || "Admin User"}</p>
+                        <p><span className="font-medium">Email:</span> {decodedToken?.email}</p>
+                        <p><span className="font-medium">Role:</span> Administrator</p>
+                        <p><span className="font-medium">Last Login:</span> {new Date(decodedToken?.iat * 1000).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="bg-gray-100 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold mb-4">Quick Stats</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white p-3 rounded shadow-sm">
+                          <p className="text-sm text-gray-600">Total Users</p>
+                          <p className="text-xl font-bold">{users.length}</p>
+                        </div>
+                        <div className="bg-white p-3 rounded shadow-sm">
+                          <p className="text-sm text-gray-600">Active Vendors</p>
+                          <p className="text-xl font-bold">{vendors.filter(v => v.isActive).length}</p>
+                        </div>
+                        <div className="bg-white p-3 rounded shadow-sm">
+                          <p className="text-sm text-gray-600">Today's Bookings</p>
+                          <p className="text-xl font-bold">
+                            {bookings.filter(b => 
+                              new Date(b.createdAt).toDateString() === new Date().toDateString()
+                            ).length}
+                          </p>
+                        </div>
+                        <div className="bg-white p-3 rounded shadow-sm">
+                          <p className="text-sm text-gray-600">Unread Notifications</p>
+                          <p className="text-xl font-bold">{unreadCount}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              </div>
+            )}
 
-                {activeSection === "users" && (
-                  <DataTable
-                    title="Users"
-                    data={filterData(users, ["name", "email"])}
-                    fields={["name", "email"]}
-                    headers={["Name", "Email"]}
-                    renderCell={(item, field) => item[field]}
-                    onEdit={(user) => handleEditClick(user, 'user')}
-                    onDelete={handleDeleteUser}
-                  />
+            {activeSection === "notifications" && (
+              <div className="bg-white p-6 rounded-lg shadow">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">Notifications</h2>
+                  <button 
+                    onClick={() => fetchData()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Refresh
+                  </button>
+                </div>
+                
+                {notifications.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No notifications found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {notifications.map((notification) => (
+                      <div 
+                        key={notification._id} 
+                        className={`border-l-4 p-4 rounded shadow-sm ${
+                          notification.read ? 'border-gray-300 bg-white' : 'border-blue-500 bg-blue-50'
+                        }`}
+                      >
+                        <div className="flex justify-between">
+                          <h3 className="font-medium">{notification.title}</h3>
+                          <span className="text-sm text-gray-500">
+                            {new Date(notification.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-gray-700">{notification.message}</p>
+                        {notification.link && (
+                          <a 
+                            href={notification.link} 
+                            className="inline-block mt-2 text-blue-600 hover:underline text-sm"
+                          >
+                            View details
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
+              </div>
+            )}
 
-                {activeSection === "vendors" && (
-                  <DataTable
-                    title="Vendors"
-                    data={filterData(vendors, ["vendorName", "email", "isActive"])}
-                    fields={["vendorName", "email", "isActive"]}
-                    headers={["Vendor Name", "Email", "Active Status"]}
-                    renderCell={(item, field) => 
-                      field === "isActive" ? (item[field] ? "Active" : "Inactive") : item[field]
+            {activeSection === "users" && (
+              <div className="bg-white p-6 rounded-lg shadow">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">Users</h2>
+                  <div className="w-64">
+                    <input
+                      type="text"
+                      placeholder="Search users..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <DataTable
+                  data={filterData(users, ["name", "email"])}
+                  fields={["name", "email"]}
+                  headers={["Name", "Email"]}
+                  renderCell={(item, field) => item[field]}
+                  onEdit={(user) => handleEditClick(user, 'user')}
+                  onDelete={handleDeleteUser}
+                />
+              </div>
+            )}
+
+            {activeSection === "vendors" && (
+              <div className="bg-white p-6 rounded-lg shadow">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">Vendors</h2>
+                  <div className="w-64">
+                    <input
+                      type="text"
+                      placeholder="Search vendors..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <DataTable
+                  data={filterData(vendors, ["vendorName", "email", "isActive"])}
+                  fields={["vendorName", "email", "isActive"]}
+                  headers={["Vendor Name", "Email", "Active Status"]}
+                  renderCell={(item, field) => 
+                    field === "isActive" ? (item[field] ? "Active" : "Inactive") : item[field]
+                  }
+                  onEdit={(vendor) => handleEditClick(vendor, 'vendor')}
+                  onDelete={handleDeleteVendor}
+                  onToggleStatus={toggleVendorStatus}
+                />
+              </div>
+            )}
+
+            {activeSection === "admins" && (
+              <div className="bg-white p-6 rounded-lg shadow">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">Admins</h2>
+                  <div className="w-64">
+                    <input
+                      type="text"
+                      placeholder="Search admins..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <DataTable
+                  data={filterData(admins, ["name", "email"])}
+                  fields={["name", "email"]}
+                  headers={["Name", "Email"]}
+                  renderCell={(item, field) => item[field]}
+                />
+              </div>
+            )}
+
+            {activeSection === "buses" && (
+              <div className="bg-white p-6 rounded-lg shadow">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">Buses</h2>
+                  <div className="w-64">
+                    <input
+                      type="text"
+                      placeholder="Search buses..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <BusCards
+                  buses={filterData(paginatedData(buses), ["busName", "pickupPoint", "dropPoint"])}
+                  loading={loading}
+                />
+                {buses.length > itemsPerPage && (
+                  <div className="flex justify-center mt-4 md:mt-6 flex-wrap gap-1">
+                    {Array.from({ length: totalPages(buses) }).map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentPage(index + 1)}
+                        className={`px-3 py-1 md:px-4 md:py-2 rounded-md text-sm md:text-base ${
+                          currentPage === index + 1
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 hover:bg-gray-300"
+                        }`}
+                      >
+                        {index + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeSection === "vehicles" && (
+              <div className="bg-white p-6 rounded-lg shadow">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">Vehicles</h2>
+                  <div className="w-64">
+                    <input
+                      type="text"
+                      placeholder="Search vehicles..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <VehicleCards
+                  vehicles={filterData(paginatedData(vehicles), ["name"])}
+                  loading={loading}
+                />
+                {vehicles.length > itemsPerPage && (
+                  <div className="flex justify-center mt-4 md:mt-6 flex-wrap gap-1">
+                    {Array.from({ length: totalPages(vehicles) }).map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentPage(index + 1)}
+                        className={`px-3 py-1 md:px-4 md:py-2 rounded-md text-sm md:text-base ${
+                          currentPage === index + 1
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 hover:bg-gray-300"
+                        }`}
+                      >
+                        {index + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeSection === "bookings" && (
+              <div className="bg-white p-6 rounded-lg shadow">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-2xl font-bold">Bookings</h2>
+                  <div className="flex items-center">
+                    <div className="w-64 mr-4">
+                      <input
+                        type="text"
+                        placeholder="Search bookings..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex">
+                      <button
+                        onClick={() => setBookingType('bus')}
+                        className={`px-4 py-2 rounded-l-md ${bookingType === 'bus' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                      >
+                        Bus
+                      </button>
+                      <button
+                        onClick={() => setBookingType('vehicle')}
+                        className={`px-4 py-2 rounded-r-md ${bookingType === 'vehicle' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                      >
+                        Vehicle
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                <BookingFilters bookingType={bookingType} />
+                
+                <DataTable
+                  data={paginatedData(filterBookings(
+                    bookings.filter(b => bookingType === 'bus' ? b.bus : b.vehicle),
+                    bookingType
+                  ))}
+                  fields={bookingType === 'bus' ? 
+                    ["_id", "user", "bus", "selectedSeats", "totalPrice", "status", "createdAt"] : 
+                    ["_id", "user", "vehicle", "pickupPoint", "dropPoint", "totalPrice", "status", "createdAt"]}
+                  headers={bookingType === 'bus' ? 
+                    ["Booking ID", "User", "Bus", "Seats", "Price", "Status", "Date"] : 
+                    ["Booking ID", "User", "Vehicle", "Pickup", "Drop", "Price", "Status", "Date"]}
+                  renderCell={(item, field) => {
+                    if (field === "createdAt") {
+                      return new Date(item[field]).toLocaleString();
                     }
-                    onEdit={(vendor) => handleEditClick(vendor, 'vendor')}
-                    onDelete={handleDeleteVendor}
-                    onToggleStatus={toggleVendorStatus}
-                  />
+                    if (field === "user") {
+                      return item.user?.name || "N/A";
+                    }
+                    if (field === "bus") {
+                      return item.bus?.busName || "N/A";
+                    }
+                    if (field === "vehicle") {
+                      return item.vehicle?.name || "N/A";
+                    }
+                    if (field === "totalPrice") {
+                      return `$${item[field]}`;
+                    }
+                    return item[field];
+                  }}
+                  onEdit={(booking) => handleEditClick(booking, 'booking', 'status')}
+                  onDelete={handleCancelBooking}
+                />
+
+                {bookings.length > itemsPerPage && (
+                  <div className="flex justify-center mt-4 md:mt-6 flex-wrap gap-1">
+                    {Array.from({ length: totalPages(bookings) }).map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentPage(index + 1)}
+                        className={`px-3 py-1 md:px-4 md:py-2 rounded-md text-sm md:text-base ${
+                          currentPage === index + 1
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 hover:bg-gray-300"
+                        }`}
+                      >
+                        {index + 1}
+                      </button>
+                    ))}
+                  </div>
                 )}
-
-                {activeSection === "admins" && (
-                  <DataTable
-                    title="Admins"
-                    data={filterData(admins, ["name", "email"])}
-                    fields={["name", "email"]}
-                    headers={["Name", "Email"]}
-                    renderCell={(item, field) => item[field]}
-                  />
-                )}
-
-                {activeSection === "buses" && (
-                  <>
-                    <BusCards
-                      buses={filterData(paginatedData(buses), ["busName", "pickupPoint", "dropPoint"])}
-                      loading={loading}
-                    />
-                    {buses.length > itemsPerPage && (
-                      <div className="flex justify-center mt-4 md:mt-6 flex-wrap gap-1">
-                        {Array.from({ length: totalPages(buses) }).map((_, index) => (
-                          <button
-                            key={index}
-                            onClick={() => setCurrentPage(index + 1)}
-                            className={`px-3 py-1 md:px-4 md:py-2 rounded-md text-sm md:text-base ${
-                              currentPage === index + 1
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-200 hover:bg-gray-300"
-                            }`}
-                          >
-                            {index + 1}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {activeSection === "vehicles" && (
-                  <>
-                    <VehicleCards
-                      vehicles={filterData(paginatedData(vehicles), ["name"])}
-                      loading={loading}
-                    />
-                    {vehicles.length > itemsPerPage && (
-                      <div className="flex justify-center mt-4 md:mt-6 flex-wrap gap-1">
-                        {Array.from({ length: totalPages(vehicles) }).map((_, index) => (
-                          <button
-                            key={index}
-                            onClick={() => setCurrentPage(index + 1)}
-                            className={`px-3 py-1 md:px-4 md:py-2 rounded-md text-sm md:text-base ${
-                              currentPage === index + 1
-                                ? "bg-blue-600 text-white"
-                                : "bg-gray-200 hover:bg-gray-300"
-                            }`}
-                          >
-                            {index + 1}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-
-{activeSection === "bookings" && (
-  <>
-    <div className="mb-4">
-      <div className="flex items-center mb-4">
-        <button
-          onClick={() => setBookingType('bus')}
-          className={`px-4 py-2 rounded-l-md ${bookingType === 'bus' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-        >
-          Bus Bookings
-        </button>
-        <button
-          onClick={() => setBookingType('vehicle')}
-          className={`px-4 py-2 rounded-r-md ${bookingType === 'vehicle' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-        >
-          Vehicle Bookings
-        </button>
-      </div>
-      
-      <BookingFilters bookingType={bookingType} />
-    </div>
-
-    <DataTable
-  title={`${bookingType === 'bus' ? 'Bus' : 'Vehicle'} Bookings`}
-  data={paginatedData(filterBookings(
-    bookings.filter(b => bookingType === 'bus' ? b.bus : b.vehicle),
-    bookingType
-  ))}
-  fields={bookingType === 'bus' ? 
-    ["_id", "user", "bus", "selectedSeats", "totalPrice", "status", "createdAt"] : 
-    ["_id", "user", "vehicle", "pickupPoint", "dropPoint", "totalPrice", "status", "createdAt"]}
-  headers={bookingType === 'bus' ? 
-    ["Booking ID", "User", "Bus", "Seats", "Price", "Status", "Date"] : 
-    ["Booking ID", "User", "Vehicle", "Pickup", "Drop", "Price", "Status", "Date"]}
-        
-      
-      onDelete={handleCancelBooking}
-      disableEdit={true}
-    />
-
-    {bookings.length > itemsPerPage && (
-      <div className="flex justify-center mt-4 md:mt-6 flex-wrap gap-1">
-        {Array.from({ length: totalPages(bookings) }).map((_, index) => (
-          <button
-            key={index}
-            onClick={() => setCurrentPage(index + 1)}
-            className={`px-3 py-1 md:px-4 md:py-2 rounded-md text-sm md:text-base ${
-              currentPage === index + 1
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200 hover:bg-gray-300"
-            }`}
-          >
-            {index + 1}
-          </button>
-        ))}
-      </div>
-    )}
-  </>
-)}
-              </>
+              </div>
             )}
           </>
         )}

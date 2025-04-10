@@ -1,5 +1,3 @@
-// src/pages/Vendor/Bookings.jsx
-
 import React from "react";
 import { useOutletContext } from "react-router-dom";
 

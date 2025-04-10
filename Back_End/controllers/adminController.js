@@ -129,13 +129,13 @@ exports.toggleVendorStatus = async (req, res) => {
     await vendor.save();
 
     if (vendor.isActive) {
-      console.log("📧 Sending activation email to:", vendor.email);
+      console.log("Sending activation email to:", vendor.email);
       await sendEmail(
         vendor.email,
-        "🎉 Your Vendor Account is Now Active",
+        "Your Vendor Account is Now Active",
         `
           <h2>Hello ${vendor.vendorName},</h2>
-          <p>🎉 Great news! Your vendor account on <strong>TickXplore</strong> has been activated by the admin.</p>
+          <p> Great news! Your vendor account on <strong>TickXplore</strong> has been activated by the admin.</p>
           <p>You can now log in and start managing your listings!</p>
           <p><a href="http://localhost:5173/login">Click here to log in</a></p>
           <br/>

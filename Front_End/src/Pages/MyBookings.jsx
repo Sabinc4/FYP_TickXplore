@@ -11,15 +11,18 @@ import {
   FaQrcode,
   FaDownload,
   FaTrash,
+  FaPrint,
 } from "react-icons/fa";
 import { ImSpinner8 } from "react-icons/im";
 import { motion } from "framer-motion";
 import { useReactToPrint } from "react-to-print";
+import html2pdf from "html2pdf.js";
 
 const MyBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [downloading, setDownloading] = useState(false);
 
   const userId = localStorage.getItem("userId");
 
@@ -60,11 +63,35 @@ const MyBookings = () => {
 
   const Ticket = ({ booking }) => {
     const isBus = !!booking.busId;
-    const ref = useRef();
-    const generatePDF = useReactToPrint({
-      content: () => ref.current,
+    const ticketRef = useRef();
+
+    // Method 1: Print to PDF
+    const handlePrint = useReactToPrint({
+      content: () => ticketRef.current,
       documentTitle: `Ticket-${booking._id.slice(-6)}`,
+      onBeforeGetContent: () => setDownloading(true),
+      onAfterPrint: () => setDownloading(false),
     });
+
+    // Method 2: Direct PDF download using html2pdf
+    const handleDownloadPDF = () => {
+      setDownloading(true);
+      const element = ticketRef.current;
+      const opt = {
+        margin: 10,
+        filename: `ticket-${booking._id.slice(-6)}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, logging: true, useCORS: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      };
+
+      html2pdf()
+        .set(opt)
+        .from(element)
+        .save()
+        .then(() => setDownloading(false))
+        .catch(() => setDownloading(false));
+    };
 
     return (
       <motion.div
@@ -72,10 +99,10 @@ const MyBookings = () => {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="bg-slate-700 rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden border border-slate-600"
+        className="ticket-container bg-slate-700 rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden border border-slate-600"
       >
-        <div ref={ref} className="p-6 md:p-8 grid md:grid-cols-3 gap-6">
-          {/* Info */}
+        <div ref={ticketRef} className="p-6 md:p-8 grid md:grid-cols-3 gap-6">
+          {/* Left Column - Trip Info */}
           <div className="space-y-4 border-r border-slate-600 pr-6">
             <div className="flex items-center gap-3">
               <div className="bg-slate-800 p-3 rounded-lg">
@@ -123,7 +150,7 @@ const MyBookings = () => {
             </div>
           </div>
 
-          {/* Seats and Payment */}
+          {/* Middle Column - Seats and Payment */}
           <div className="space-y-4 border-r border-slate-600 pr-6">
             <div className="flex items-center gap-4">
               <FaChair className="text-xl text-green-400" />
@@ -149,7 +176,7 @@ const MyBookings = () => {
             </div>
           </div>
 
-          {/* Status + Actions */}
+          {/* Right Column - Status and Actions */}
           <div className="space-y-6">
             <div className="flex flex-col gap-2">
               <span
@@ -173,12 +200,34 @@ const MyBookings = () => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <button
-                onClick={generatePDF}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
-              >
-                <FaDownload /> Download Ticket
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handlePrint}
+                  disabled={downloading}
+                  className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 flex-1"
+                >
+                  {downloading ? (
+                    <ImSpinner8 className="animate-spin" />
+                  ) : (
+                    <>
+                      <FaPrint /> Print
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleDownloadPDF}
+                  disabled={downloading}
+                  className="bg-blue-800 text-white px-3 py-2 rounded-lg hover:bg-blue-900 flex items-center justify-center gap-2 flex-1"
+                >
+                  {downloading ? (
+                    <ImSpinner8 className="animate-spin" />
+                  ) : (
+                    <>
+                      <FaDownload /> PDF
+                    </>
+                  )}
+                </button>
+              </div>
               <button
                 onClick={() => handleCancel(booking._id)}
                 className="bg-red-700 text-white px-4 py-2 rounded-lg hover:bg-red-800 flex items-center justify-center gap-2"
@@ -189,7 +238,7 @@ const MyBookings = () => {
           </div>
         </div>
 
-        {/* Departure Date only */}
+        {/* Footer - Departure Date */}
         <div className="bg-slate-800 p-4 border-t border-slate-600 text-sm text-slate-400 flex items-center gap-2">
           <FaCalendarAlt />
           <span>
@@ -210,6 +259,28 @@ const MyBookings = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-800 to-slate-900 p-4 md:p-8">
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .ticket-container, .ticket-container * {
+            visibility: visible;
+          }
+          .ticket-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            background-color: white;
+            color: black;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
+
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-bold text-white mb-6 flex items-center gap-3">
           <FaQrcode className="text-blue-400" />

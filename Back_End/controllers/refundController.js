@@ -3,16 +3,17 @@ const Bus = require("../models/Bus");
 const Vehicle = require("../models/Vehicle");
 const Vendor = require("../models/Vendor");
 const Admin = require("../models/Admin");
+const moment = require("moment");
 const { sendEmail } = require("../utils/sendEmail");
 
 const refundBooking = async (req, res) => {
     const { bookingId } = req.params;
     const { refundAmount } = req.body;
   
-    // ✅ Check if email credentials are loaded from .env
-    console.log("🔍 Checking EMAIL ENV Vars:");
+    //Check if email credentials are loaded from .env
+    console.log(" Checking EMAIL ENV Vars:");
     console.log("EMAIL_USER:", process.env.EMAIL_USER);
-    console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "Loaded ✅" : "Missing ❌");
+    console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "Loaded " : "Missing ");
   
     try {
       const booking = await Booking.findById(bookingId);
@@ -58,7 +59,7 @@ const refundBooking = async (req, res) => {
           "Refund Processed",
           `<p>A refund of ₹${refundAmount} has been processed for Booking ID: <strong>${booking._id}</strong>.</p>`
         );
-        console.log("✅ Email sent to vendor:", vendorEmail);
+        console.log(" Email sent to vendor:", vendorEmail);
       }
   
       // Notify Admins
@@ -69,7 +70,7 @@ const refundBooking = async (req, res) => {
           "Booking Refund Notification",
           `<p>Booking ID: <strong>${booking._id}</strong> has been refunded ₹${refundAmount}.</p>`
         );
-        console.log("✅ Email sent to admin:", admin.email);
+        console.log(" Email sent to admin:", admin.email);
       }
   
       res.status(200).json({
@@ -85,24 +86,43 @@ const refundBooking = async (req, res) => {
       });
     }
   };
-  
-// Optional route to fetch upcoming eligible bookings
+
 const getUpcomingBookings = async (req, res) => {
-  const { userId } = req.params;
-  const today = new Date();
-
   try {
-    const bookings = await Booking.find({
-      userId,
-      takeOffDate: { $gt: today },
-      status: "Booked",
-      isRefunded: false,
-    }).sort({ takeOffDate: 1 });
+    const today = moment().startOf("day").toDate();
 
-    res.json({ bookings });
+    const bookings = await Booking.find({
+      userId: req.params.userId,
+      status: "Booked",
+      $or: [
+        { takeOffDate: { $gte: today } },
+        { reservationDate: { $gte: today } },
+      ],
+    }).sort({ takeOffDate: 1, reservationDate: 1 });
+
+    res.status(200).json(bookings);
   } catch (error) {
-    console.error("Error fetching upcoming bookings:", error);
-    res.status(500).json({ message: "Server error while fetching bookings" });
+    res.status(500).json({ message: "Error fetching upcoming bookings", error });
+  }
+};
+
+const getBookingHistory = async (req, res) => {
+  try {
+    const today = moment().startOf("day").toDate();
+
+    const bookings = await Booking.find({
+      userId: req.params.userId,
+      $or: [
+        { takeOffDate: { $lt: today } },
+        { reservationDate: { $lt: today } },
+        { status: "Cancelled" },
+        { isRefunded: true },
+      ],
+    }).sort({ takeOffDate: -1, reservationDate: -1 });
+
+    res.status(200).json(bookings);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching booking history", error });
   }
 };
 
@@ -126,7 +146,8 @@ const cancelBooking = async (req, res) => {
   };
   
   module.exports = {
-    refundBooking,
     getUpcomingBookings,
+    getBookingHistory,
+    refundBooking,
     cancelBooking,
   };

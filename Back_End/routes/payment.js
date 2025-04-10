@@ -5,6 +5,8 @@ const Booking = require("../models/Booking");
 const Bus = require("../models/Bus");
 const Vehicle = require("../models/Vehicle");
 const Reservation = require("../models/reservationModel");
+const Vendor = require("../models/Vendor");
+const { sendEmail } = require("../utils/sendEmail");
 
 
 const KHALTI_BASE_URL = "https://dev.khalti.com/api/v2/epayment/initiate/";
@@ -84,7 +86,7 @@ router.post("/initiate", async (req, res) => {
       dropPoint,
     };
 
-    // 💾 Store temporarily in memory (fallback in callback)
+    //Store temporarily in memory (fallback in callback)
     global.khaltiTempStore = global.khaltiTempStore || new Map();
     global.khaltiTempStore.set(orderId, metadata);
 
@@ -100,14 +102,14 @@ router.post("/initiate", async (req, res) => {
       merchant_username: "tickxplore",
     };
 
-    console.log("Sending to Khalti:", payload);
-
+    console.log("Sending to Khalti:", payload); 
     const khaltiRes = await axios.post(KHALTI_BASE_URL, payload, {
       headers: {
         Authorization: `Key ${process.env.KHALTI_SECRET_KEY}`,
         "Content-Type": "application/json",
       },
     });
+
 
     console.log("Khalti INITIATE RESPONSE:", khaltiRes.data);
 
@@ -196,10 +198,9 @@ router.get("/callback", async (req, res) => {
       return res.status(400).json({ error: "Payment verification failed" });
     }
 
-    // 🌐 Try all possible locations for metadata
     let rawExtra = paymentData.merchant_extra || paymentData.merchant_data || paymentData.extra || req.query.data;
-
     let metadata;
+
     if (rawExtra) {
       try {
         metadata = typeof rawExtra === "string" ? JSON.parse(rawExtra) : rawExtra;
@@ -240,12 +241,32 @@ router.get("/callback", async (req, res) => {
 
       await booking.save();
 
+      // Update booked seats
       await Bus.findByIdAndUpdate(itemId, {
         $addToSet: { bookedSeats: { $each: seats } },
       });
-    }
 
-    else if (type === "vehicle") {
+      // ✅ Send email to vendor
+      if (bus.vendorId) {
+        const vendor = await Vendor.findById(bus.vendorId);
+        if (vendor?.email) {
+          await sendEmail(
+            vendor.email,
+            "New Bus Booking on TickXplore",
+            `<p>Hello ${vendor.vendorName || "Vendor"},</p>
+             <p>You have a new bus booking:</p>
+             <ul>
+               <li><strong>Booking ID:</strong> ${booking._id}</li>
+               <li><strong>User ID:</strong> ${userId}</li>
+               <li><strong>Bus:</strong> ${bus.name}</li>
+               <li><strong>Seats:</strong> ${seats.join(", ")}</li>
+               <li><strong>Total Price:</strong> ₹${totalPrice}</li>
+             </ul>`
+          );
+        }
+      }
+
+    } else if (type === "vehicle") {
       const vehicle = await Vehicle.findById(itemId);
       if (!vehicle) return res.status(404).json({ error: "Vehicle not found" });
 
@@ -264,6 +285,7 @@ router.get("/callback", async (req, res) => {
 
       await booking.save();
 
+      // Create reservation
       const reservedFrom = new Date(booking.reservationDate);
       const reservedUntil = new Date(booking.reservationDate);
 
@@ -284,12 +306,33 @@ router.get("/callback", async (req, res) => {
         reservedUntil,
         $push: { reservations: reservation._id },
       });
-    }
 
-    else {
+      // Send email to vendor
+      if (vehicle.vendorId) {
+        const vendor = await Vendor.findById(vehicle.vendorId);
+        if (vendor?.email) {
+          await sendEmail(
+            vendor.email,
+            "New Vehicle Booking on TickXplore",
+            `<p>Hello ${vendor.vendorName || "Vendor"},</p>
+             <p>You have a new vehicle booking:</p>
+             <ul>
+               <li><strong>Booking ID:</strong> ${booking._id}</li>
+               <li><strong>User ID:</strong> ${userId}</li>
+               <li><strong>Vehicle:</strong> ${vehicle.name}</li>
+               <li><strong>Pickup Point:</strong> ${pickupPoint}</li>
+               <li><strong>Drop Point:</strong> ${dropPoint}</li>
+               <li><strong>Total Price:</strong> ₹${totalPrice}</li>
+             </ul>`
+          );
+        }
+      }
+
+    } else {
       return res.status(400).json({ error: "Invalid booking type" });
     }
 
+    // Redirect user to frontend with success status
     return res.redirect(`http://localhost:5173/payment/callback?pidx=${pidx}&status=Completed`);
 
   } catch (err) {
@@ -297,8 +340,6 @@ router.get("/callback", async (req, res) => {
     return res.status(500).json({ error: "Internal server error", details: err.message });
   }
 });
-
-
 
 // GET MY BOOKINGS
 router.get("/my-bookings", async (req, res) => {
