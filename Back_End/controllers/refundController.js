@@ -87,44 +87,59 @@ const refundBooking = async (req, res) => {
     }
   };
 
-const getUpcomingBookings = async (req, res) => {
-  try {
-    const today = moment().startOf("day").toDate();
-
-    const bookings = await Booking.find({
-      userId: req.params.userId,
-      status: "Booked",
-      $or: [
-        { takeOffDate: { $gte: today } },
-        { reservationDate: { $gte: today } },
-      ],
-    }).sort({ takeOffDate: 1, reservationDate: 1 });
-
-    res.status(200).json(bookings);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching upcoming bookings", error });
-  }
-};
+  const getUpcomingBookings = async (req, res) => {
+    try {
+      const now = moment().toDate();
+  
+      const bookings = await Booking.find({
+        userId: req.params.userId,
+        status: "Booked",
+        $or: [
+          { takeOffDate: { $gte: now } },
+          { reservationDate: { $gte: now } },
+        ],
+      })
+        .populate("busId")
+        .populate("vehicleId")
+        .sort({ takeOffDate: 1, reservationDate: 1 });
+  
+      res.status(200).json(bookings);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching upcoming bookings", error });
+    }
+  };
+  
 
 const getBookingHistory = async (req, res) => {
   try {
-    const today = moment().startOf("day").toDate();
+    const now = moment().toDate();
 
     const bookings = await Booking.find({
       userId: req.params.userId,
       $or: [
-        { takeOffDate: { $lt: today } },
-        { reservationDate: { $lt: today } },
-        { status: "Cancelled" },
-        { isRefunded: true },
-      ],
-    }).sort({ takeOffDate: -1, reservationDate: -1 });
+        // Booked trips that are already completed
+        {
+          status: "Booked",
+          $or: [
+            { takeOffDate: { $lt: now } },
+            { reservationDate: { $lt: now } },
+          ],
+        },
+        {
+          status: "Cancelled"
+        }
+      ]
+    })
+      .populate("busId")
+      .populate("vehicleId")
+      .sort({ takeOffDate: -1, reservationDate: -1 });
 
     res.status(200).json(bookings);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching booking history", error });
+    res.status(500).json({ message: "Error fetching history", error });
   }
 };
+
 
 const cancelBooking = async (req, res) => {
     try {

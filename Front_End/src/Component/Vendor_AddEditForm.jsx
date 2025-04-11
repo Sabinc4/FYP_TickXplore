@@ -26,9 +26,9 @@ const AddEditForm = ({
     totalSeats: bus?.totalSeats || "",
     isAvailable: vehicle?.isAvailable || true,
     takeOffDate: (vehicle?.takeOffDate || bus?.takeOffDate)
-      ? new Date(vehicle?.takeOffDate || bus?.takeOffDate).toISOString().split("T")[0]
+      ? new Date(vehicle?.takeOffDate || bus?.takeOffDate).toISOString().slice(0, 16)
       : "",
-    tripDate: bus?.tripDate || "", // Add tripDate field for buses
+    tripDate: bus?.tripDate || "",
   });
 
   const [imagePreview, setImagePreview] = useState(null);
@@ -59,7 +59,7 @@ const AddEditForm = ({
       });
 
       if (!formData.takeOffDate) {
-        toast.error("Please select a take-off date");
+        toast.error("Please select a take-off date and time");
         return;
       }
 
@@ -168,14 +168,13 @@ const AddEditForm = ({
           )}
 
           <FormInput
-            label="Take Off Date"
-            type="date"
+            label="Take Off Date & Time"
+            type="datetime-local"
             name="takeOffDate"
             value={formData.takeOffDate}
             onChange={(e) => setFormData({ ...formData, takeOffDate: e.target.value })}
           />
 
-          {/* Conditionally render tripDate field for buses */}
           {type === "buses" && (
             <FormInput
               label="Trip Date"

@@ -11,11 +11,9 @@ import {
   FaQrcode,
   FaDownload,
   FaTrash,
-  FaPrint,
 } from "react-icons/fa";
 import { ImSpinner8 } from "react-icons/im";
 import { motion } from "framer-motion";
-import { useReactToPrint } from "react-to-print";
 import html2pdf from "html2pdf.js";
 
 const MyBookings = () => {
@@ -25,13 +23,19 @@ const MyBookings = () => {
   const [downloading, setDownloading] = useState(false);
 
   const userId = localStorage.getItem("userId");
+  const token = localStorage.getItem("token");
 
   const fetchBookings = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:3001/api/payments/my-bookings?userId=${userId}`
+        `http://localhost:3001/api/bookings/upcoming/${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
-      setBookings(res.data.bookings);
+      setBookings(res.data);
     } catch (err) {
       console.error("Error fetching bookings:", err);
       setError("Failed to load bookings.");
@@ -41,13 +45,13 @@ const MyBookings = () => {
   };
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !token) {
       setError("User not logged in.");
       setLoading(false);
     } else {
       fetchBookings();
     }
-  }, [userId]);
+  }, [userId, token]);
 
   const handleCancel = async (id) => {
     if (!window.confirm("Are you sure you want to cancel this booking?")) return;
@@ -63,34 +67,117 @@ const MyBookings = () => {
 
   const Ticket = ({ booking }) => {
     const isBus = !!booking.busId;
-    const ticketRef = useRef();
 
-    // Method 1: Print to PDF
-    const handlePrint = useReactToPrint({
-      content: () => ticketRef.current,
-      documentTitle: `Ticket-${booking._id.slice(-6)}`,
-      onBeforeGetContent: () => setDownloading(true),
-      onAfterPrint: () => setDownloading(false),
-    });
-
-    // Method 2: Direct PDF download using html2pdf
     const handleDownloadPDF = () => {
       setDownloading(true);
-      const element = ticketRef.current;
-      const opt = {
-        margin: 10,
-        filename: `ticket-${booking._id.slice(-6)}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, logging: true, useCORS: true },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      };
+      
+      // Create a new div for PDF generation
+      const element = document.createElement('div');
+      element.style.width = '600px';
+      element.style.padding = '20px';
+      element.style.backgroundColor = '#0f172a';
+      element.style.color = '#ffffff';
+      element.style.borderRadius = '12px';
+      element.style.fontFamily = 'Arial, sans-serif';
 
-      html2pdf()
-        .set(opt)
-        .from(element)
-        .save()
-        .then(() => setDownloading(false))
-        .catch(() => setDownloading(false));
+      // Ticket content
+      element.innerHTML = `
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2 style="font-size: 24px; font-weight: bold; margin-bottom: 5px;">Travel Ticket</h2>
+          <p style="color: #94a3b8;">Booking Confirmation</p>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+          <div>
+            <p style="color: #94a3b8; font-size: 14px;">Booking ID</p>
+            <p style="font-size: 16px;">${booking._id.slice(-8).toUpperCase()}</p>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+          <div>
+            <p style="color: #94a3b8; font-size: 14px;">${isBus ? 'Bus' : 'Vehicle'} Name</p>
+            <p style="font-size: 16px; font-weight: bold;">
+              ${isBus ? booking.busId?.name : booking.vehicleId?.name || "N/A"}
+            </p>
+          </div>
+          <div>
+            <p style="color: #94a3b8; font-size: 14px;">Total Paid</p>
+            <p style="font-size: 18px; font-weight: bold; color: #a78bfa;">₹${booking.totalPrice}</p>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+          <div>
+            <p style="color: #94a3b8; font-size: 14px;">Departure</p>
+            <p style="font-size: 16px; font-weight: bold;">
+              ${isBus ? booking.busId?.pickupPoint : booking.pickupPoint || "N/A"}
+            </p>
+          </div>
+          <div>
+            <p style="color: #94a3b8; font-size: 14px;">Destination</p>
+            <p style="font-size: 16px; font-weight: bold;">
+              ${isBus ? booking.busId?.dropPoint : booking.dropPoint || "N/A"}
+            </p>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+          <div>
+            <p style="color: #94a3b8; font-size: 14px;">Seats</p>
+            <p style="font-size: 16px;">
+              ${booking.selectedSeats?.length > 0 ? booking.selectedSeats.join(", ") : "N/A"}
+            </p>
+          </div>
+          <div>
+            <p style="color: #94a3b8; font-size: 14px;">Departure Time</p>
+            <p style="font-size: 16px;">
+              ${new Date(
+                booking.takeOffDate || booking.reservationDate || booking.busId?.departureTime
+              ).toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid #334155; padding-top: 15px; text-align: center; color: #94a3b8;">
+          Thank you for choosing our service
+        </div>
+      `;
+
+      // Append to body temporarily
+      document.body.appendChild(element);
+
+      // Generate PDF
+      setTimeout(() => {
+        const opt = {
+          margin: 10,
+          filename: `ticket-${booking._id.slice(-6)}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { 
+            scale: 2,
+            logging: true,
+            useCORS: true,
+            scrollY: 0,
+            windowWidth: element.scrollWidth,
+            windowHeight: element.scrollHeight
+          },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        };
+
+        html2pdf()
+          .set(opt)
+          .from(element)
+          .save()
+          .then(() => {
+            setDownloading(false);
+            document.body.removeChild(element);
+          })
+          .catch((err) => {
+            console.error("PDF generation error:", err);
+            setDownloading(false);
+            document.body.removeChild(element);
+          });
+      }, 300);
     };
 
     return (
@@ -99,9 +186,9 @@ const MyBookings = () => {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="ticket-container bg-slate-700 rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden border border-slate-600"
+        className="ticket-container bg-slate-900 rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden border border-slate-600"
       >
-        <div ref={ticketRef} className="p-6 md:p-8 grid md:grid-cols-3 gap-6">
+        <div className="p-6 md:p-8 grid md:grid-cols-3 gap-6">
           {/* Left Column - Trip Info */}
           <div className="space-y-4 border-r border-slate-600 pr-6">
             <div className="flex items-center gap-3">
@@ -151,7 +238,7 @@ const MyBookings = () => {
           </div>
 
           {/* Middle Column - Seats and Payment */}
-          <div className="space-y-4 border-r border-slate-600 pr-6">
+          <div className="space-y-4 border-r border-slate-400 pr-6">
             <div className="flex items-center gap-4">
               <FaChair className="text-xl text-green-400" />
               <div>
@@ -200,34 +287,19 @@ const MyBookings = () => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <button
-                  onClick={handlePrint}
-                  disabled={downloading}
-                  className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 flex-1"
-                >
-                  {downloading ? (
-                    <ImSpinner8 className="animate-spin" />
-                  ) : (
-                    <>
-                      <FaPrint /> Print
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={handleDownloadPDF}
-                  disabled={downloading}
-                  className="bg-blue-800 text-white px-3 py-2 rounded-lg hover:bg-blue-900 flex items-center justify-center gap-2 flex-1"
-                >
-                  {downloading ? (
-                    <ImSpinner8 className="animate-spin" />
-                  ) : (
-                    <>
-                      <FaDownload /> PDF
-                    </>
-                  )}
-                </button>
-              </div>
+              <button
+                onClick={handleDownloadPDF}
+                disabled={downloading}
+                className="bg-blue-800 text-white px-4 py-2 rounded-lg hover:bg-blue-900 flex items-center justify-center gap-2"
+              >
+                {downloading ? (
+                  <ImSpinner8 className="animate-spin" />
+                ) : (
+                  <>
+                    <FaDownload /> Download Ticket
+                  </>
+                )}
+              </button>
               <button
                 onClick={() => handleCancel(booking._id)}
                 className="bg-red-700 text-white px-4 py-2 rounded-lg hover:bg-red-800 flex items-center justify-center gap-2"
@@ -258,32 +330,10 @@ const MyBookings = () => {
   const vehicleBookings = bookings.filter((b) => b.vehicleId);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-800 to-slate-900 p-4 md:p-8">
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .ticket-container, .ticket-container * {
-            visibility: visible;
-          }
-          .ticket-container {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            background-color: white;
-            color: black;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
-
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-slate-100 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-white mb-6 flex items-center gap-3">
-          <FaQrcode className="text-blue-400" />
+        <h1 className="text-4xl font-bold text-black mb-6 flex items-center gap-3">
+          <FaQrcode className="text-black" />
           My Travel Reservations
         </h1>
 
@@ -300,7 +350,7 @@ const MyBookings = () => {
           <>
             {busBookings.length > 0 && (
               <>
-                <h2 className="text-xl text-white font-bold my-4">Bus Bookings</h2>
+                <h2 className="text-xl text-black font-bold my-4">Bus Bookings</h2>
                 <div className="grid gap-6">
                   {busBookings.map((booking) => (
                     <Ticket key={booking._id} booking={booking} />
@@ -311,7 +361,7 @@ const MyBookings = () => {
 
             {vehicleBookings.length > 0 && (
               <>
-                <h2 className="text-xl text-white font-bold mt-10 mb-4">
+                <h2 className="text-xl text-black font-bold mt-10 mb-4">
                   Vehicle Reservations
                 </h2>
                 <div className="grid gap-6">
