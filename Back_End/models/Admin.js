@@ -28,7 +28,7 @@ const AdminSchema = new mongoose.Schema(
       match: /^[0-9]{7,15}$/, // Accepts 7–15 digits
     },
     resetCode: String,
-resetCodeExpires: Date,
+    resetCodeExpires: Date,
     role: {
       type: String,
       required: true,
@@ -44,6 +44,10 @@ resetCodeExpires: Date,
     isVerified: {
       type: Boolean,
       default: false,
+    },
+    profilePhoto: {
+      type: String,
+      default: "",
     },
   },
   { timestamps: true }

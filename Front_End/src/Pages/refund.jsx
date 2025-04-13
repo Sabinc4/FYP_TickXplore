@@ -32,7 +32,6 @@ const Refunds = () => {
 
   const handleRefund = async () => {
     if (!reason.trim()) return toast.error("Please enter a refund reason.");
-
     try {
       await axios.put(
         `http://localhost:3001/api/bookings/cancel/${selectedBooking._id}`,
@@ -46,11 +45,7 @@ const Refunds = () => {
           refundAmount: selectedBooking.totalPrice,
           reason,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       toast.success("Refund processed successfully.");
@@ -64,11 +59,11 @@ const Refunds = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-slate-100 p-6">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-black mb-8 flex items-center gap-3">
+    <div className="min-h-screen bg-[#f0f4f8] px-4 py-8">
+      <div className="max-w-5xl mx-auto">
+        <h1 className="text-3xl font-extrabold text-slate-900 mb-8 flex items-center gap-3">
           <FaQrcode className="text-black" />
-          Refund Requests
+          Refunds
         </h1>
 
         {loading ? (
@@ -84,30 +79,30 @@ const Refunds = () => {
               <div className="grid gap-6">
                 {upcomingBookings.map((booking) => {
                   const isBus = !!booking.busId;
+                  const title = isBus ? booking.busId?.name : booking.vehicleId?.name;
+                  const takeOff = new Date(booking.takeOffDate || booking.reservationDate).toLocaleString();
+
                   return (
                     <div
                       key={booking._id}
-                      className="bg-slate-900 text-white border border-slate-700 rounded-xl p-6 shadow-lg"
+                      className="bg-slate-900 text-white rounded-2xl shadow-md p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 border border-slate-700"
                     >
-                      <div className="flex flex-col md:flex-row justify-between md:items-center gap-6">
-                        <div className="space-y-2">
-                          <h2 className="text-lg font-bold">{isBus ? booking.busId?.name : booking.vehicleId?.name}</h2>
-                          <p className="text-sm text-slate-400">Booking ID: {booking._id.slice(-8).toUpperCase()}</p>
-                          <p className="flex items-center gap-2 text-slate-400">
-                            <FaCalendarAlt /> {new Date(booking.takeOffDate || booking.reservationDate).toLocaleString()}
-                          </p>
-                          <p className="flex items-center gap-2 text-slate-400">
-                            <FaTag /> ₹{booking.totalPrice}
-                          </p>
-                        </div>
-                        <div className="md:text-right">
-                          <button
-                            onClick={() => setSelectedBooking(booking)}
-                            className="bg-blue-700 hover:bg-blue-800 transition px-4 py-2 rounded text-white font-medium"
-                          >
-                            Request Refund
-                          </button>
-                        </div>
+                      <div className="space-y-1">
+                        <h2 className="text-xl font-bold">{title}</h2>
+                        <p className="text-sm text-slate-400">Booking ID: {booking._id.slice(-8).toUpperCase()}</p>
+                        <p className="text-slate-400">Seats: {booking.selectedSeats?.join(", ") || "N/A"}</p>
+                        <p className="text-slate-400">Total Paid: ₹{booking.totalPrice}</p>
+                        <p className="text-slate-400">
+                          Departure: {takeOff}
+                        </p>
+                      </div>
+                      <div className="flex flex-col md:items-end">
+                        <button
+                          onClick={() => setSelectedBooking(booking)}
+                          className="bg-blue-700 hover:bg-blue-800 transition px-4 py-2 rounded-md text-white font-medium"
+                        >
+                          Request Refund
+                        </button>
                       </div>
                     </div>
                   );
@@ -116,11 +111,11 @@ const Refunds = () => {
             )}
           </>
         ) : (
-          <div className="bg-slate-900 text-white border border-slate-700 rounded-xl p-6 shadow-xl w-full max-w-xl mx-auto">
+          <div className="bg-slate-900 text-white rounded-2xl shadow-xl p-6 max-w-2xl mx-auto">
             <h3 className="text-xl font-semibold mb-4">Submit Refund Request</h3>
             <textarea
-              className="w-full h-32 p-3 bg-slate-800 border border-slate-600 rounded text-white placeholder-slate-400 resize-none"
-              placeholder="Please enter your reason for requesting a refund..."
+              className="w-full h-32 bg-slate-800 border border-slate-600 rounded-lg p-3 placeholder-slate-400 text-white resize-none"
+              placeholder="Enter your reason for requesting a refund..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
@@ -130,13 +125,13 @@ const Refunds = () => {
                   setSelectedBooking(null);
                   setReason("");
                 }}
-                className="bg-slate-700 hover:bg-slate-600 transition px-4 py-2 rounded text-white"
+                className="bg-slate-700 hover:bg-slate-600 transition px-4 py-2 rounded-md"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRefund}
-                className="bg-blue-700 hover:bg-blue-800 transition px-4 py-2 rounded text-white"
+                className="bg-blue-700 hover:bg-blue-800 transition px-4 py-2 rounded-md"
               >
                 Submit Refund
               </button>

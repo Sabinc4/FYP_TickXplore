@@ -1,4 +1,6 @@
 const bcrypt = require("bcryptjs");
+const path = require("path");
+const fs = require("fs");
 const UserModel = require("../models/User");
 const { sendEmail } = require("../utils/sendEmail");
 
@@ -82,11 +84,47 @@ exports.getUserById = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const updatedUser = await UserModel.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
 
-    res.status(200).json({ success: true, message: "User updated", updatedUser });
+    // Step 1: Prepare updateData
+    const updateData = { ...req.body };
+
+    // Step 2: Handle file upload if present
+    if (req.files && req.files.profilePhoto) {
+      const photo = req.files.profilePhoto;
+
+      // Ensure uploads directory exists
+      const uploadPath = path.join(__dirname, "../uploads");
+      if (!fs.existsSync(uploadPath)) {
+        fs.mkdirSync(uploadPath);
+      }
+
+      const filename = `user-${Date.now()}-${photo.name}`;
+      const filepath = path.join(uploadPath, filename);
+
+      // Move file
+      await photo.mv(filepath);
+
+      // Save photo path (URL accessible)
+      updateData.profilePhoto = `http://localhost:3001/uploads/${filename}`;
+    }
+
+    // Step 3: Update the user in DB
+    const updatedUser = await UserModel.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "User updated successfully",
+      updatedUser,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to update user", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Failed to update user",
+      error: error.message,
+    });
   }
 };
 

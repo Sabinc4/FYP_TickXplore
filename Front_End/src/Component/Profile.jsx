@@ -20,7 +20,6 @@ const extractProfileFields = (data, role) => {
   }
 };
 
-// Prepare correct payload based on role
 const getUpdatePayload = (role, formData) => {
   if (role === "vendor") {
     return {
@@ -35,7 +34,6 @@ const getUpdatePayload = (role, formData) => {
   }
 };
 
-// Get API endpoint based on role
 const getEndpoint = (role) => {
   if (role === "admin") return "admin";
   if (role === "vendor") return "vendor";
@@ -54,7 +52,10 @@ const Profile = () => {
     email: "",
     location: "",
     role: "",
+    profilePhotoFile: null,
   });
+  const [profilePhoto, setProfilePhoto] = useState("");
+  const [preview, setPreview] = useState(null);
 
   useEffect(() => {
     const loggedIn = localStorage.getItem("userLoggedIn");
@@ -84,8 +85,9 @@ const Profile = () => {
       .then((data) => {
         const profile = data.admin || data.vendor || data.user;
         setUser(profile);
+        setProfilePhoto(profile.profilePhoto || "");
         const fields = extractProfileFields(profile, role);
-        setFormData(fields);
+        setFormData({ ...fields, profilePhotoFile: null });
         setLoading(false);
       })
       .catch((err) => {
@@ -95,26 +97,48 @@ const Profile = () => {
   }, [navigate]);
 
   const handleEditToggle = () => setEditMode(!editMode);
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData({ ...formData, profilePhotoFile: file });
+      setPreview(URL.createObjectURL(file));
+    }
+  };
 
   const handleSave = () => {
     const endpoint = getEndpoint(userRole);
     const token = localStorage.getItem("token");
     const payload = getUpdatePayload(userRole, formData);
 
+    const formDataToSend = new FormData();
+    for (let key in payload) {
+      formDataToSend.append(key, payload[key]);
+    }
+
+    if (formData.profilePhotoFile) {
+      formDataToSend.append("profilePhoto", formData.profilePhotoFile);
+    }
+
     fetch(`http://localhost:3001/${endpoint}/${user._id}`, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(payload),
+      body: formDataToSend,
     })
       .then((res) => res.json())
       .then((updated) => {
-        const updatedFields = extractProfileFields(updated, userRole);
-        setUser(updated);
-        setFormData(updatedFields);
+        const updatedUser = updated.admin || updated.vendor || updated.user;
+        const updatedFields = extractProfileFields(updatedUser, userRole);
+        setUser(updatedUser);
+        setFormData({ ...updatedFields, profilePhotoFile: null });
+        setProfilePhoto(updatedUser.profilePhoto || "");
+        setPreview(null);
         setEditMode(false);
       })
       .catch(() => setError("Failed to update profile"));
@@ -148,14 +172,26 @@ const Profile = () => {
         {editMode ? (
           <>
             <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-300 mb-1">Profile Photo</label>
+              {preview ? (
+                <img src={preview} alt="Preview" className="w-24 h-24 object-cover rounded-full mb-2" />
+              ) : profilePhoto ? (
+                <img src={profilePhoto} alt="Profile" className="w-24 h-24 object-cover rounded-full mb-2" />
+              ) : (
+                <div className="w-24 h-24 bg-slate-600 rounded-full flex items-center justify-center text-white mb-2">
+                  No Image
+                </div>
+              )}
+              <input type="file" accept="image/*" onChange={handleImageChange} className="text-white" />
+            </div>
+            <div className="mb-4">
               <label className="block text-sm font-medium text-slate-300 mb-1">Full Name</label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="Full Name"
-                className="w-full px-3 py-2 bg-slate-100 border border-slate-100 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-slate-100 border border-slate-100 rounded-md text-black"
               />
             </div>
             <div className="mb-4">
@@ -175,20 +211,19 @@ const Profile = () => {
                 name="location"
                 value={formData.location}
                 onChange={handleChange}
-                placeholder="Location"
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
               />
             </div>
             <div className="flex justify-between gap-4">
               <button
                 onClick={handleSave}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md transition duration-200"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md"
               >
                 Save Changes
               </button>
               <button
                 onClick={handleEditToggle}
-                className="flex-1 bg-slate-600 hover:bg-slate-700 text-white py-2 rounded-md transition duration-200"
+                className="flex-1 bg-slate-600 hover:bg-slate-700 text-white py-2 rounded-md"
               >
                 Cancel
               </button>
@@ -196,9 +231,18 @@ const Profile = () => {
           </>
         ) : (
           <>
+            <div className="flex justify-center mb-6">
+              {profilePhoto ? (
+                <img src={profilePhoto} alt="Profile" className="w-24 h-24 object-cover rounded-full" />
+              ) : (
+                <div className="w-24 h-24 bg-slate-600 rounded-full flex items-center justify-center text-white">
+                  No Image
+                </div>
+              )}
+            </div>
             <div className="mb-4 p-4 bg-slate-700 rounded-lg">
               <p className="text-sm text-slate-300">Name</p>
-              <p className="text-lg font-medium text-white">{formData.name || "—"}</p>
+              <p className="text-lg font-medium text-white">{formData.name}</p>
             </div>
             <div className="mb-4 p-4 bg-slate-700 rounded-lg">
               <p className="text-sm text-slate-300">Email</p>
@@ -206,7 +250,7 @@ const Profile = () => {
             </div>
             <div className="mb-4 p-4 bg-slate-700 rounded-lg">
               <p className="text-sm text-slate-300">Location</p>
-              <p className="text-lg font-medium text-white">{formData.location || "—"}</p>
+              <p className="text-lg font-medium text-white">{formData.location}</p>
             </div>
             <div className="mb-6 p-4 bg-slate-700 rounded-lg">
               <p className="text-sm text-slate-300">Role</p>
@@ -215,13 +259,13 @@ const Profile = () => {
             <div className="flex justify-between gap-4">
               <button
                 onClick={handleEditToggle}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md transition duration-200"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md"
               >
                 Edit Profile
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-md transition duration-200"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-md"
               >
                 Delete Account
               </button>

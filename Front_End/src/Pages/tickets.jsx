@@ -12,7 +12,6 @@ const BusTickets = () => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
 
-  // State variables
   const [formData, setFormData] = useState({
     pickupPoint: queryParams.get("pickup") || "",
     droppingPoint: queryParams.get("drop") || "",
@@ -25,32 +24,26 @@ const BusTickets = () => {
   const [pickupLocations, setPickupLocations] = useState([]);
   const [dropLocations, setDropLocations] = useState([]);
   const [formErrors, setFormErrors] = useState({
-    pickupPoint: false,
-    droppingPoint: false,
     date: false,
   });
 
-  // Fetch locations on component mount
   useEffect(() => {
     fetchLocations();
     if (formData.pickupPoint && formData.droppingPoint && formData.date) {
-      handleSearch(); // Auto-trigger search when page loads with parameters
+      handleSearch();
     }
   }, []);
 
-  // Fetch data from backend
   const fetchData = async (url) => {
     try {
       const response = await axios.get(url);
       return response.data;
     } catch (error) {
       toast.error("Failed to fetch data. Please try again.");
-      console.error("Error fetching data:", error);
       throw error;
     }
   };
 
-  // Fetch pickup and drop locations
   const fetchLocations = async () => {
     try {
       const [busesData, vehiclesData] = await Promise.all([
@@ -61,46 +54,38 @@ const BusTickets = () => {
       const buses = busesData.buses || [];
       const vehicles = vehiclesData.vehicles || [];
 
-      // Combine locations from both buses and vehicles
-      const allPickupPoints = [
-        ...new Set([
-          ...buses.map((b) => b.pickupPoint),
-          ...vehicles.map((v) => v.pickupPoint),
-        ]),
-      ].filter(Boolean);
+      const allPickupPoints = [...new Set([
+        ...buses.map((b) => b.pickupPoint),
+        ...vehicles.map((v) => v.pickupPoint),
+      ])].filter(Boolean);
 
-      const allDropPoints = [
-        ...new Set([
-          ...buses.map((b) => b.dropPoint),
-          ...vehicles.map((v) => v.dropPoint),
-        ]),
-      ].filter(Boolean);
+      const allDropPoints = [...new Set([
+        ...buses.map((b) => b.dropPoint),
+        ...vehicles.map((v) => v.dropPoint),
+      ])].filter(Boolean);
 
       setPickupLocations(allPickupPoints);
       setDropLocations(allDropPoints);
     } catch (error) {
-      toast.error("Failed to load locations. Please refresh the page.");
-      console.error("Error in fetchLocations:", error);
+      toast.error("Failed to load locations.");
     }
   };
 
-  // Handle form input changes
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setFormErrors({ ...formErrors, [e.target.name]: false });
+    if (e.target.name === "date") {
+      setFormErrors({ ...formErrors, date: false });
+    }
   };
 
-  // Validate form inputs
   const validateForm = () => {
     const errors = {
-      pickupPoint: !formData.pickupPoint,
-      droppingPoint: !formData.droppingPoint,
       date: !formData.date,
     };
     setFormErrors(errors);
 
     if (Object.values(errors).some(Boolean)) {
-      toast.error("Please fill all required fields");
+      toast.error("Please select a travel date.");
       return false;
     }
 
@@ -109,55 +94,49 @@ const BusTickets = () => {
 
   const handleSearch = async () => {
     if (!validateForm()) return;
-  
+
     setFetching(true);
     try {
       const [busesData, vehiclesData] = await Promise.all([
         fetchData("http://localhost:3001/api/buses"),
         fetchData("http://localhost:3001/api/vehicles"),
       ]);
-  
+
       const allBuses = busesData.buses || [];
       const allVehicles = vehiclesData.vehicles || [];
-  
-      // Filter buses (unchanged)
+
       const filteredBuses = allBuses.filter((bus) => {
         const busDate = bus.takeOffDate ? new Date(bus.takeOffDate).toISOString().split('T')[0] : null;
-        const matchesLocation = 
-          bus.pickupPoint?.toLowerCase() === formData.pickupPoint.toLowerCase() &&
-          bus.dropPoint?.toLowerCase() === formData.droppingPoint.toLowerCase();
-        
+        const matchesLocation =
+          (!formData.pickupPoint || bus.pickupPoint?.toLowerCase() === formData.pickupPoint.toLowerCase()) &&
+          (!formData.droppingPoint || bus.dropPoint?.toLowerCase() === formData.droppingPoint.toLowerCase());
+
         const matchesDate = busDate === formData.date;
         const hasAvailableSeats = (bus.totalSeats - (bus.bookedSeats?.length || 0)) > 0;
         const hasValidPrice = bus.pricePerSeat > 0;
-  
+
         return matchesLocation && matchesDate && hasAvailableSeats && hasValidPrice;
       });
-  
-      // Modified vehicle filtering - only check date if no pickup/drop points
+
       const filteredVehicles = allVehicles.filter((vehicle) => {
         const vehicleDate = vehicle.takeOffDate ? new Date(vehicle.takeOffDate).toISOString().split('T')[0] : null;
         const matchesDate = vehicleDate === formData.date;
         const isAvailable = vehicle.isAvailable !== false;
         const hasValidPrice = vehicle.price > 0;
-  
-        // Check if vehicle has pickup/drop points
+
         const hasLocationData = vehicle.pickupPoint && vehicle.dropPoint;
-        
+
         if (hasLocationData) {
-          // If vehicle has location data, check both location and date
-          const matchesLocation = 
-            vehicle.pickupPoint.toLowerCase() === formData.pickupPoint.toLowerCase() &&
-            vehicle.dropPoint.toLowerCase() === formData.droppingPoint.toLowerCase();
-          
+          const matchesLocation =
+            (!formData.pickupPoint || vehicle.pickupPoint.toLowerCase() === formData.pickupPoint.toLowerCase()) &&
+            (!formData.droppingPoint || vehicle.dropPoint.toLowerCase() === formData.droppingPoint.toLowerCase());
+
           return matchesLocation && matchesDate && isAvailable && hasValidPrice;
         } else {
-          // If no location data, just check date and availability
           return matchesDate && isAvailable && hasValidPrice;
         }
       });
-  
-      // Rest of your processing remains the same...
+
       const busesWithDetails = filteredBuses.map((bus) => ({
         ...bus,
         imageUrl: bus.image
@@ -166,7 +145,7 @@ const BusTickets = () => {
         availableSeats: bus.totalSeats - bus.bookedSeats.length,
         price: bus.pricePerSeat || "N/A",
       }));
-  
+
       const vehiclesWithDetails = filteredVehicles.map((vehicle) => ({
         ...vehicle,
         imageUrl: vehicle.image
@@ -174,31 +153,28 @@ const BusTickets = () => {
           : "/default-vehicle-image.jpg",
         price: vehicle.price || "N/A",
       }));
-  
+
       setBuses(busesWithDetails);
       setVehicles(vehiclesWithDetails);
-  
+
       if (filteredBuses.length === 0 && filteredVehicles.length === 0) {
         toast.info("No available buses or vehicles found for selected criteria");
       }
     } catch (err) {
-      toast.error("Search failed. Please check your connection.");
-      console.error("Search error:", err);
+      toast.error("Search failed.");
     } finally {
       setFetching(false);
     }
   };
 
-  // Handle navigation to seat selection or booking page
   const handleViewSeats = (id, type) => {
     if (type === "bus") {
-      const selectedBus = buses.find((bus) => bus._id === id);
-      console.log("Selected Bus Data:", selectedBus); 
-      navigate(`/Seat_Selection/${id}`); 
+      navigate(`/Seat_Selection/${id}`);
     } else {
-      navigate(`/Vehicle/${id}`); 
+      navigate(`/Vehicle/${id}`);
     }
   };
+
   return (
     <div className="max-w-5xl mx-auto mt-10 p-4 sm:p-6 bg-white shadow-lg rounded-md">
       <ToastContainer position="top-right" autoClose={3000} />
@@ -217,9 +193,7 @@ const BusTickets = () => {
               name="pickupPoint"
               value={formData.pickupPoint}
               onChange={handleChange}
-              className={`w-full pl-10 py-2 border rounded-lg focus:outline-none ${
-                formErrors.pickupPoint ? "border-red-500" : "border-gray-300"
-              }`}
+              className="w-full pl-10 py-2 border border-gray-300 rounded-lg focus:outline-none"
             >
               <option value="">Select pickup point</option>
               {pickupLocations.map((location) => (
@@ -229,9 +203,6 @@ const BusTickets = () => {
               ))}
             </select>
           </div>
-          {formErrors.pickupPoint && (
-            <p className="text-red-500 text-sm mt-1">Pickup point is required</p>
-          )}
         </div>
 
         {/* Dropping Point */}
@@ -243,9 +214,7 @@ const BusTickets = () => {
               name="droppingPoint"
               value={formData.droppingPoint}
               onChange={handleChange}
-              className={`w-full pl-10 py-2 border rounded-lg focus:outline-none ${
-                formErrors.droppingPoint ? "border-red-500" : "border-gray-300"
-              }`}
+              className="w-full pl-10 py-2 border border-gray-300 rounded-lg focus:outline-none"
             >
               <option value="">Select destination</option>
               {dropLocations.map((location) => (
@@ -255,9 +224,6 @@ const BusTickets = () => {
               ))}
             </select>
           </div>
-          {formErrors.droppingPoint && (
-            <p className="text-red-500 text-sm mt-1">Dropping point is required</p>
-          )}
         </div>
 
         {/* Date */}
@@ -313,7 +279,7 @@ const BusTickets = () => {
           </div>
         ) : (
           <>
-            {/* Buses Section */}
+            {/* Buses */}
             {buses.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-xl font-bold text-gray-800 border-b pb-2">
@@ -330,7 +296,7 @@ const BusTickets = () => {
               </div>
             )}
 
-            {/* Vehicles Section */}
+            {/* Vehicles */}
             {vehicles.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-xl font-bold text-gray-800 border-b pb-2">
@@ -347,15 +313,15 @@ const BusTickets = () => {
               </div>
             )}
 
-            {/* No Results Message */}
+            {/* No Results */}
             {!fetching && buses.length === 0 && vehicles.length === 0 && (
               <div className="text-center py-12 bg-gray-50 rounded-lg">
                 <FaInfoCircle className="mx-auto text-4xl text-gray-400 mb-4" />
                 <h4 className="text-lg font-medium text-gray-700">No transport found</h4>
                 <p className="text-gray-500 mt-2">
-                  {formData.pickupPoint || formData.droppingPoint || formData.date
+                  {formData.date
                     ? "No available buses or vehicles match your search criteria."
-                    : "Please enter your travel details to search for available transport."}
+                    : "Please select a date to search for available transport."}
                 </p>
               </div>
             )}
@@ -367,21 +333,14 @@ const BusTickets = () => {
 };
 
 const TransportCard = ({ data, onSelect, type }) => {
-  if (!data || !data.name) {
-    console.error("Invalid data:", data);
-    return null;
-  }
+  if (!data || !data.name) return null;
 
   return (
     <div className="flex flex-col md:flex-row items-center justify-between p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
       <div className="flex-1">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-gray-800">
-            {data.name} - {data.type || "Vehicle"}
-          </h3>
-        </div>
-
-        {/* Common Details */}
+        <h3 className="text-xl font-bold text-gray-800">
+          {data.name} - {data.type || "Vehicle"}
+        </h3>
         <div className="mt-4 flex items-center gap-4 text-gray-600">
           <span className="flex items-center">
             <FaMapMarkerAlt className="mr-2" />

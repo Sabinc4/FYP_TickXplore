@@ -142,23 +142,38 @@ const getBookingHistory = async (req, res) => {
 
 
 const cancelBooking = async (req, res) => {
-    try {
-      const booking = await Booking.findById(req.params.bookingId);
-      if (!booking) return res.status(404).json({ message: "Booking not found" });
-  
-      if (booking.status === "Cancelled") {
-        return res.status(400).json({ message: "Booking is already cancelled" });
-      }
-  
-      booking.status = "Cancelled";
-      await booking.save();
-  
-      res.status(200).json({ message: "Booking cancelled successfully", booking });
-    } catch (err) {
-      console.error("Cancel error:", err);
-      res.status(500).json({ message: "Server error while cancelling booking" });
+  try {
+    const booking = await Booking.findById(req.params.bookingId);
+
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+    if (booking.status === "Cancelled") {
+      return res.status(400).json({ message: "Booking is already cancelled" });
     }
-  };
+
+    // Update booking status
+    booking.status = "Cancelled";
+    await booking.save();
+
+    // Free the seats if it's a bus booking
+    if (booking.busId && booking.selectedSeats && booking.selectedSeats.length > 0) {
+      const bus = await Bus.findById(booking.busId);
+      if (bus) {
+        // Remove the selected seats from bus.bookedSeats
+        bus.bookedSeats = bus.bookedSeats.filter(
+          (seat) => !booking.selectedSeats.includes(seat)
+        );
+        await bus.save();
+        console.log(`Freed seats: ${booking.selectedSeats.join(", ")} from bus: ${bus.name}`);
+      }
+    }
+
+    res.status(200).json({ message: "Booking cancelled and seats freed (if applicable)", booking });
+  } catch (err) {
+    console.error("Cancel error:", err);
+    res.status(500).json({ message: "Server error while cancelling booking" });
+  }
+};
   
   module.exports = {
     getUpcomingBookings,

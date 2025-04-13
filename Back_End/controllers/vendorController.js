@@ -1,6 +1,8 @@
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
 const Vendor = require("../models/Vendor");
+const path = require("path");
+const fs = require("fs");
 const generateToken = require("../utils/generateToken");
 const { sendEmail } = require("../utils/sendEmail");
 const generateOTP = require("../utils/generateOTP");
@@ -90,11 +92,32 @@ exports.getVendorById = async (req, res) => {
 exports.updateVendor = async (req, res) => {
   try {
     const { id } = req.params;
+
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: "Invalid Vendor ID format" });
     }
 
-    const updatedVendor = await Vendor.findByIdAndUpdate(id, req.body, {
+    const updateData = { ...req.body };
+
+    // 🔽 Handle profile photo upload
+    if (req.files && req.files.profilePhoto) {
+      const photo = req.files.profilePhoto;
+
+      // Ensure uploads directory exists
+      const uploadPath = path.join(__dirname, "../uploads");
+      if (!fs.existsSync(uploadPath)) {
+        fs.mkdirSync(uploadPath);
+      }
+
+      const filename = `vendor-${Date.now()}-${photo.name}`;
+      const filepath = path.join(uploadPath, filename);
+
+      await photo.mv(filepath);
+
+      updateData.profilePhoto = `http://localhost:3001/uploads/${filename}`;
+    }
+
+    const updatedVendor = await Vendor.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
     });
@@ -103,14 +126,19 @@ exports.updateVendor = async (req, res) => {
       return res.status(404).json({ success: false, message: "Vendor not found" });
     }
 
-    // Optional: Notify vendor if activated
+    // ✅ Notify vendor if activated
     if (req.body.isActive === true) {
-      await sendEmail(updatedVendor.email, "TickXplore - Account Activated", `<p>Your vendor account has been approved. You may now log in.</p>`);
+      await sendEmail(
+        updatedVendor.email,
+        "TickXplore - Account Activated",
+        `<p>Your vendor account has been approved. You may now log in.</p>`
+      );
     }
 
     res.status(200).json({ success: true, message: "Vendor updated successfully", updatedVendor });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    console.error("Update Vendor Error:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
   }
 };
 

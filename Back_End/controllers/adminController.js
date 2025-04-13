@@ -1,4 +1,6 @@
 const bcrypt = require("bcryptjs");
+const path = require("path");
+const fs = require("fs");
 const Admin = require("../models/Admin");
 const User = require("../models/User");
 const Vendor = require("../models/Vendor");
@@ -102,13 +104,41 @@ exports.getAdminById = async (req, res) => {
 exports.updateAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateFields = req.body;
+    const updateFields = { ...req.body };
 
+    // Hash password if included
     if (updateFields.password) {
       updateFields.password = await bcrypt.hash(updateFields.password, 10);
     }
 
-    const updated = await Admin.findByIdAndUpdate(id, updateFields, { new: true }).select("-password");
+    // 🔽 Handle profile photo upload
+    if (req.files && req.files.profilePhoto) {
+      const photo = req.files.profilePhoto;
+
+      // Ensure upload folder exists
+      const uploadPath = path.join(__dirname, "../uploads");
+      if (!fs.existsSync(uploadPath)) {
+        fs.mkdirSync(uploadPath);
+      }
+
+      const filename = `admin-${Date.now()}-${photo.name}`;
+      const filepath = path.join(uploadPath, filename);
+
+      await photo.mv(filepath);
+
+      // Store the photo URL
+      updateFields.profilePhoto = `http://localhost:3001/uploads/${filename}`;
+    }
+
+    const updated = await Admin.findByIdAndUpdate(id, updateFields, {
+      new: true,
+      runValidators: true,
+    }).select("-password");
+
+    if (!updated) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
     res.json({ message: "Admin updated", admin: updated });
   } catch (err) {
     res.status(500).json({ message: "Error updating admin", error: err.message });

@@ -40,16 +40,19 @@ const VendorSchema = new mongoose.Schema(
     },
     isActive: {
       type: Boolean,
-      default: false, 
+      default: false,
     },
     resetCode: String,
     resetCodeExpires: Date,
-
     otp: { type: String },
     otpExpires: { type: Date },
     isVerified: {
       type: Boolean,
       default: false,
+    },
+    profilePhoto: {
+      type: String,
+      default: "",
     },
   },
   { timestamps: true }

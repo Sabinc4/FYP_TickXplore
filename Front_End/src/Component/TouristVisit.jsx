@@ -1,9 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaChevronLeft, FaChevronRight, FaStar, FaStarHalfAlt } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom'; // ✅ Add this
 
 const TouristVisit = () => {
   const cardRef = useRef(null);
+  const navigate = useNavigate(); // ✅ Initialize
   const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,6 +32,14 @@ const TouristVisit = () => {
     }
   };
 
+  const handleCardClick = (area) => {
+    // Customize this based on actual area data
+    const pickup = "Kathmandu";
+    const drop = "Dhangadi";
+    const date = "2025-04-15";
+    navigate(`/tickets?pickup=${pickup}&drop=${drop}&date=${date}`);
+  };
+
   return (
     <div className="px-4 md:px-8 lg:px-12 mt-10">
       {/* Section Title */}
@@ -49,7 +59,6 @@ const TouristVisit = () => {
       {/* Scrollable Tourist Cards */}
       {!loading && !error && (
         <div className="relative mt-6">
-          {/* Left Arrow */}
           <button
             onClick={() => scrollCards(-300)}
             className="hidden sm:block absolute left-0 top-1/2 transform -translate-y-1/2 bg-gray-800 text-white p-3 sm:p-4 rounded-full z-10 hover:bg-gray-700 transition-colors"
@@ -61,14 +70,15 @@ const TouristVisit = () => {
             ref={cardRef}
             className="flex overflow-x-auto overflow-y-hidden gap-4 sm:gap-6 scroll-smooth pb-5 px-2 sm:px-6"
             style={{
-              scrollbarWidth: 'none', /* For Firefox */
-              msOverflowStyle: 'none', /* For IE and Edge */
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
             }}
           >
             {areas.map((area, index) => (
               <div
                 key={index}
-                className="min-w-[250px] sm:min-w-[300px] md:min-w-[350px] bg-white shadow-lg rounded-lg p-4 sm:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform duration-300"
+                onClick={() => handleCardClick(area)} // ✅ On click
+                className="min-w-[250px] sm:min-w-[300px] md:min-w-[350px] bg-white shadow-lg rounded-lg p-4 sm:p-6 flex flex-col items-center text-center hover:scale-105 transition-transform duration-300 cursor-pointer"
               >
                 <img
                   src={area.image}
@@ -97,7 +107,6 @@ const TouristVisit = () => {
             ))}
           </div>
 
-          {/* Right Arrow */}
           <button
             onClick={() => scrollCards(300)}
             className="hidden sm:block absolute right-0 top-1/2 transform -translate-y-1/2 bg-gray-800 text-white p-3 sm:p-4 rounded-full z-10 hover:bg-gray-700 transition-colors"
