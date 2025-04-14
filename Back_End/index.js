@@ -61,9 +61,10 @@ const refundRoutes = require("./routes/refundRoutes");
 
 
 // API Routes
+app.use("/auth", authRoutes);
 app.use("/admin", authRoutes);
 app.use("/vendor", authRoutes);
-app.use('/users', authRoutes);  // Use '/users' only for authentication routes
+app.use('/users', authRoutes);
 app.use("/admin", adminRoutes);
 app.use("/vendor", vendorRoutes);
 app.use("/users", userRoutes);
@@ -76,6 +77,7 @@ app.use("/api", bookingRoutes);
 app.use("/admin/dashboard", adminDashboardRoutes);
 app.use("/api", authRoutes);
 app.use("/api/bookings", refundRoutes);
+
 
 // Health Check Route
 app.get("/health", (req, res) => {

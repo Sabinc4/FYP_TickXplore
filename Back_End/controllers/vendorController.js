@@ -135,7 +135,11 @@ exports.updateVendor = async (req, res) => {
       );
     }
 
-    res.status(200).json({ success: true, message: "Vendor updated successfully", updatedVendor });
+    res.status(200).json({ 
+      success: true, 
+      message: "Vendor updated successfully", 
+      vendor: updatedVendor
+    });
   } catch (error) {
     console.error("Update Vendor Error:", error);
     res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });

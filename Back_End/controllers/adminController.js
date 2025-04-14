@@ -5,7 +5,7 @@ const Admin = require("../models/Admin");
 const User = require("../models/User");
 const Vendor = require("../models/Vendor");
 const generateToken = require("../utils/generateToken");
-const sendEmail = require("../utils/sendEmail");
+const { sendEmail } = require("../utils/sendEmail"); 
 const Booking = require("../models/Booking");
 
 // Forgot Password for Admin

@@ -44,7 +44,7 @@ exports.register = async (req, res) => {
         password: hashedPassword,
         role,
         otp,
-        otpExpires: Date.now() + 10 * 60 * 1000,  // OTP expires in 10 minutes
+        otpExpires: Date.now() + 10 * 60 * 1000,
         isVerified: false,
       });
     } else if (role === "vendor") {
@@ -252,6 +252,53 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ message: "Error resetting password", error: err.message });
   }
 };
+
+exports.changePassword = async (req, res) => {
+  const { role } = req.params; // admin, vendor, user
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+
+  console.log(" Decoded user from token:", req.user); // Should contain { id, role }
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ message: "Passwords do not match" });
+  }
+
+  let Model;
+  if (role === "admin") Model = AdminModel;
+  else if (role === "vendor") Model = VendorModel;
+  else if (role === "user") Model = UserModel;
+  else return res.status(400).json({ message: "Invalid role" });
+
+  try {
+    // Support both `id` or `_id` in case token was created before fix
+    const userId = req.user.id || req.user._id;
+    const user = await Model.findById(userId);
+
+    if (!user) {
+      console.log(" User not found for ID:", userId);
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    res.json({ success: true, message: "Password changed successfully" });
+  } catch (error) {
+    console.error(" Change password error:", error);
+    res.status(500).json({ message: "Error changing password", error: error.message });
+  }
+};
+
+
 
 exports.getAllBookings = async (req, res) => {
   try {

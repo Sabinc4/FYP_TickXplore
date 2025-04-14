@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FaTimes } from "react-icons/fa";
 import { CiMenuBurger } from "react-icons/ci";
 import logo from "../Pictures/sabin-fav-icon.svg";
+import { toast } from "react-toastify";
 
 const Nav = () => {
   const [click, setClick] = useState(false);
@@ -38,7 +39,6 @@ const Nav = () => {
         setUserInitials(firstInitial + lastInitial);
       }
 
-      // Fetch profile image
       if (isLoggedIn && id && token) {
         const endpoint = role === "admin" ? "admin" : role === "vendor" ? "vendor" : "users";
         try {
@@ -52,11 +52,17 @@ const Nav = () => {
           if (profile?.profilePhoto?.startsWith("http")) {
             setProfileImage(profile.profilePhoto);
           } else {
-            setProfileImage(""); // fallback to initials
+            setProfileImage("");
           }
+
+          // ✅ Only show toast when logged in
+          if (isLoggedIn) {
+            toast.success("Profile loaded successfully");
+          }
+
         } catch (err) {
           console.error("Error fetching profile photo:", err);
-          setProfileImage(""); // fallback on error
+          setProfileImage("");
         }
       }
     };
@@ -70,10 +76,20 @@ const Nav = () => {
     location.pathname === path ? "text-white font-bold" : "hover:text-slate-100";
 
   const handleLogout = () => {
-    localStorage.clear();
+    toast.dismiss(); // ✅ Clear all toasts
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("vendorId");
+    localStorage.removeItem("adminId");
+    localStorage.removeItem("userLoggedIn");
+    localStorage.removeItem("userName");
+
     setUserLoggedIn(false);
     setDropdownOpen(false);
+    toast.success("Logged out successfully!");
     navigate("/sign-in");
+    window.dispatchEvent(new Event("storageUpdate"));
   };
 
   const isVendorOrAdmin = userRole === "vendor" || userRole === "admin";
@@ -81,12 +97,10 @@ const Nav = () => {
   return (
     <nav className="bg-slate-900 text-slate-400 sticky top-0 z-50">
       <div className="flex justify-between items-center lg:py-5 px-8 py-4">
-        {/* Logo */}
         <div className="flex items-center space-x-2">
           <img src={logo} alt="TickXplore Logo" className="w-10 h-10" />
         </div>
 
-        {/* Desktop Navigation */}
         <div className="hidden lg:flex items-center justify-end">
           <ul className="flex gap-12 text-[18px]">
             {!isVendorOrAdmin && (
@@ -113,11 +127,7 @@ const Nav = () => {
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                 >
                   {profileImage ? (
-                    <img
-                      src={profileImage}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-xl text-white">{userInitials}</span>
                   )}
@@ -163,7 +173,6 @@ const Nav = () => {
           </ul>
         </div>
 
-        {/* Mobile Hamburger */}
         <div className="lg:hidden">
           <button onClick={() => setClick(!click)} className="text-3xl text-white">
             {click ? <FaTimes /> : <CiMenuBurger />}
@@ -171,7 +180,6 @@ const Nav = () => {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       {click && (
         <div className="lg:hidden absolute top-16 left-0 right-0 bg-slate-100 transition z-40">
           <ul className="text-center text-xl p-10 text-slate-900">

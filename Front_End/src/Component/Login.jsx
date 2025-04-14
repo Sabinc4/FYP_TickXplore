@@ -69,28 +69,32 @@ export default function Login() {
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     setLoading(true);
-
+  
     if (!resetEmail) {
       toast.error("Please enter your email address");
       setLoading(false);
       return;
     }
-
+  
     try {
       const response = await axios.post(
         `http://localhost:3001/auth/forgot-password/${selectedRole}`,
         { email: resetEmail }
       );
-
-      if (response.data.success) {
+  
+      // ✅ Always show OTP modal if the response is 200 OK
+      if (response.status === 200) {
         setShowResetOtpModal(true);
-        toast.success("OTP sent to your email!");
+        toast.success(response.data.message || "OTP sent to your email!");
+      } else {
+        toast.error("Unexpected response from server");
       }
     } catch (err) {
       console.error("Forgot password error:", err);
-      const errorMsg = err.response?.data?.message || 
-                      err.response?.data?.error ||
-                      "Failed to send OTP. Please try again.";
+      const errorMsg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Failed to send OTP. Please try again.";
       toast.error(errorMsg);
     } finally {
       setLoading(false);
