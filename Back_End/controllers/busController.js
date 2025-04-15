@@ -203,15 +203,19 @@ exports.updateBus = async (req, res) => {
 
     console.log("Updating Bus:", req.body);
 
-    // Update provided fields
+    // Update standard fields
     Object.keys(req.body).forEach((key) => {
-      if (req.body[key] !== undefined) {
+      if (
+        key !== "pricePerSeat" &&
+        key !== "bookedSeats" &&
+        req.body[key] !== undefined
+      ) {
         bus[key] = req.body[key];
       }
     });
 
     // Handle pricePerSeat
-    if (req.body.pricePerSeat) {
+    if (req.body.pricePerSeat !== undefined) {
       const pricePerSeatNumber = Number(req.body.pricePerSeat);
       if (isNaN(pricePerSeatNumber)) {
         return res.status(400).json({
@@ -223,12 +227,13 @@ exports.updateBus = async (req, res) => {
       console.log("Updated Bus Price Per Seat:", bus.pricePerSeat);
     }
 
-    // Handle bookedSeats
-    if (req.body.bookedSeats) {
+    // ✅ FIXED: Handle bookedSeats including empty arrays
+    if ("bookedSeats" in req.body) {
       try {
         bus.bookedSeats = Array.isArray(req.body.bookedSeats)
           ? req.body.bookedSeats
           : JSON.parse(req.body.bookedSeats);
+        console.log("Updated bookedSeats:", bus.bookedSeats);
       } catch (error) {
         console.error("Error parsing bookedSeats:", error);
         return res.status(400).json({
@@ -238,10 +243,10 @@ exports.updateBus = async (req, res) => {
       }
     }
 
-    // Handle Image Update
+    // Handle Image Update (if any)
     if (req.files?.image) {
       const imagePath = handleFileUpload(req.files.image, res);
-      if (imagePath === null) return; // Stop execution if file upload fails
+      if (imagePath === null) return; // Stop execution if upload failed
       bus.image = imagePath;
     }
 
