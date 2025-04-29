@@ -23,9 +23,7 @@ const BusTickets = () => {
   const [vehicles, setVehicles] = useState([]);
   const [pickupLocations, setPickupLocations] = useState([]);
   const [dropLocations, setDropLocations] = useState([]);
-  const [formErrors, setFormErrors] = useState({
-    date: false,
-  });
+  const [formErrors, setFormErrors] = useState({ date: false });
 
   useEffect(() => {
     fetchLocations();
@@ -79,22 +77,17 @@ const BusTickets = () => {
   };
 
   const validateForm = () => {
-    const errors = {
-      date: !formData.date,
-    };
+    const errors = { date: !formData.date };
     setFormErrors(errors);
-
     if (Object.values(errors).some(Boolean)) {
       toast.error("Please select a travel date.");
       return false;
     }
-
     return true;
   };
 
   const handleSearch = async () => {
     if (!validateForm()) return;
-
     setFetching(true);
     try {
       const [busesData, vehiclesData] = await Promise.all([
@@ -119,8 +112,6 @@ const BusTickets = () => {
       });
 
       const filteredVehicles = allVehicles.filter((vehicle) => {
-        const vehicleDate = vehicle.takeOffDate ? new Date(vehicle.takeOffDate).toISOString().split('T')[0] : null;
-        const matchesDate = vehicleDate === formData.date;
         const isAvailable = vehicle.isAvailable !== false;
         const hasValidPrice = vehicle.price > 0;
 
@@ -131,26 +122,22 @@ const BusTickets = () => {
             (!formData.pickupPoint || vehicle.pickupPoint.toLowerCase() === formData.pickupPoint.toLowerCase()) &&
             (!formData.droppingPoint || vehicle.dropPoint.toLowerCase() === formData.droppingPoint.toLowerCase());
 
-          return matchesLocation && matchesDate && isAvailable && hasValidPrice;
+          return matchesLocation && isAvailable && hasValidPrice;
         } else {
-          return matchesDate && isAvailable && hasValidPrice;
+          return isAvailable && hasValidPrice;
         }
       });
 
       const busesWithDetails = filteredBuses.map((bus) => ({
         ...bus,
-        imageUrl: bus.image
-          ? new URL(bus.image, "http://localhost:3001").href
-          : "/default-bus-image.jpg",
-        availableSeats: bus.totalSeats - bus.bookedSeats.length,
+        imageUrl: bus.image ? new URL(bus.image, "http://localhost:3001").href : "/default-bus-image.jpg",
+        availableSeats: bus.totalSeats - (bus.bookedSeats?.length || 0),
         price: bus.pricePerSeat || "N/A",
       }));
 
       const vehiclesWithDetails = filteredVehicles.map((vehicle) => ({
         ...vehicle,
-        imageUrl: vehicle.image
-          ? new URL(vehicle.image, "http://localhost:3001").href
-          : "/default-vehicle-image.jpg",
+        imageUrl: vehicle.image ? new URL(vehicle.image, "http://localhost:3001").href : "/default-vehicle-image.jpg",
         price: vehicle.price || "N/A",
       }));
 
@@ -258,8 +245,8 @@ const BusTickets = () => {
         </div>
       </div>
 
-      {/* Clear Filters Button */}
-      <button
+     {/* Clear Filters Button */}
+     <button
         onClick={() => {
           setFormData({ pickupPoint: "", droppingPoint: "", date: "" });
           setBuses([]);
@@ -268,7 +255,7 @@ const BusTickets = () => {
         className="w-full md:w-auto px-6 py-3 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400 transition-colors mt-4"
       >
         Clear Filters
-      </button>
+      </button> 
 
       {/* Results Section */}
       <div className="mt-8 space-y-6">
@@ -312,19 +299,6 @@ const BusTickets = () => {
                 ))}
               </div>
             )}
-
-            {/* No Results */}
-            {!fetching && buses.length === 0 && vehicles.length === 0 && (
-              <div className="text-center py-12 bg-gray-50 rounded-lg">
-                <FaInfoCircle className="mx-auto text-4xl text-gray-400 mb-4" />
-                <h4 className="text-lg font-medium text-gray-700">No transport found</h4>
-                <p className="text-gray-500 mt-2">
-                  {formData.date
-                    ? "No available buses or vehicles match your search criteria."
-                    : "Please select a date to search for available transport."}
-                </p>
-              </div>
-            )}
           </>
         )}
       </div>
@@ -332,6 +306,8 @@ const BusTickets = () => {
   );
 };
 
+
+// TransportCard Component
 const TransportCard = ({ data, onSelect, type }) => {
   if (!data || !data.name) return null;
 
@@ -339,8 +315,9 @@ const TransportCard = ({ data, onSelect, type }) => {
     <div className="flex flex-col md:flex-row items-center justify-between p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow">
       <div className="flex-1">
         <h3 className="text-xl font-bold text-gray-800">
-          {data.name} - {data.type || "Vehicle"}
+          {data.name}
         </h3>
+
         <div className="mt-4 flex items-center gap-4 text-gray-600">
           <span className="flex items-center">
             <FaMapMarkerAlt className="mr-2" />
@@ -357,17 +334,22 @@ const TransportCard = ({ data, onSelect, type }) => {
           <div>
             <p className="flex items-center text-sm text-gray-600">
               <AiOutlineCalendar className="mr-2" />
-              {data.takeOffDate
-                ? new Date(data.takeOffDate).toLocaleDateString("en-US", {
-                    weekday: "short",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "N/A"}
+              {type === "bus" ? (
+                data.takeOffDate
+                  ? new Date(data.takeOffDate).toLocaleDateString("en-US", {
+                      weekday: "short",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "Date not set"
+              ) : (
+                "Flexible Reservation Date"
+              )}
             </p>
+
             {type === "bus" && (
               <p className="flex items-center mt-2 text-sm text-gray-600">
                 <FaChair className="mr-2" />
@@ -375,11 +357,14 @@ const TransportCard = ({ data, onSelect, type }) => {
               </p>
             )}
           </div>
+
           <div className="text-right">
             <p className="text-2xl font-bold text-green-600">
               NPR {data.price?.toLocaleString() || "N/A"}
             </p>
-            <p className="text-sm text-gray-500">per {type === "bus" ? "seat" : "vehicle"}</p>
+            <p className="text-sm text-gray-500">
+              per {type === "bus" ? "seat" : "vehicle"}
+            </p>
           </div>
         </div>
 
@@ -395,7 +380,6 @@ const TransportCard = ({ data, onSelect, type }) => {
         src={data.imageUrl || "/default-vehicle-image.jpg"}
         alt={data.name}
         className="w-48 h-32 object-cover rounded-lg mt-6 md:mt-0 md:ml-6"
-        onError={(e) => (e.target.src = "/default-vehicle-image.jpg")}
       />
     </div>
   );

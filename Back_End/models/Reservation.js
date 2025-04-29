@@ -41,7 +41,7 @@ const reservationSchema = new mongoose.Schema(
     // Payment Information (optional, if you want to track payments)
     paymentStatus: {
       type: String,
-      enum: ["pending", "completed", "failed"],
+      enum: ["pending", "completed", "CashOnVisit"], 
       default: "pending",
     },
     paymentId: {

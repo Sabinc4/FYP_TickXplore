@@ -2,6 +2,9 @@ const mongoose = require("mongoose");
 const Vehicle = require("../models/Vehicle");
 const path = require("path");
 const fs = require("fs");
+const User = require("../models/User");
+const Notification = require("../models/Notification");
+const { sendEmail } = require("../utils/sendEmail");
 
 //Validate Required Fields
 const validateRequiredFields = (fields, res) => {
@@ -16,14 +19,13 @@ const validateRequiredFields = (fields, res) => {
   return true;
 };
 
-//Create Vehicle
+// Create Vehicle
 exports.createVehicle = async (req, res) => {
   try {
-    const { vendorId, name, price, capacity, takeOffDate } = req.body;
+    const { vendorId, name, price, capacity } = req.body;
 
-    if (!validateRequiredFields({ vendorId, name, price, capacity, takeOffDate }, res)) return;
+    if (!validateRequiredFields({ vendorId, name, price, capacity }, res)) return;
 
-    // Convert vendorId
     let objectIdVendorId;
     try {
       objectIdVendorId = new mongoose.Types.ObjectId(vendorId);
@@ -31,7 +33,6 @@ exports.createVehicle = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid vendor ID format." });
     }
 
-    // Handle Image Upload
     if (!req.files || !req.files.image) {
       return res.status(400).json({ success: false, message: "Image is required." });
     }
@@ -41,31 +42,63 @@ exports.createVehicle = async (req, res) => {
     const uploadPath = path.join("uploads", fileName);
     const absolutePath = path.join(__dirname, "..", uploadPath);
 
-    // If image doesn't exist, then save it. Otherwise, reuse the existing image.
     if (!fs.existsSync(absolutePath)) {
       await file.mv(absolutePath);
     }
 
     const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${fileName}`;
 
+    // Create the new vehicle object
     const newVehicle = new Vehicle({
       vendorId: objectIdVendorId,
       name,
       price: Number(price),
       capacity: Number(capacity),
-      takeOffDate,
       image: imageUrl,
       isAvailable: true,
-      reservations: [],
+      reservations: [], // only for internal checking, no takeOffDate needed
     });
 
+    // Save the new vehicle to the database
     await newVehicle.save();
-    res.status(201).json({ success: true, message: "Vehicle added successfully.", vehicle: newVehicle });
+
+    // Now send notifications to all verified users that a new vehicle is available
+    const users = await User.find({ isVerified: true });  // Fetch all verified users
+    console.log("Users fetched:", users.length);
+
+    for (let user of users) {
+      try {
+        // Create a notification for each user
+        await Notification.create({
+          userId: user._id,
+          role: "user",
+          message: `A new vehicle "${newVehicle.name}" is now available for booking. Check it out!`,
+        });
+        console.log(`Notification sent to user ${user._id}`);
+      } catch (err) {
+        console.error(`Error creating notification for user ${user._id}:`, err.message);
+      }
+    }
+
+    console.log("Notifications sent to users for new vehicle creation.");
+
+    // Return success response
+    res.status(201).json({
+      success: true,
+      message: "Vehicle added successfully and notifications sent.",
+      vehicle: newVehicle,
+    });
   } catch (error) {
     console.error("Error creating vehicle:", error);
-    res.status(500).json({ success: false, message: "Failed to create vehicle.", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Failed to create vehicle.",
+      error: error.message,
+    });
   }
 };
+
+
 
 
 //Get All Vehicles
@@ -114,14 +147,13 @@ exports.getVehicleById = async (req, res) => {
 exports.updateVehicle = async (req, res) => {
   try {
     const { id } = req.params;
-    const { vendorId, name, price, capacity, takeOffDate, isAvailable } = req.body;
+    const { vendorId, name, price, capacity, isAvailable } = req.body; // ❌ Removed takeOffDate
 
     const vehicle = await Vehicle.findById(id);
     if (!vehicle) {
       return res.status(404).json({ success: false, message: "Vehicle not found." });
     }
 
-    // Convert vendorId if present
     let objectIdVendorId;
     if (vendorId) {
       try {
@@ -131,26 +163,22 @@ exports.updateVehicle = async (req, res) => {
       }
     }
 
-    // Handle image update
     if (req.files?.image) {
       const file = req.files.image;
       const fileName = `${vendorId || vehicle.vendorId}_${file.name}`;
       const uploadPath = path.join("uploads", fileName);
       const absolutePath = path.join(__dirname, "..", uploadPath);
 
-      // Delete old image if exists
       if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
 
       await file.mv(absolutePath);
       vehicle.image = `${req.protocol}://${req.get("host")}/uploads/${fileName}`;
     }
 
-    // Update fields
     if (vendorId) vehicle.vendorId = objectIdVendorId;
     if (name) vehicle.name = name;
     if (price) vehicle.price = Number(price);
     if (capacity) vehicle.capacity = Number(capacity);
-    if (takeOffDate) vehicle.takeOffDate = takeOffDate;
     if (isAvailable !== undefined) vehicle.isAvailable = isAvailable;
 
     await vehicle.save();
@@ -159,6 +187,7 @@ exports.updateVehicle = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to update vehicle.", error: error.message });
   }
 };
+
 
 //Delete Vehicle
 exports.deleteVehicle = async (req, res) => {
@@ -181,7 +210,7 @@ exports.deleteVehicle = async (req, res) => {
 // Reserve Vehicle
 exports.reserveVehicle = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params; // Vehicle ID
     const { userId, reservedFrom, reservedUntil, pickupPoint, dropPoint } = req.body;
 
     if (!validateRequiredFields({ userId, reservedFrom, reservedUntil, pickupPoint, dropPoint }, res)) return;
@@ -189,7 +218,10 @@ exports.reserveVehicle = async (req, res) => {
     const vehicle = await Vehicle.findById(id);
     if (!vehicle) return res.status(404).json({ success: false, message: "Vehicle not found." });
 
-    const isAvailable = vehicle.reservations.every(reservation =>
+    // Check if vehicle is available for these dates
+    const existingReservations = await Reservation.find({ vehicleId: id });
+
+    const isAvailable = existingReservations.every(reservation =>
       new Date(reservedUntil) < new Date(reservation.reservedFrom) ||
       new Date(reservedFrom) > new Date(reservation.reservedUntil)
     );
@@ -198,11 +230,22 @@ exports.reserveVehicle = async (req, res) => {
       return res.status(400).json({ success: false, message: "Vehicle is not available for the requested dates." });
     }
 
-    vehicle.reservations.push({ userId, reservedFrom, reservedUntil, pickupPoint, dropPoint });
-    await vehicle.save();
+    // Create a new reservation
+    const newReservation = new Reservation({
+      vehicleId: id,
+      userId,
+      pickupPoint,
+      dropPoint,
+      reservedFrom,
+      reservedUntil,
+      paymentStatus: "pending", // default status
+    });
 
-    res.status(201).json({ success: true, message: "Reservation successful.", vehicle });
+    await newReservation.save();
+
+    res.status(201).json({ success: true, message: "Reservation successful.", reservation: newReservation });
   } catch (error) {
+    console.error("Error reserving vehicle:", error);
     res.status(500).json({ success: false, message: "Failed to reserve vehicle.", error: error.message });
   }
 };

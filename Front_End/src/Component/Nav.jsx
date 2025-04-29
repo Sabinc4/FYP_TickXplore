@@ -2,16 +2,20 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FaTimes } from "react-icons/fa";
 import { CiMenuBurger } from "react-icons/ci";
+import { IoMdNotificationsOutline } from "react-icons/io";
 import logo from "../Pictures/sabin-fav-icon.svg";
 import { toast } from "react-toastify";
 
 const Nav = () => {
   const [click, setClick] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
   const [userLoggedIn, setUserLoggedIn] = useState(false);
   const [userInitials, setUserInitials] = useState("");
   const [userRole, setUserRole] = useState("");
   const [profileImage, setProfileImage] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -54,12 +58,6 @@ const Nav = () => {
           } else {
             setProfileImage("");
           }
-
-          // ✅ Only show toast when logged in
-          if (isLoggedIn) {
-            toast.success("Profile loaded successfully");
-          }
-
         } catch (err) {
           console.error("Error fetching profile photo:", err);
           setProfileImage("");
@@ -72,11 +70,41 @@ const Nav = () => {
     return () => window.removeEventListener("storageUpdate", updateNav);
   }, []);
 
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      const role = localStorage.getItem("userRole");
+      const userId =
+        localStorage.getItem("adminId") ||
+        localStorage.getItem("vendorId") ||
+        localStorage.getItem("userId");
+      const token = localStorage.getItem("token");
+
+      if (userId && role && token) {
+        try {
+          const res = await fetch(`http://localhost:3001/api/notifications/${role}/${userId}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          const data = await res.json();
+          setNotifications(data.data || []);
+          setUnreadCount((data.data || []).filter((n) => !n.isRead).length);
+        } catch (err) {
+          console.error("Error fetching notifications:", err);
+        }
+      }
+    };
+
+    if (userLoggedIn) {
+      fetchNotifications();
+    }
+  }, [userLoggedIn]);
+
   const isActive = (path) =>
     location.pathname === path ? "text-white font-bold" : "hover:text-slate-100";
 
   const handleLogout = () => {
-    toast.dismiss(); // ✅ Clear all toasts
+    toast.dismiss();
     localStorage.removeItem("token");
     localStorage.removeItem("userRole");
     localStorage.removeItem("userId");
@@ -90,6 +118,27 @@ const Nav = () => {
     toast.success("Logged out successfully!");
     navigate("/sign-in");
     window.dispatchEvent(new Event("storageUpdate"));
+  };
+
+  const markNotificationAsRead = async (notifId) => {
+    try {
+      await fetch(`http://localhost:3001/api/notifications/${notifId}/read`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      setNotifications((prev) =>
+        prev.map((notif) =>
+          notif._id === notifId ? { ...notif, isRead: true } : notif
+        )
+      );
+
+      setUnreadCount((prev) => Math.max(prev - 1, 0));
+    } catch (err) {
+      console.error("Error marking notification as read:", err);
+    }
   };
 
   const isVendorOrAdmin = userRole === "vendor" || userRole === "admin";
@@ -121,47 +170,86 @@ const Nav = () => {
             )}
 
             {userLoggedIn ? (
-              <div className="relative">
-                <button
-                  className="w-12 h-12 rounded-full bg-blue-600 overflow-hidden flex items-center justify-center relative"
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                >
-                  {profileImage ? (
-                    <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-xl text-white">{userInitials}</span>
-                  )}
-                  <span
-                    className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full text-xs flex items-center justify-center"
-                    title="Logged In"
+              <div className="relative flex items-center space-x-4">
+                {/* Notification Bell */}
+                <div className="relative">
+                  <button
+                    className="relative text-2xl text-white hover:text-blue-400"
+                    title="Notifications"
+                    onClick={() => {
+                      setNotificationOpen(!notificationOpen);
+                      setDropdownOpen(false);
+                    }}
                   >
-                    ✓
-                  </span>
-                </button>
-
-                {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white text-black shadow-lg rounded-md p-2 z-50">
-                    <Link to="/profile" className="block py-2 px-4 hover:bg-slate-100" onClick={() => setDropdownOpen(false)}>
-                      Profile
-                    </Link>
-                    {userRole === "user" && (
-                      <>
-                        <Link to="/my-bookings" className="block py-2 px-4 hover:bg-slate-100" onClick={() => setDropdownOpen(false)}>
-                          My Bookings
-                        </Link>
-                        <Link to="/refunds" className="block py-2 px-4 hover:bg-slate-100" onClick={() => setDropdownOpen(false)}>
-                          Refunds
-                        </Link>
-                        <Link to="/history" className="block py-2 px-4 hover:bg-slate-100" onClick={() => setDropdownOpen(false)}>
-                          History
-                        </Link>
-                      </>
+                    <IoMdNotificationsOutline />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                        {unreadCount}
+                      </span>
                     )}
-                    <button onClick={handleLogout} className="w-full text-left py-2 px-4 hover:bg-slate-100">
-                      Log Out
-                    </button>
-                  </div>
-                )}
+                  </button>
+
+                  {/* Notifications Dropdown */}
+                  {notificationOpen && (
+                    <div className="absolute right-0 mt-2 w-72 bg-white text-black shadow-lg rounded-md p-2 z-50">
+                      <h3 className="font-bold text-center py-2">Notifications</h3>
+                      {notifications.length > 0 ? (
+                        notifications.map((notif) => (
+                          <div
+                            key={notif._id}
+                            className={`py-2 px-4 text-sm ${notif.isRead ? "text-gray-600" : "font-bold"} hover:bg-slate-100 cursor-pointer`}
+                            onClick={() => markNotificationAsRead(notif._id)}
+                          >
+                            {notif.message}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-4 text-center text-gray-400">No new notifications</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Profile Dropdown */}
+                <div className="relative">
+                  <button
+                    className="w-12 h-12 rounded-full bg-blue-600 overflow-hidden flex items-center justify-center relative"
+                    onClick={() => {
+                      setDropdownOpen(!dropdownOpen);
+                      setNotificationOpen(false);
+                    }}
+                  >
+                    {profileImage ? (
+                      <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xl text-white">{userInitials}</span>
+                    )}
+                    <span
+                      className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full text-xs flex items-center justify-center"
+                      title="Logged In"
+                    >
+                      ✓
+                    </span>
+                  </button>
+
+                  {dropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white text-black shadow-lg rounded-md p-2 z-50">
+                      <Link
+                        to="/profile"
+                        className="block py-2 px-4 hover:bg-slate-100"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        Profile
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left py-2 px-4 hover:bg-slate-100"
+                      >
+                        Log Out
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <Link to="/sign-in">
@@ -173,69 +261,13 @@ const Nav = () => {
           </ul>
         </div>
 
+        {/* Hamburger for Mobile */}
         <div className="lg:hidden">
           <button onClick={() => setClick(!click)} className="text-3xl text-white">
             {click ? <FaTimes /> : <CiMenuBurger />}
           </button>
         </div>
       </div>
-
-      {click && (
-        <div className="lg:hidden absolute top-16 left-0 right-0 bg-slate-100 transition z-40">
-          <ul className="text-center text-xl p-10 text-slate-900">
-            {!isVendorOrAdmin && (
-              <>
-                <Link to="/" onClick={() => setClick(false)} className={isActive("/")}>
-                  <li className="cursor-pointer py-4">Home</li>
-                </Link>
-                <Link to="/tourist-areas" onClick={() => setClick(false)} className={isActive("/tourist-areas")}>
-                  <li className="cursor-pointer py-4">Tourist Areas</li>
-                </Link>
-                <Link to="/about-us" onClick={() => setClick(false)} className={isActive("/about-us")}>
-                  <li className="cursor-pointer py-4">About Us</li>
-                </Link>
-                <Link to="/faqs" onClick={() => setClick(false)} className={isActive("/faqs")}>
-                  <li className="cursor-pointer py-4">FAQs</li>
-                </Link>
-              </>
-            )}
-            {userLoggedIn && (
-              <>
-                <Link to="/profile" onClick={() => setClick(false)}>
-                  <li className="cursor-pointer py-4">Profile</li>
-                </Link>
-                {userRole === "user" && (
-                  <>
-                    <Link to="/my-bookings" onClick={() => setClick(false)}>
-                      <li className="cursor-pointer py-4">My Bookings</li>
-                    </Link>
-                    <Link to="/refunds" onClick={() => setClick(false)}>
-                      <li className="cursor-pointer py-4">Refunds</li>
-                    </Link>
-                    <Link to="/history" onClick={() => setClick(false)}>
-                      <li className="cursor-pointer py-4">History</li>
-                    </Link>
-                  </>
-                )}
-                <li
-                  className="cursor-pointer py-4"
-                  onClick={() => {
-                    handleLogout();
-                    setClick(false);
-                  }}
-                >
-                  Log Out
-                </li>
-              </>
-            )}
-            {!userLoggedIn && (
-              <Link to="/sign-in" onClick={() => setClick(false)}>
-                <li className="cursor-pointer py-4">Sign In</li>
-              </Link>
-            )}
-          </ul>
-        </div>
-      )}
     </nav>
   );
 };

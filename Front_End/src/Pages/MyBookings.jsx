@@ -266,15 +266,17 @@ const MyBookings = () => {
           {/* Right Column - Status and Actions */}
           <div className="space-y-6">
             <div className="flex flex-col gap-2">
-              <span
-                className={`w-fit px-4 py-1 rounded-full text-sm font-semibold ${
-                  booking.status === "Booked"
-                    ? "bg-green-900/30 text-green-400"
-                    : "bg-red-900/30 text-red-400"
-                }`}
-              >
-                {booking.status}
-              </span>
+            <span
+              className={`w-fit px-4 py-1 rounded-full text-sm font-semibold ${
+                booking.status === "Booked"
+                  ? "bg-green-900/30 text-green-400"
+                  : booking.status === "CashOnVisit"
+                  ? "bg-yellow-900/30 text-yellow-400"
+                  : "bg-red-900/30 text-red-400"
+              }`}
+            >
+              {booking.status}
+            </span>
               <div className="text-sm text-slate-400 flex items-center gap-2">
                 <FaRegClock />
                 {new Date(booking.createdAt).toLocaleDateString("en-IN", {

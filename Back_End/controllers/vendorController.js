@@ -3,9 +3,8 @@ const mongoose = require("mongoose");
 const Vendor = require("../models/Vendor");
 const path = require("path");
 const fs = require("fs");
-const generateToken = require("../utils/generateToken");
 const { sendEmail } = require("../utils/sendEmail");
-const generateOTP = require("../utils/generateOTP");
+
 
 // Get Vendor Profile
 exports.getProfile = async (req, res) => {

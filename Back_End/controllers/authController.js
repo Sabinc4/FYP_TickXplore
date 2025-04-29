@@ -6,16 +6,36 @@ const UserModel = require('../models/User');
 const generateToken = require("../utils/generateToken");
 const { sendEmail, sendSignupOTP } = require("../utils/sendEmail");
 const generateOTP = require("../utils/generateOTP");
+const Notification = require("../models/Notification");
 const Booking = require("../models/Booking");
 
 exports.register = async (req, res) => {
   console.log("Registration data received:", req.body);
 
-  const { name, location, email, phoneNumber, password, confirmPassword, role, vendorName, vendorLocation } = req.body;
+  const {
+    name,
+    location,
+    email,
+    phoneNumber,
+    password,
+    confirmPassword,
+    role,
+    vendorName,
+    vendorLocation,
+  } = req.body;
 
   try {
     // Validate all required fields
-    if (!name || !location || !email || !phoneNumber || !password || !confirmPassword || !role || (role === "vendor" && (!vendorName || !vendorLocation))) {
+    if (
+      !name ||
+      !location ||
+      !email ||
+      !phoneNumber ||
+      !password ||
+      !confirmPassword ||
+      !role ||
+      (role === "vendor" && (!vendorName || !vendorLocation))
+    ) {
       return res.status(400).json({ message: "All fields are required." });
     }
 
@@ -48,6 +68,7 @@ exports.register = async (req, res) => {
         isVerified: false,
       });
     } else if (role === "vendor") {
+      // Create vendor
       newUser = await VendorModel.create({
         name,
         location,
@@ -61,6 +82,16 @@ exports.register = async (req, res) => {
         otpExpires: Date.now() + 10 * 60 * 1000,
         isVerified: false,
       });
+
+      // Send notification to admin about new vendor registration
+      const admins = await AdminModel.find({});
+      for (let adminUser of admins) {
+        await Notification.create({
+          userId: adminUser._id,
+          role: "admin",
+          message: `A new vendor, ${vendorName}, has registered. Please review and activate their account.`,
+        });
+      }
     } else if (role === "admin") {
       newUser = await AdminModel.create({
         name,
@@ -81,11 +112,15 @@ exports.register = async (req, res) => {
     // Send welcome email for Gmail users
     if (email.endsWith("@gmail.com")) {
       const displayName = name || "there";
-      await sendEmail(email, " Welcome to TickXplore", `
+      await sendEmail(
+        email,
+        "Welcome to TickXplore",
+        `
         <h2>Hello ${displayName},</h2>
         <p>We're excited to have you onboard TickXplore!</p>
         <p>Start exploring and booking your next adventure today!</p>
-      `);
+      `
+      );
     }
 
     res.status(201).json({
@@ -97,7 +132,6 @@ exports.register = async (req, res) => {
     res.status(500).json({ message: "Error during registration", error: error.message });
   }
 };
-
 
 // Sign-in Controller
 exports.signIn = async (req, res) => {
@@ -298,12 +332,10 @@ exports.changePassword = async (req, res) => {
   }
 };
 
-
-
 exports.getAllBookings = async (req, res) => {
   try {
     const bookings = await Booking.find()
-      .populate("userId", "name email")  
+      .populate("userId", "name email") 
       .populate("busId", "name pickupPoint dropPoint")
       .populate("vehicleId", "name price")
       .sort({ createdAt: -1 });
@@ -320,5 +352,4 @@ exports.getAllBookings = async (req, res) => {
     console.error("Admin Bookings Error:", err.message);
     res.status(500).json({ message: "Failed to fetch bookings", error: err.message });
   }
-};
-
+}; 

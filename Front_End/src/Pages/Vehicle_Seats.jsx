@@ -2,28 +2,26 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FiCalendar, FiArrowRight, FiRefreshCw, FiMapPin } from "react-icons/fi";
-import { useParams } from "react-router-dom";
+import { FiCalendar, FiArrowRight, FiRefreshCw } from "react-icons/fi";
+import { useParams, useNavigate } from "react-router-dom";
 
 const VehicleReservation = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [vehicles, setVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [takeOffDate, setTakeOffDate] = useState("");
   const [pickupPoint, setPickupPoint] = useState("");
   const [dropPoint, setDropPoint] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("online"); // 'online' or 'cash'
   const [loading, setLoading] = useState(true);
 
-  // Fetch all vehicles
   useEffect(() => {
     fetchVehicles();
   }, []);
 
-  // Fetch a specific vehicle by ID
   useEffect(() => {
-    if (id) {
-      fetchVehicleById(id);
-    }
+    if (id) fetchVehicleById(id);
   }, [id]);
 
   const fetchVehicles = async () => {
@@ -69,39 +67,52 @@ const VehicleReservation = () => {
       toast.error("Please fill all required fields.");
       return;
     }
-  
-    // Double-check availability before proceeding
+
     const available = await checkAvailabilityBeforeBooking();
     if (!available) return;
-  
+
     try {
       const userId = localStorage.getItem("userId");
       if (!userId) {
         toast.error("Please log in to make a reservation.");
         return;
       }
-  
-      const paymentResponse = await axios.post("http://localhost:3001/api/payments/initiate", {
+
+      const payload = {
         type: "vehicle",
         itemId: selectedVehicle._id,
-        userInfo: {
-          name: "John Doe",
-          email: "john@example.com",
-          phone: "9800000000",
-        },
         takeOffDate,
         pickupPoint,
         dropPoint,
         userId,
-      });
-  
-      if (paymentResponse.data.payment_url) {
-        window.location.href = paymentResponse.data.payment_url;
+      };
+
+      if (paymentMethod === "online") {
+        const paymentResponse = await axios.post("http://localhost:3001/api/payments/initiate", {
+          ...payload,
+          userInfo: {
+            name: "John Doe", // Replace with actual user info
+            email: "john@example.com",
+            phone: "9800000000",
+          },
+        });
+
+        if (paymentResponse.data.payment_url) {
+          window.location.href = paymentResponse.data.payment_url;
+        } else {
+          toast.error("Payment initiation failed.");
+        }
       } else {
-        toast.error("Payment initiation failed.");
+        const response = await axios.post("http://localhost:3001/api/payments/cash-on-visit", payload);
+        if (response.data.message) {
+          toast.success(response.data.message);
+          navigate("/my-bookings");
+        } else {
+          toast.error("Reservation failed. Please try again.");
+        }
       }
     } catch (error) {
-      toast.error("Failed to initiate payment.");
+      toast.error(error.response?.data?.message || "Failed to process reservation.");
     }
   };
 
@@ -110,19 +121,17 @@ const VehicleReservation = () => {
       const res = await axios.get(
         `http://localhost:3001/api/reservations/vehicle/${selectedVehicle._id}`
       );
-  
       if (res.data.length > 0) {
         toast.error("This vehicle just got reserved. Please choose another.");
-        fetchVehicles(); 
+        fetchVehicles();
         return false;
       }
-  
       return true;
     } catch (error) {
       toast.error("Could not verify vehicle availability.");
       return false;
     }
-  };  
+  };
 
   if (loading) {
     return (
@@ -131,8 +140,6 @@ const VehicleReservation = () => {
       </div>
     );
   }
-
-
 
   if (!selectedVehicle && vehicles.length === 0) {
     return (
@@ -185,11 +192,7 @@ const VehicleReservation = () => {
                 >
                   <option value="" disabled>Select a Vehicle</option>
                   {vehicles.map((vehicle) => (
-                    <option
-                      key={vehicle._id}
-                      value={vehicle._id}
-                      disabled={!vehicle.isAvailable}
-                    >
+                    <option key={vehicle._id} value={vehicle._id} disabled={!vehicle.isAvailable}>
                       {vehicle.name} - {vehicle.capacity} seats
                       {!vehicle.isAvailable && " (Booked)"}
                     </option>
@@ -215,9 +218,7 @@ const VehicleReservation = () => {
                     <DetailItem
                       label="Status"
                       value={
-                        <span className={`font-semibold ${
-                          selectedVehicle.isAvailable ? "text-green-600" : "text-red-600"
-                        }`}>
+                        <span className={`font-semibold ${selectedVehicle.isAvailable ? "text-green-600" : "text-red-600"}`}>
                           {selectedVehicle.isAvailable ? "Available" : "Booked"}
                         </span>
                       }
@@ -248,7 +249,6 @@ const VehicleReservation = () => {
                     className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
                     value={pickupPoint}
                     onChange={(e) => setPickupPoint(e.target.value)}
-                    required
                   />
                   <input
                     type="text"
@@ -256,12 +256,54 @@ const VehicleReservation = () => {
                     className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
                     value={dropPoint}
                     onChange={(e) => setDropPoint(e.target.value)}
-                    required
                   />
+
+                  {/* Payment Method Selection */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Payment Method</label>
+                    <div className="flex space-x-4">
+                      <button
+                        onClick={() => setPaymentMethod("online")}
+                        className={`flex-1 p-3 rounded-lg border-2 flex items-center justify-center gap-2 ${
+                          paymentMethod === "online"
+                            ? "border-blue-500 bg-blue-50 text-blue-700"
+                            : "border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        Online (Khalti)
+                      </button>
+                      <button
+                        onClick={() => setPaymentMethod("cash")}
+                        className={`flex-1 p-3 rounded-lg border-2 flex items-center justify-center gap-2 ${
+                          paymentMethod === "cash"
+                            ? "border-green-500 bg-green-50 text-green-700"
+                            : "border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        Cash on Visit
+                      </button>
+                    </div>
+                  </div>
+
+                  {paymentMethod === "cash" && (
+                    <div className="text-sm text-gray-600 p-3 bg-gray-50 rounded-lg">
+                      <p className="font-medium">Cash on Visit Instructions:</p>
+                      <ul className="list-disc pl-5 mt-1 space-y-1">
+                        <li>You'll pay cash when you receive the vehicle</li>
+                        <li>Please bring the exact amount if possible</li>
+                        <li>You’ll get confirmation email from TickXplore</li>
+                        <li>Booking remains pending until payment</li>
+                      </ul>
+                    </div>
+                  )}
 
                   <button
                     onClick={handlePaymentAndReservation}
-                    className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                    className={`w-full py-3 px-6 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${
+                      paymentMethod === "online"
+                        ? "bg-blue-600 text-white hover:bg-blue-700"
+                        : "bg-green-600 text-white hover:bg-green-700"
+                    }`}
                     disabled={!selectedVehicle?.isAvailable}
                   >
                     Confirm Reservation
@@ -277,7 +319,6 @@ const VehicleReservation = () => {
   );
 };
 
-// Helper Components
 const DetailItem = ({ label, value }) => (
   <div className="flex justify-between items-center">
     <span className="text-gray-600 font-medium">{label}:</span>

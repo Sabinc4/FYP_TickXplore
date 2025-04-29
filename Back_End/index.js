@@ -58,7 +58,9 @@ const paymentRoutes = require("./routes/payment");
 const bookingRoutes = require("./routes/bookingRoutes");
 const adminDashboardRoutes = require("./routes/adminDashboardRoutes");
 const refundRoutes = require("./routes/refundRoutes");
-
+const chatbotRoutes = require('./routes/chatbotRoutes');
+const reservationRoutes = require("./routes/reservationRoutes");
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // API Routes
 app.use("/auth", authRoutes);
@@ -77,6 +79,9 @@ app.use("/api", bookingRoutes);
 app.use("/admin/dashboard", adminDashboardRoutes);
 app.use("/api", authRoutes);
 app.use("/api/bookings", refundRoutes);
+app.use('/api/chatbot', chatbotRoutes);
+app.use("/api/reservations", reservationRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 
 // Health Check Route

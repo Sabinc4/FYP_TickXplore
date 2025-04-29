@@ -1,23 +1,22 @@
 const mongoose = require("mongoose");
 
 const vehicleSchema = new mongoose.Schema({
-  name: String,
-  image: String,
-  capacity: Number,
-  price: Number,
-  vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor" },
-  takeOffDate: Date,
-  isAvailable: { type: Boolean, default: false },
+  name: { type: String, required: true },
+  image: { type: String },
+  capacity: { type: Number, required: true },
+  price: { type: Number, required: true },
+  vendorId: { type: mongoose.Schema.Types.ObjectId, ref: "Vendor", required: true },
+  isAvailable: { type: Boolean, default: true },
   reservations: [
     {
       userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-      reservedFrom: Date,
-      reservedUntil: Date,
-      pickupPoint: String,
-      dropPoint: String,
+      reservedFrom: { type: Date },   
+      reservedUntil: { type: Date },
+      pickupPoint: { type: String },
+      dropPoint: { type: String },
     },
   ],
-});
+}, { timestamps: true });
 
 const Vehicle = mongoose.model("Vehicle", vehicleSchema);
 

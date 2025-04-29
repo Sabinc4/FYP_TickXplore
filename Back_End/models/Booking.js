@@ -8,7 +8,7 @@ const BookingSchema = new mongoose.Schema(
     busId: { type: mongoose.Schema.Types.ObjectId, ref: "Bus" },
     vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
 
-    selectedSeats: [{ type: Number }], // For buses
+    selectedSeats: [{ type: Number }], // For buses only
     totalPrice: { type: Number, required: true },
 
     transactionId: { type: String, unique: true },
@@ -17,10 +17,20 @@ const BookingSchema = new mongoose.Schema(
       enum: ["Pending", "Booked", "Cancelled"],
       default: "Pending",
     },
-    takeOffDate: { type: Date },
-    reservationDate: { type: Date }, // For vehicle booking
 
-    // 🔵 Cash on Visit
+    // Departure or Reservation Dates
+    takeOffDate: { type: Date },         
+    reservationDate: { type: Date },      
+
+    pickupPoint: {
+      type: String,
+      default: "N/A"
+    },
+    dropPoint: {
+      type: String,
+      default: "N/A"
+    },
+
     paymentMethod: {
       type: String,
       enum: ["Online", "CashOnVisit"],
@@ -32,7 +42,7 @@ const BookingSchema = new mongoose.Schema(
       default: "Pending"
     },
 
-    // 🔁 Refund fields
+    // Refund management
     isRefunded: { type: Boolean, default: false },
     refundAmount: { type: Number, default: 0 },
     refundDate: { type: Date }

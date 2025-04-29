@@ -2,6 +2,9 @@ const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
 const Bus = require("../models/Bus");
+const User = require("../models/User");
+const Notification = require("../models/Notification");
+const { sendEmail } = require("../utils/sendEmail");
 
 // Helper function to validate required fields
 const validateRequiredFields = (fields, res) => {
@@ -112,9 +115,38 @@ exports.createBus = async (req, res) => {
     });
 
     await newBus.save();
+
+    // Now send notifications to users that a new bus has been added
+    const users = await User.find({ isVerified: true });  // All verified users
+    for (let user of users) {
+      await Notification.create({
+        userId: user._id,
+        role: "user",
+        message: `A new bus "${newBus.name}" is now available for booking from ${pickupPoint} to ${dropPoint}. Check it out!`,
+      });
+    }
+
+    console.log("Notifications sent to users for new bus creation.");
+
+    // Send an email to users (Optional)
+    const userEmails = users.map(user => user.email);
+    if (userEmails.length > 0) {
+      await sendEmail(
+        userEmails,
+        "New Bus Added to TickXplore",
+        `
+        <p>Hello,</p>
+        <p>We're excited to announce that a new bus "${newBus.name}" is now available for booking from ${pickupPoint} to ${dropPoint}!</p>
+        <p>Check it out now on TickXplore!</p>
+        <hr />
+        <p>Thank you for being a part of TickXplore!</p>
+        `
+      );
+    }
+
     res.status(201).json({
       success: true,
-      message: "Bus added successfully",
+      message: "Bus added successfully and notifications sent.",
       bus: newBus,
     });
   } catch (error) {
@@ -126,6 +158,7 @@ exports.createBus = async (req, res) => {
     });
   }
 };
+
 
 // Get All Buses
 exports.getAllBuses = async (req, res) => {
@@ -145,10 +178,12 @@ exports.getAllBuses = async (req, res) => {
       buses = await Bus.find().populate("vendorId", "name email");
     }
 
+    // ✅ Return 200 with empty array instead of 404
     if (!buses.length) {
-      return res.status(404).json({
-        success: false,
-        message: "No buses found.",
+      return res.status(200).json({
+        success: true,
+        buses: [],
+        message: "No buses found for this vendor.",
       });
     }
 
@@ -157,7 +192,6 @@ exports.getAllBuses = async (req, res) => {
       image: bus.image ? `http://localhost:3001${bus.image}` : null,
     }));
 
-    console.log("Fetched Buses:", busesWithImages); // Log the fetched buses
     res.status(200).json({ success: true, buses: busesWithImages });
   } catch (error) {
     console.error("Error fetching buses:", error);
@@ -168,6 +202,7 @@ exports.getAllBuses = async (req, res) => {
     });
   }
 };
+
 
 //Get Bus by ID
 exports.getBusById = async (req, res) => {

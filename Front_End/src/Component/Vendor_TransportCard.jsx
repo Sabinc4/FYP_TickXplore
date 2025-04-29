@@ -1,7 +1,7 @@
 import React from "react";
 import InfoItem from "../Component/Vendor_InfoItem";
 
-const TransportCard = ({ item, type, onEdit, onDelete }) => (
+const TransportCard = ({ item, type, onEdit, onDelete, reservation }) => (
   <div className="bg-white shadow-lg rounded-xl overflow-hidden hover:shadow-xl transition-shadow duration-300">
     <div className="relative">
       <img
@@ -27,6 +27,7 @@ const TransportCard = ({ item, type, onEdit, onDelete }) => (
 
     <div className="p-4 space-y-3">
       <h3 className="text-xl font-semibold text-gray-800">{item.name}</h3>
+
       <div className="grid grid-cols-2 gap-2 text-sm">
         {type === "bus" ? (
           <>
@@ -34,23 +35,44 @@ const TransportCard = ({ item, type, onEdit, onDelete }) => (
             <InfoItem label="Total Seats" value={item.totalSeats} />
             <InfoItem label="Pickup" value={item.pickupPoint} />
             <InfoItem label="Drop" value={item.dropPoint} />
+            <InfoItem 
+              label="Take Off Date" 
+              value={item.takeOffDate ? new Date(item.takeOffDate).toLocaleString() : "Not set"} 
+            />
           </>
         ) : (
           <>
             <InfoItem label="Price" value={`Rs. ${item.price}`} />
             <InfoItem label="Capacity" value={item.capacity} />
             <InfoItem label="Status" value={item.isAvailable ? "Available" : "Reserved"} />
-            <InfoItem label="Take Off Date" value={item.takeOffDate ? new Date(item.takeOffDate).toLocaleDateString() : "Not set"} />
           </>
         )}
       </div>
-      <div className="flex justify-between items-center text-sm text-gray-500">
-        <span>
-          {item.takeOffDate ? 
-            new Date(item.takeOffDate).toLocaleDateString() : 
-            'Date not set'
-          }
-        </span>
+
+      {/* Reservation Info for Vehicles */}
+      {type === "vehicle" && (
+        <div className="text-sm text-gray-700 mt-2 space-y-1">
+          {reservation ? (
+            <>
+              <p><strong>Departure:</strong> {new Date(reservation.reservedFrom).toLocaleDateString()}</p>
+              <p><strong>Pickup:</strong> {reservation.pickupPoint}</p>
+              <p><strong>Drop:</strong> {reservation.dropPoint}</p>
+            </>
+          ) : (
+            <p className="text-gray-500">No Reservation Yet</p>
+          )}
+        </div>
+      )}
+
+      {/* Bottom Footer */}
+      <div className="flex justify-between items-center text-sm text-gray-500 mt-2">
+        {type === "bus" && (
+          <span>
+            {item.takeOffDate
+              ? new Date(item.takeOffDate).toLocaleDateString()
+              : "Date not set"}
+          </span>
+        )}
         <span>{type.toUpperCase()}</span>
       </div>
     </div>

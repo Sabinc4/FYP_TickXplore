@@ -4,11 +4,11 @@ const axios = require("axios");
 const Booking = require("../models/Booking");
 const Bus = require("../models/Bus");
 const Vehicle = require("../models/Vehicle");
-const Reservation = require("../models/reservationModel");
+const Reservation = require("../models/Reservation");
 const Vendor = require("../models/Vendor");
 const { sendEmail } = require("../utils/sendEmail");
-
-
+const Notification = require("../models/Notification");
+const User = require("../models/User");
 const KHALTI_BASE_URL = "https://dev.khalti.com/api/v2/epayment/initiate/";
 const KHALTI_LOOKUP_URL = "https://dev.khalti.com/api/v2/epayment/lookup/";
 
@@ -223,6 +223,7 @@ router.get("/callback", async (req, res) => {
 
     let booking;
 
+    // Bus Booking Logic
     if (type === "bus") {
       const bus = await Bus.findById(itemId);
       if (!bus) return res.status(404).json({ error: "Bus not found" });
@@ -246,7 +247,7 @@ router.get("/callback", async (req, res) => {
         $addToSet: { bookedSeats: { $each: seats } },
       });
 
-      // ✅ Send email to vendor
+      // Send Email and Notification to Vendor
       if (bus.vendorId) {
         const vendor = await Vendor.findById(bus.vendorId);
         if (vendor?.email) {
@@ -264,6 +265,13 @@ router.get("/callback", async (req, res) => {
              </ul>`
           );
         }
+
+        // Notification to Vendor
+        await Notification.create({
+          userId: vendor._id,
+          role: "vendor",
+          message: `A new bus booking has been made for "${bus.name}" by User ID: ${userId}.`,
+        });
       }
 
     } else if (type === "vehicle") {
@@ -326,13 +334,68 @@ router.get("/callback", async (req, res) => {
              </ul>`
           );
         }
+
+        // Notification to Vendor
+        await Notification.create({
+          userId: vendor._id,
+          role: "vendor",
+          message: `A new vehicle booking has been made for "${vehicle.name}" by User ID: ${userId}.`,
+        });
       }
 
     } else {
       return res.status(400).json({ error: "Invalid booking type" });
     }
 
-    // Redirect user to frontend with success status
+    // Send Email to User
+    const user = await User.findById(userId); // Fixed reference here
+    if (user?.email) {
+      await sendEmail(
+        user.email,
+        "Booking Confirmation - TickXplore",
+        `<p>Hello ${user.name || "User"},</p>
+         <p>Your booking has been confirmed successfully!</p>
+         <ul>
+           <li><strong>Booking ID:</strong> ${booking._id}</li>
+           <li><strong>Booking Type:</strong> ${type === "bus" ? "Bus" : "Vehicle"}</li>
+           <li><strong>Total Price:</strong> ₹${booking.totalPrice}</li>
+           <li><strong>Status:</strong> Booked</li>
+         </ul>
+         <p>Thank you for choosing TickXplore!</p>`
+      );
+    }
+
+    // Send Notification to User
+    await Notification.create({
+      userId,
+      role: "user",
+      message: `Your booking for ${type === "bus" ? "bus" : "vehicle"} ID ${booking._id} is confirmed.`,
+    });
+
+    // Send Notification to Admin
+    const admins = await Vendor.find({}); // Get admins (you might have a separate Admin model)
+    for (let admin of admins) {
+      await Notification.create({
+        userId: admin._id,
+        role: "admin",
+        message: `New booking confirmed for ${type === "bus" ? "bus" : "vehicle"} ID ${booking._id}.`,
+      });
+
+      await sendEmail(
+        admin.email,
+        "New Booking Confirmation on TickXplore",
+        `<p>Dear Admin,</p>
+         <p>A new booking has been confirmed:</p>
+         <ul>
+           <li><strong>Booking ID:</strong> ${booking._id}</li>
+           <li><strong>Booking Type:</strong> ${type === "bus" ? "Bus" : "Vehicle"}</li>
+           <li><strong>Total Price:</strong> ₹${booking.totalPrice}</li>
+           <li><strong>Status:</strong> Booked</li>
+         </ul>`
+      );
+    }
+    
+
     return res.redirect(`http://localhost:5173/payment/callback?pidx=${pidx}&status=Completed`);
 
   } catch (err) {
@@ -341,36 +404,30 @@ router.get("/callback", async (req, res) => {
   }
 });
 
-router.post("/cash-on-visit", async (req, res) => {
+router.post("/book-seat", async (req, res) => {
+  const { type, itemId, userId, seats, takeOffDate, pickupPoint, dropPoint } = req.body;
+
   try {
-    const {
-      type,
-      itemId,
-      userId,
-      seats = [],
-      takeOffDate,
-      pickupPoint = "N/A",
-      dropPoint = "N/A",
-    } = req.body;
-
     let booking;
-    let userEmail = "";
-    let vendorEmail = "";
-    const adminEmail = "tickxplore@gmail.com";
     let totalPrice = 0;
+    let productName = "";
+    let vendorEmail = "";
+    let userEmail = "";
 
+    // Bus Booking
     if (type === "bus") {
       const bus = await Bus.findById(itemId).populate("vendorId");
       if (!bus) return res.status(404).json({ message: "Bus not found" });
 
       totalPrice = bus.pricePerSeat * seats.length;
+      productName = bus.name;
 
       booking = new Booking({
         userId,
         busId: itemId,
         selectedSeats: seats,
         totalPrice,
-        status: "Pending", // pending until cash received
+        status: "Pending",  // Pending until payment is completed
         paymentMethod: "CashOnVisit",
         paymentStatus: "CashOnVisit",
         transactionId: `cash-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -379,6 +436,7 @@ router.post("/cash-on-visit", async (req, res) => {
 
       await booking.save();
 
+      // Update booked seats
       await Bus.findByIdAndUpdate(itemId, {
         $addToSet: { bookedSeats: { $each: seats } },
       });
@@ -390,12 +448,13 @@ router.post("/cash-on-visit", async (req, res) => {
       if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
 
       totalPrice = vehicle.price;
+      productName = vehicle.name;
 
       booking = new Booking({
         userId,
         vehicleId: itemId,
         totalPrice,
-        status: "Pending",
+        status: "Pending",  // Pending until payment is completed
         paymentMethod: "CashOnVisit",
         paymentStatus: "CashOnVisit",
         transactionId: `cash-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -406,35 +465,27 @@ router.post("/cash-on-visit", async (req, res) => {
 
       await booking.save();
 
-      const reservedFrom = new Date(booking.reservationDate);
-      const reservedUntil = new Date(booking.reservationDate);
-
-      const reservation = await Reservation.create({
-        vehicleId: itemId,
-        userId,
-        pickupPoint,
-        dropPoint,
-        reservedFrom,
-        reservedUntil,
-        paymentStatus: "CashOnVisit",
-        paymentId: booking._id.toString(),
-      });
-
+      // Update vehicle availability
       await Vehicle.findByIdAndUpdate(itemId, {
         isAvailable: false,
-        reservedFrom,
-        reservedUntil,
-        $push: { reservations: reservation._id },
+        $push: { reservations: booking._id },
       });
 
       if (vehicle.vendorId?.email) vendorEmail = vehicle.vendorId.email;
     }
 
-    // ✅ Get user email
-    const user = await require("../models/User").findById(userId);
+    // Get User Email
+    const user = await UserModel.findById(userId);
     userEmail = user?.email;
 
-    // ✅ Send email to user
+    // Send Notification to the User about Cash on Visit Booking
+    await Notification.create({
+      userId,
+      role: "user",
+      message: `Your booking for ${productName} is confirmed with Cash on Visit. Please complete the payment in person.`,
+    });
+
+    // Send Email to User
     if (userEmail) {
       await sendEmail(
         userEmail,
@@ -453,26 +504,17 @@ router.post("/cash-on-visit", async (req, res) => {
       );
     }
 
-    // ✅ Send email to vendor
+    // Send Notification to Vendor
     if (vendorEmail) {
-      await sendEmail(
-        vendorEmail,
-        "New Booking - Cash on Visit (Pending)",
-        `
-        <p>Hello Vendor,</p>
-        <p>You have received a new <strong>Cash on Visit</strong> booking:</p>
-        <ul>
-          <li><strong>Booking ID:</strong> ${booking._id}</li>
-          <li><strong>User ID:</strong> ${userId}</li>
-          <li><strong>Total Price:</strong> Rs. ${totalPrice}</li>
-          <li><strong>Status:</strong> Pending</li>
-        </ul>
-        <p>Please prepare for confirmation after payment.</p>
-        `
-      );
+      await Notification.create({
+        userId: vendorEmail, // For vendor notification
+        role: "vendor",
+        message: `A new booking for ${productName} has been made with Cash on Visit by User ID: ${userId}.`,
+      });
     }
 
-    // ✅ Send email to admin
+    // Send Notification to Admin
+    const adminEmail = "tickxplore@gmail.com"; // Admin email
     await sendEmail(
       adminEmail,
       "New Pending Cash on Visit Booking - TickXplore",
@@ -490,16 +532,14 @@ router.post("/cash-on-visit", async (req, res) => {
     );
 
     return res.status(201).json({
-      message: "Booking created with Cash on Visit. Emails sent.",
+      message: "Booking created with Cash on Visit. Notifications and emails sent.",
       bookingId: booking._id,
     });
   } catch (err) {
-    console.error("CashOnVisit Error:", err.message || err);
-    return res.status(500).json({ message: "Failed to book with Cash on Visit" });
+    console.error("Error in booking process:", err.message || err);
+    return res.status(500).json({ message: "Failed to process booking" });
   }
 });
-
-
 
 // paymentRoutes.js
 router.get("/cov-seats/:busId", async (req, res) => {

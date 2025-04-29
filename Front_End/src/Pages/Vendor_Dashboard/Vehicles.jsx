@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { useOutletContext } from "react-router-dom";
@@ -10,12 +10,29 @@ const Vehicles = () => {
   const [editMode, setEditMode] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [reservations, setReservations] = useState([]);
+
   const vendorId = localStorage.getItem("vendorId");
   const API_BASE_URL = "http://localhost:3001/api";
 
   const addVehicle = (formData) => axios.post(`${API_BASE_URL}/vehicles`, formData);
   const updateVehicle = (id, formData) => axios.put(`${API_BASE_URL}/vehicles/${id}`, formData);
   const deleteVehicle = (id) => axios.delete(`${API_BASE_URL}/vehicles/${id}`);
+
+  const fetchReservations = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/reservations/vendor/${vendorId}`);
+      setReservations(res.data.reservations || []);
+    } catch (error) {
+      console.error("Failed to fetch reservations");
+    }
+  };
+
+  useEffect(() => {
+    if (vendorId) {
+      fetchReservations();
+    }
+  }, [vendorId]);
 
   const handleAddNew = () => {
     setIsAdding(true);
@@ -34,7 +51,8 @@ const Vehicles = () => {
       try {
         await deleteVehicle(vehicleId);
         toast.success("Vehicle deleted successfully!");
-        fetchData();
+        fetchData(); // Refresh vehicles
+        fetchReservations(); // Refresh reservations
       } catch (error) {
         toast.error("Error deleting vehicle.");
       }
@@ -50,6 +68,7 @@ const Vehicles = () => {
         onEdit={handleEditVehicle}
         onDelete={handleDeleteVehicle}
         onAddNew={handleAddNew}
+        reservations={reservations}  // ✅ Now available
       />
 
       {(editMode || isAdding) && (
@@ -61,7 +80,10 @@ const Vehicles = () => {
             setEditMode(false);
             setIsAdding(false);
           }}
-          onFetchData={fetchData}
+          onFetchData={() => {
+            fetchData();
+            fetchReservations(); // Refresh after add/edit
+          }}
           addVehicle={addVehicle}
           updateVehicle={updateVehicle}
         />

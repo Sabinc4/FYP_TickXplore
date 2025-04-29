@@ -25,8 +25,8 @@ const AddEditForm = ({
     dropPoint: bus?.dropPoint || "",
     totalSeats: bus?.totalSeats || "",
     isAvailable: vehicle?.isAvailable || true,
-    takeOffDate: (vehicle?.takeOffDate || bus?.takeOffDate)
-      ? new Date(vehicle?.takeOffDate || bus?.takeOffDate).toISOString().slice(0, 16)
+    takeOffDate: type === "buses" && bus?.takeOffDate
+      ? new Date(bus.takeOffDate).toISOString().slice(0, 16)
       : "",
     tripDate: bus?.tripDate || "",
   });
@@ -58,8 +58,9 @@ const AddEditForm = ({
         if (key !== "image" && value) formDataToSend.append(key, value);
       });
 
-      if (!formData.takeOffDate) {
-        toast.error("Please select a take-off date and time");
+      // Validation
+      if (type === "buses" && !formData.takeOffDate) {
+        toast.error("Please select a take-off date and time for the bus");
         return;
       }
 
@@ -167,22 +168,24 @@ const AddEditForm = ({
             />
           )}
 
-          <FormInput
-            label="Take Off Date & Time"
-            type="datetime-local"
-            name="takeOffDate"
-            value={formData.takeOffDate}
-            onChange={(e) => setFormData({ ...formData, takeOffDate: e.target.value })}
-          />
-
+          {/* Only for Buses */}
           {type === "buses" && (
-            <FormInput
-              label="Trip Date"
-              type="date"
-              name="tripDate"
-              value={formData.tripDate}
-              onChange={(e) => setFormData({ ...formData, tripDate: e.target.value })}
-            />
+            <>
+              <FormInput
+                label="Take Off Date & Time"
+                type="datetime-local"
+                name="takeOffDate"
+                value={formData.takeOffDate}
+                onChange={(e) => setFormData({ ...formData, takeOffDate: e.target.value })}
+              />
+              <FormInput
+                label="Trip Date"
+                type="date"
+                name="tripDate"
+                value={formData.tripDate}
+                onChange={(e) => setFormData({ ...formData, tripDate: e.target.value })}
+              />
+            </>
           )}
 
           <div className="col-span-2">

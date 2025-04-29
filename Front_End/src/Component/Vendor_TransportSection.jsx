@@ -1,7 +1,7 @@
 import React from "react";
 import TransportCard from "../Component/Vendor_TransportCard";
 
-const TransportSection = ({ title, items, type, onEdit, onDelete, onAddNew }) => (
+const TransportSection = ({ title, items, type, onEdit, onDelete, onAddNew, reservations = [] }) => (
   <div className="space-y-6">
     <div className="flex justify-between items-center">
       <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
@@ -12,6 +12,7 @@ const TransportSection = ({ title, items, type, onEdit, onDelete, onAddNew }) =>
         Add New
       </button>
     </div>
+
     {items.length === 0 ? (
       <div className="text-center p-6 bg-white rounded-lg shadow-md">
         <p className="text-gray-500 mb-4">No {type}s available.</p>
@@ -31,6 +32,11 @@ const TransportSection = ({ title, items, type, onEdit, onDelete, onAddNew }) =>
             type={type}
             onEdit={onEdit}
             onDelete={onDelete}
+            reservation={
+              type === "vehicle"
+                ? reservations.find(r => String(r.vehicleId) === String(item._id)) // ✅ FIXED here
+                : undefined
+            }
           />
         ))}
       </div>

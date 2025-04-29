@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Booking = require("../models/Booking");
-const Reservation = require("../models/reservationModel");
+const Reservation = require("../models/Reservation");
 
 //Fetch all bookings for a user
 router.get("/bookings/user/:userId", async (req, res) => {

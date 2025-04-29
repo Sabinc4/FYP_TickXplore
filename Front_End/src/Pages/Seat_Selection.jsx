@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaUserTie, FaCalendarAlt, FaMapMarkerAlt } from "react-icons/fa";
+import { FaUserTie, FaCalendarAlt, FaMapMarkerAlt, FaCheck, FaTimes } from "react-icons/fa";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { ClipLoader } from "react-spinners";
@@ -16,11 +16,11 @@ const SeatAvailability = () => {
   const [loading, setLoading] = useState(true);
   const [covSeats, setCovSeats] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState("Online");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const fetchBuses = async () => {
       try {
-        // Fetch bus data
         const response = await axios.get(`http://localhost:3001/api/buses/${id}`);
         const busData = response.data.bus;
         
@@ -29,25 +29,15 @@ const SeatAvailability = () => {
           return;
         }
 
-        // Convert bookedSeats to numbers
         busData.bookedSeats = busData.bookedSeats.map(Number);
         setSelectedBus(busData);
 
-        // DEBUG: Log booked seats
-        console.log("Booked seats:", busData.bookedSeats);
-
-        // Fetch Cash on Visit seats
         const covRes = await axios.get(`http://localhost:3001/api/payments/cov-seats/${id}`);
         const covSeatsData = covRes.data.covSeats || [];
-        
-        // DEBUG: Log CoV seats
-        console.log("CoV seats:", covSeatsData);
-        
-        // Convert CoV seats to numbers and set state
         setCovSeats(covSeatsData.map(Number));
       } catch (error) {
         console.error("Fetch error:", error);
-        toast.error("Failed to fetch data.");
+        showErrorToast("Failed to fetch bus data. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -64,17 +54,13 @@ const SeatAvailability = () => {
   const handleSeatSelection = (seatNumber) => {
     if (!selectedBus) return;
 
-    // DEBUG: Check seat status
-    console.log(`Seat ${seatNumber} - Booked: ${selectedBus.bookedSeats.includes(seatNumber)}, CoV: ${covSeats.includes(seatNumber)}`);
-
-    // Check if seat is booked or CoV reserved
     if (selectedBus.bookedSeats.includes(seatNumber)) {
-      toast.warning("This seat is already booked.");
+      showWarningToast("This seat is already booked.");
       return;
     }
     
     if (covSeats.includes(seatNumber)) {
-      toast.warning("This seat is reserved for Cash on Visit.");
+      showWarningToast("This seat is reserved for Cash on Visit.");
       return;
     }
 
@@ -85,47 +71,16 @@ const SeatAvailability = () => {
 
     setSelectedSeats(newSelectedSeats);
     setTotalPrice(newSelectedSeats.length * selectedBus.pricePerSeat);
-  }; 
+  };
 
   const handleProceedToPayment = () => {
     if (selectedSeats.length === 0) {
-      toast.error("Please select at least one seat.");
+      showErrorToast("Please select at least one seat.");
       return;
     }
-  
+
     if (paymentMethod === "CashOnVisit") {
-      // Create confirmation toast
-      toast.info(
-        <div className="p-4">
-          <h3 className="font-bold text-lg mb-2">Confirm Cash on Visit Booking</h3>
-          <p className="mb-2">
-            Selected Seats: {selectedSeats.map(getSeatLabel).join(", ")}
-          </p>
-          <p className="mb-4">Total Price: Rs. {totalPrice}</p>
-          <div className="flex gap-4">
-            <button
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              onClick={() => {
-                toast.dismiss();
-                handleConfirmCashBooking();
-              }}
-            >
-              Confirm
-            </button>
-            <button
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-              onClick={() => toast.dismiss()}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>,
-        {
-          autoClose: false,
-          closeButton: false,
-          position: "top-center",
-        }
-      );
+      showConfirmationToast();
     } else {
       navigate("/payment", {
         state: {
@@ -137,7 +92,94 @@ const SeatAvailability = () => {
     }
   };
 
-  const handleConfirmCashBooking = async () => {
+  // Toast helper functions
+  const showErrorToast = (message) => {
+    toast.error(message, {
+      position: "top-center",
+      autoClose: 3000,
+      className: "!bg-red-50 !text-red-800",
+      progressClassName: "!bg-red-500",
+    });
+  };
+
+  const showWarningToast = (message) => {
+    toast.warning(message, {
+      position: "top-center",
+      autoClose: 3000,
+      className: "!bg-yellow-50 !text-yellow-800",
+      progressClassName: "!bg-yellow-500",
+    });
+  };
+
+  const showSuccessToast = (message) => {
+    toast.success(message, {
+      position: "top-center",
+      autoClose: 3000,
+      className: "!bg-green-50 !text-green-800",
+      progressClassName: "!bg-green-500",
+    });
+  };
+
+  const showConfirmationToast = () => {
+    toast.dismiss();
+    
+    toast(
+      <div className="p-4 max-w-md w-full">
+        <div className="flex items-start">
+          <div className="flex-shrink-0 pt-0.5">
+            <FaUserTie className="h-6 w-6 text-blue-500" />
+          </div>
+          <div className="ml-3 w-0 flex-1">
+            <h3 className="text-lg font-medium text-gray-900">Confirm Booking</h3>
+            <div className="mt-2 text-sm text-gray-600">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="font-semibold">Seats:</p>
+                  <p>{selectedSeats.map(getSeatLabel).join(", ")}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Total:</p>
+                  <p>Rs. {totalPrice}</p>
+                </div>
+              </div>
+              <div className="mt-2">
+                <p className="font-semibold">Payment Method:</p>
+                <p>Cash on Visit</p>
+              </div>
+              <p className="mt-2 text-xs text-blue-600 italic">
+                * Payment will be collected when boarding the bus
+              </p>
+            </div>
+            <div className="mt-4 flex space-x-3">
+              <button
+                onClick={confirmCashBooking}
+                className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <FaCheck className="mr-2" /> Confirm
+              </button>
+              <button
+                onClick={() => toast.dismiss()}
+                className="flex-1 inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <FaTimes className="mr-2" /> Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>,
+      {
+        position: "top-center",
+        autoClose: false,
+        closeButton: false,
+        closeOnClick: false,
+        draggable: false,
+        className: "!bg-white !text-gray-900 !shadow-xl !rounded-lg !p-0 !max-w-full",
+      }
+    );
+  };
+
+  const confirmCashBooking = async () => {
+    setIsProcessing(true);
     try {
       const response = await axios.post(
         "http://localhost:3001/api/payments/cash-on-visit",
@@ -149,26 +191,25 @@ const SeatAvailability = () => {
           takeOffDate: selectedBus.tripDate,
         }
       );
-  
-      toast.success(
+
+      toast.dismiss();
+      showSuccessToast(
         <div>
-          <p className="font-semibold">Booking Successful!</p>
-          <p>Seats: {selectedSeats.map(getSeatLabel).join(", ")}</p>
-          <p>Total Paid: Rs. {totalPrice}</p>
-          <p>Please arrive 30 minutes before departure</p>
-        </div>,
-        {
-          autoClose: 5000,
-          position: "top-center",
-        }
+          <p className="font-bold">Booking Confirmed!</p>
+          <p className="mt-1">Seats: {selectedSeats.map(getSeatLabel).join(", ")}</p>
+          <p className="mt-1">Reference: {response.data.bookingId}</p>
+          <p className="mt-2 text-sm">Please show this confirmation when boarding</p>
+        </div>
       );
-  
+
       setTimeout(() => {
         navigate("/my-bookings");
       }, 3000);
     } catch (err) {
       console.error("Booking error:", err);
-      toast.error("Booking failed. Please try again.");
+      showErrorToast("Failed to complete booking. Please try again.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -191,7 +232,20 @@ const SeatAvailability = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
-      <ToastContainer position="top-right" autoClose={3000} />
+      <ToastContainer
+        position="top-center"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        toastClassName="!rounded-lg !shadow-lg"
+        bodyClassName="!p-0"
+        progressClassName="!h-1"
+      />
       <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6">
         {/* Journey Details on the Left */}
         <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 flex-1">

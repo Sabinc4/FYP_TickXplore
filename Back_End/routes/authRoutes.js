@@ -33,8 +33,8 @@ router.post("/reset-password", resetPassword);
 
 // ✅ This line was crashing because `changePassword` was NOT destructured before
 router.post("/change-password/:role", protect, changePassword);
-
-// Other
 router.get("/bookings", getAllBookings);
+
+
 
 module.exports = router;

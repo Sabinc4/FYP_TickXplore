@@ -1,8 +1,15 @@
 const mongoose = require("mongoose");
 const uniqueValidator = require("mongoose-unique-validator");
 
+// Vendor Schema
 const VendorSchema = new mongoose.Schema(
   {
+    vendorId: {
+      type: String,
+      required: true,
+      unique: true, // Ensure vendorId is unique
+      default: () => `V${Math.floor(Math.random() * 1000000)}`, // Generate unique vendorId
+    },
     vendorName: {
       type: String,
       required: true,
@@ -19,23 +26,23 @@ const VendorSchema = new mongoose.Schema(
       unique: true,
       trim: true,
       lowercase: true,
-      match: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/,
+      match: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/, // Validate email format
     },
     phoneNumber: {
       type: String,
       required: true,
-      unique: true,
+      unique: true, // Unique constraint on phone number
       match: /^[0-9]{7,15}$/, // Accepts 7–15 digit phone numbers
     },
     password: {
       type: String,
       required: true,
-      minlength: 6,
+      minlength: 6, // Minimum password length
     },
     role: {
       type: String,
       required: true,
-      enum: ["vendor"],
+      enum: ["vendor"], // Only vendor role allowed
       default: "vendor",
     },
     isActive: {
@@ -48,17 +55,17 @@ const VendorSchema = new mongoose.Schema(
     otpExpires: { type: Date },
     isVerified: {
       type: Boolean,
-      default: false,
+      default: false, // Vendor is not verified initially
     },
     profilePhoto: {
       type: String,
-      default: "",
+      default: "", // Default empty string for profile photo
     },
   },
-  { timestamps: true }
+  { timestamps: true } // Automatically add createdAt and updatedAt timestamps
 );
 
-// Apply unique validation
+// Apply unique validation to the schema
 VendorSchema.plugin(uniqueValidator, { message: "{PATH} must be unique." });
 
 const VendorModel = mongoose.model("Vendor", VendorSchema);
