@@ -205,10 +205,32 @@ const cancelBooking = async (req, res) => {
     res.status(500).json({ message: "Server error while cancelling booking" });
   }
 };
-  
-  module.exports = {
-    getUpcomingBookings,
-    getBookingHistory,
-    refundBooking,
-    cancelBooking,
-  };
+
+const getMyBookings = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const bookings = await Booking.find({
+      userId,
+      status: "Booked", // ✅ Only show current Booked ones (not Cancelled, Pending)
+    })
+    .populate("busId vehicleId")
+    .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      bookings,
+    });
+  } catch (error) {
+    console.error("Error fetching my bookings:", error);
+    res.status(500).json({ message: "Error fetching my bookings", error });
+  }
+};
+
+module.exports = {
+  getUpcomingBookings,
+  getBookingHistory,
+  refundBooking,
+  cancelBooking,
+  getMyBookings,
+};

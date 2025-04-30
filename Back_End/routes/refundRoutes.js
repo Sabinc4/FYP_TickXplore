@@ -5,8 +5,13 @@ const {
   getBookingHistory,
   refundBooking,
   cancelBooking,
-} = require("../controllers/refundController");
+  getMyBookings, // ✅ Import this controller
+} = require("../controllers/refundController"); // (assuming refundController has it)
+
 const { protect, authorize } = require("../middleware/authMiddleware");
+
+// New route for Track button
+router.get("/my-bookings/:userId", protect, authorize("user"), getMyBookings);
 
 router.get("/upcoming/:userId", protect, authorize("user"), getUpcomingBookings);
 router.get("/history/:userId", protect, authorize("user"), getBookingHistory);

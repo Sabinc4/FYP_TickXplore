@@ -22,8 +22,6 @@ router.delete("/vendor/:vendorId", verifyToken, adminController.deleteVendorByAd
 router.put("/user/:userId", verifyToken, adminController.editUserByAdmin);  
 router.delete("/user/:userId", verifyToken, adminController.deleteUserByAdmin);  
 
-// Admin Booking Management Routes
-router.get("/bookings", verifyToken, adminController.getAllBookings);
 
 // Admin Delete Routes
 router.delete("/:id", verifyToken, adminController.deleteAdmin);  

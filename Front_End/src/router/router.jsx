@@ -19,6 +19,8 @@ import PaymentCallback from "../Pages/PaymentCallback";
 import MyBookings from "../Pages/MyBookings";
 import Refunds from "../Pages/refund";
 import History from "../Pages/History";
+import LiveTracker from "../Pages/LiveTracker";
+
 // Vendor Dashboard
 import VendorDashboard from "../Pages/Vendor_Dashboard/VendorDashboard";
 import Vehicles from "../Pages/Vendor_Dashboard/Vehicles"; 
@@ -53,6 +55,15 @@ const router = createBrowserRouter([
       { path: "/faqs", element: <FAQs /> },
       { path: "/profile", element: <Profile /> },
 
+      {
+        path: "/user-dashboard/track/:type/:id",
+        element: (
+          <ProtectedRoute allowedRoles={["user"]}>
+            <LiveTracker />
+          </ProtectedRoute>
+        ),
+      },
+      
       {
         path: "/Admin_Dashboard",
         element: (

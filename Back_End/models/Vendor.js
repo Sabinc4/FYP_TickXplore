@@ -61,6 +61,8 @@ const VendorSchema = new mongoose.Schema(
       type: String,
       default: "", // Default empty string for profile photo
     },
+    totalEarnings: { type: Number, default: 0 },
+    totalCommission: { type: Number, default: 0 },
   },
   { timestamps: true } // Automatically add createdAt and updatedAt timestamps
 );

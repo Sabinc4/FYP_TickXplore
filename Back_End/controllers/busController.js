@@ -334,3 +334,26 @@ exports.deleteBus = async (req, res) => {
     });
   }
 };
+
+exports.updateBusLocation = async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body;
+    const bus = await Bus.findById(req.params.id);
+
+    if (!bus) {
+      return res.status(404).json({ message: "Bus not found" });
+    }
+
+    bus.currentLocation = {
+      latitude,
+      longitude,
+      updatedAt: Date.now(),
+    };
+
+    await bus.save();
+    res.json({ message: "Bus location updated successfully" });
+  } catch (error) {
+    console.error("Error updating bus location:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};

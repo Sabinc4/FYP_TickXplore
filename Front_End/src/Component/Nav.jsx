@@ -16,8 +16,10 @@ const Nav = () => {
   const [profileImage, setProfileImage] = useState("");
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [bookingType, setBookingType] = useState("");
+  const [bookingId, setBookingId] = useState("");
 
-  const location = useLocation();
+  const locationHook = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,9 +49,7 @@ const Nav = () => {
         const endpoint = role === "admin" ? "admin" : role === "vendor" ? "vendor" : "users";
         try {
           const res = await fetch(`http://localhost:3001/${endpoint}/${id}`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           });
           const data = await res.json();
           const profile = data.admin || data.vendor || data.user;
@@ -82,9 +82,7 @@ const Nav = () => {
       if (userId && role && token) {
         try {
           const res = await fetch(`http://localhost:3001/api/notifications/${role}/${userId}`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           });
           const data = await res.json();
           setNotifications(data.data || []);
@@ -95,24 +93,55 @@ const Nav = () => {
       }
     };
 
-    if (userLoggedIn) {
-      fetchNotifications();
-    }
-  }, [userLoggedIn]);
+    fetchNotifications();
+  }, []);
 
-  const isActive = (path) =>
-    location.pathname === path ? "text-white font-bold" : "hover:text-slate-100";
+  useEffect(() => {
+    const fetchBookingInfo = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const userId = localStorage.getItem("userId");
+        if (token && userId) {
+          const res = await fetch(`http://localhost:3001/api/bookings/my-bookings/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+
+          if (data.success && data.bookings.length > 0) {
+            const latestBooking = data.bookings[0];
+            if (latestBooking.busId) {
+              setBookingType("bus");
+              setBookingId(
+                typeof latestBooking.busId === "object"
+                  ? latestBooking.busId._id
+                  : latestBooking.busId
+              );
+            } else if (latestBooking.vehicleId) {
+              setBookingType("vehicle");
+              setBookingId(
+                typeof latestBooking.vehicleId === "object"
+                  ? latestBooking.vehicleId._id
+                  : latestBooking.vehicleId
+              );
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching booking info:", err);
+      }
+    };
+
+    if (userLoggedIn && userRole === "user") {
+      fetchBookingInfo();
+    }
+  }, [userLoggedIn, userRole]);
+
+  const isVendorOrAdmin = userRole === "vendor" || userRole === "admin";
+  const isActive = (path) => locationHook.pathname === path ? "text-white font-bold" : "hover:text-slate-100";
 
   const handleLogout = () => {
     toast.dismiss();
-    localStorage.removeItem("token");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("vendorId");
-    localStorage.removeItem("adminId");
-    localStorage.removeItem("userLoggedIn");
-    localStorage.removeItem("userName");
-
+    localStorage.clear();
     setUserLoggedIn(false);
     setDropdownOpen(false);
     toast.success("Logged out successfully!");
@@ -124,24 +153,18 @@ const Nav = () => {
     try {
       await fetch(`http://localhost:3001/api/notifications/${notifId}/read`, {
         method: "PUT",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
-
       setNotifications((prev) =>
         prev.map((notif) =>
           notif._id === notifId ? { ...notif, isRead: true } : notif
         )
       );
-
       setUnreadCount((prev) => Math.max(prev - 1, 0));
     } catch (err) {
       console.error("Error marking notification as read:", err);
     }
   };
-
-  const isVendorOrAdmin = userRole === "vendor" || userRole === "admin";
 
   return (
     <nav className="bg-slate-900 text-slate-400 sticky top-0 z-50">
@@ -171,7 +194,6 @@ const Nav = () => {
 
             {userLoggedIn ? (
               <div className="relative flex items-center space-x-4">
-                {/* Notification Bell */}
                 <div className="relative">
                   <button
                     className="relative text-2xl text-white hover:text-blue-400"
@@ -188,8 +210,6 @@ const Nav = () => {
                       </span>
                     )}
                   </button>
-
-                  {/* Notifications Dropdown */}
                   {notificationOpen && (
                     <div className="absolute right-0 mt-2 w-72 bg-white text-black shadow-lg rounded-md p-2 z-50">
                       <h3 className="font-bold text-center py-2">Notifications</h3>
@@ -210,7 +230,6 @@ const Nav = () => {
                   )}
                 </div>
 
-                {/* Profile Dropdown */}
                 <div className="relative">
                   <button
                     className="w-12 h-12 rounded-full bg-blue-600 overflow-hidden flex items-center justify-center relative"
@@ -224,44 +243,41 @@ const Nav = () => {
                     ) : (
                       <span className="text-xl text-white">{userInitials}</span>
                     )}
-                    <span
-                      className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full text-xs flex items-center justify-center"
-                      title="Logged In"
-                    >
-                      ✓
-                    </span>
                   </button>
 
                   {dropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white text-black shadow-lg rounded-md p-2 z-50">
-                      <Link
-                        to="/profile"
-                        className="block py-2 px-4 hover:bg-slate-100"
-                        onClick={() => setDropdownOpen(false)}
-                      >
-                        Profile
-                      </Link>
-                      <button
-                        onClick={handleLogout}
-                        className="w-full text-left py-2 px-4 hover:bg-slate-100"
-                      >
-                        Log Out
-                      </button>
+                      <Link to="/profile" className="block py-2 px-4 hover:bg-slate-100" onClick={() => setDropdownOpen(false)}>Profile</Link>
+
+                      {userRole === "user" && bookingType && bookingId && (
+                        <Link
+                          to={`/user-dashboard/track/${bookingType}/${bookingId}`}
+                          className="block py-2 px-4 hover:bg-slate-100"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          Track
+                        </Link>
+                      )}
+                      {userRole === "user" && (
+                        <>
+                          <Link to="/my-bookings" className="block py-2 px-4 hover:bg-slate-100" onClick={() => setDropdownOpen(false)}>My Bookings</Link>
+                          <Link to="/refunds" className="block py-2 px-4 hover:bg-slate-100" onClick={() => setDropdownOpen(false)}>Refunds</Link>
+                          <Link to="/history" className="block py-2 px-4 hover:bg-slate-100" onClick={() => setDropdownOpen(false)}>Booking History</Link>
+                        </>
+                      )}
+                      <button onClick={handleLogout} className="w-full text-left py-2 px-4 hover:bg-slate-100">Log Out</button>
                     </div>
                   )}
                 </div>
               </div>
             ) : (
               <Link to="/sign-in">
-                <button className="py-3 px-6 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition">
-                  Sign In
-                </button>
+                <button className="py-3 px-6 bg-blue-600 text-white font-bold rounded-full hover:bg-blue-700 transition">Sign In</button>
               </Link>
             )}
           </ul>
         </div>
 
-        {/* Hamburger for Mobile */}
         <div className="lg:hidden">
           <button onClick={() => setClick(!click)} className="text-3xl text-white">
             {click ? <FaTimes /> : <CiMenuBurger />}

@@ -14,7 +14,6 @@ const {
   verifyOTP,
   verifyResetOtp,
   resetPassword,
-  getAllBookings,
   changePassword,
 } = authController;
 
@@ -33,7 +32,6 @@ router.post("/reset-password", resetPassword);
 
 // ✅ This line was crashing because `changePassword` was NOT destructured before
 router.post("/change-password/:role", protect, changePassword);
-router.get("/bookings", getAllBookings);
 
 
 
