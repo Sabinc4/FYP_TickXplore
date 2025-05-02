@@ -4,6 +4,8 @@ const Vendor = require("../models/Vendor");
 const path = require("path");
 const fs = require("fs");
 const { sendEmail } = require("../utils/sendEmail");
+const Booking = require("../models/Booking");
+
 
 
 // Get Vendor Profile
@@ -145,26 +147,6 @@ exports.updateVendor = async (req, res) => {
   }
 };
 
-// Toggle Vendor Status
-exports.toggleVendorStatus = async (req, res) => {
-  try {
-    const vendor = await Vendor.findById(req.params.vendorId);
-    if (!vendor) {
-      return res.status(404).json({ message: "Vendor not found" });
-    }
-
-    vendor.isActive = !vendor.isActive;
-    await vendor.save();
-
-    res.status(200).json({
-      message: `Vendor ${vendor.isActive ? "activated" : "deactivated"} successfully`,
-      vendor,
-    });
-  } catch (error) {
-    console.error("Error toggling vendor status:", error);
-    res.status(500).json({ message: "Failed to toggle vendor status" });
-  }
-};
 
 // Delete Vendor (Admin)
 exports.deleteVendor = async (req, res) => {
@@ -180,3 +162,31 @@ exports.deleteVendor = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to delete vendor", error: err.message });
   }
 };
+
+exports.getBookingsByVendor = async (req, res) => {
+  try {
+    const { vendorId } = req.query;
+    if (!vendorId) return res.status(400).json({ message: "Vendor ID is required" });
+
+    // Fetch bus and vehicle IDs owned by vendor
+    const buses = await Bus.find({ vendorId }).select("_id");
+    const vehicles = await Vehicle.find({ vendorId }).select("_id");
+
+    const busIds = buses.map(b => b._id);
+    const vehicleIds = vehicles.map(v => v._id);
+
+    const bookings = await Booking.find({
+      $or: [
+        { busId: { $in: busIds } },
+        { vehicleId: { $in: vehicleIds } }
+      ]
+    }).populate("userId busId vehicleId");
+
+    res.status(200).json({ bookings });
+  } catch (error) {
+    console.error("Error fetching bookings for vendor:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+

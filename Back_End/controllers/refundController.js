@@ -206,6 +206,32 @@ const cancelBooking = async (req, res) => {
   }
 };
 
+const getBookingsByVendor = async (req, res) => {
+  try {
+    const { vendorId } = req.query;
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "vendorId is required" });
+    }
+
+    const bookings = await Booking.find({
+      $or: [
+        { busId: { $exists: true }, vendorId },
+        { vehicleId: { $exists: true }, vendorId },
+      ],
+    }).populate("userId busId vehicleId");
+
+    res.status(200).json({
+      success: true,
+      bookings,
+    });
+  } catch (error) {
+    console.error("Error fetching vendor bookings:", error);
+    res.status(500).json({ message: "Error fetching vendor bookings", error });
+  }
+};
+
+
 const getMyBookings = async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -233,4 +259,5 @@ module.exports = {
   refundBooking,
   cancelBooking,
   getMyBookings,
+  getBookingsByVendor,
 };

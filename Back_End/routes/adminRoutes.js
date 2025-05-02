@@ -1,29 +1,35 @@
 const express = require("express");
 const router = express.Router();
 const adminController = require("../controllers/adminController");
-const verifyToken = require("../middleware/verifyToken"); 
+const verifyToken = require("../middleware/verifyToken");
 
-// Admin Authentication Routes
-router.post("/forgot-password", adminController.forgotPassword);  
-router.post("/reset-password", adminController.resetPassword);  
+// Admin Authentication
+router.post("/forgot-password", adminController.forgotPassword);
+router.post("/reset-password", adminController.resetPassword);
 
-// Admin Profile Routes
-router.get("/profile", verifyToken, adminController.getProfile); 
-router.get("/all", verifyToken, adminController.getAllAdmins);  
-router.get("/:id", verifyToken, adminController.getAdminById); 
-router.put("/:id", verifyToken, adminController.updateAdmin);  
+// Admin Profile & Listings
+router.get("/profile", verifyToken, adminController.getProfile);
+router.get("/all", verifyToken, adminController.getAllAdmins);
 
-// Admin Vendor Management Routes
-router.put("/vendor/:vendorId/status", verifyToken, adminController.toggleVendorStatus);  
-router.put("/vendor/:vendorId", verifyToken, adminController.editVendorByAdmin);  
-router.delete("/vendor/:vendorId", verifyToken, adminController.deleteVendorByAdmin);  
+//  MUST come before `/:id`
+router.get("/bookings", verifyToken, adminController.getAllBookings);
 
-// Admin User Management Routes
-router.put("/user/:userId", verifyToken, adminController.editUserByAdmin);  
-router.delete("/user/:userId", verifyToken, adminController.deleteUserByAdmin);  
+// Always put dynamic routes last
+router.get("/:id", verifyToken, adminController.getAdminById);
+router.put("/:id", verifyToken, adminController.updateAdmin);
+router.delete("/:id", verifyToken, adminController.deleteAdmin);
+
+// Support old toggle route
+router.put("/toggle-vendor/:vendorId", verifyToken, adminController.toggleVendorStatus);
+
+// Vendor Management
+router.put("/vendor/:vendorId/status", verifyToken, adminController.toggleVendorStatus);
+router.put("/vendor/:vendorId", verifyToken, adminController.editVendorByAdmin);
+router.delete("/vendor/:vendorId", verifyToken, adminController.deleteVendorByAdmin);
 
 
-// Admin Delete Routes
-router.delete("/:id", verifyToken, adminController.deleteAdmin);  
+// User Management
+router.put("/user/:userId", verifyToken, adminController.editUserByAdmin);
+router.delete("/user/:userId", verifyToken, adminController.deleteUserByAdmin);
 
 module.exports = router;

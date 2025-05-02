@@ -7,8 +7,8 @@ const {
   cancelBooking,
   getMyBookings, // ✅ Import this controller
 } = require("../controllers/refundController"); // (assuming refundController has it)
-
 const { protect, authorize } = require("../middleware/authMiddleware");
+const vendorController = require("../controllers/vendorController");
 
 // New route for Track button
 router.get("/my-bookings/:userId", protect, authorize("user"), getMyBookings);

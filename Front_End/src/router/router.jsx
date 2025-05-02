@@ -28,7 +28,6 @@ import Buses from "../Pages/Vendor_Dashboard/Buses";
 import Bookings from "../Pages/Admin_Dashboard/Bookings";
 // Admin Dashboard
 import AdminDashboard from "../Pages/Admin_Dashboard/AdminDashboard";
-import Admins from "../Pages/Admin_Dashboard/Admins";
 import DashboardHome from "../Pages/Admin_Dashboard/DashboardHome";
 import Users from "../Pages/Admin_Dashboard/Users";
 import Admin_Vendors from "../Pages/Admin_Dashboard/Admin_Vendors";
@@ -75,7 +74,6 @@ const router = createBrowserRouter([
           { index: true, element: <DashboardHome /> },
           { path: "users", element: <Users /> },
           { path: "vendors", element: <Admin_Vendors /> },
-          { path: "admins", element: <Admins /> },
           { path: "buses", element: <Admin_Buses /> },
           { path: "vehicles", element: <Admin_Vehicles /> },
           { path: "bookings", element: <Bookings /> },

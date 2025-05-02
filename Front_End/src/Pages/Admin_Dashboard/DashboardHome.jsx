@@ -1,5 +1,7 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+} from 'recharts';
 import { useOutletContext } from 'react-router-dom';
 
 const DashboardHome = () => {
@@ -8,10 +10,13 @@ const DashboardHome = () => {
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
 
+  // Filter out Admins if present
+  const filteredData = dashboardData.filter(item => item.name.toLowerCase() !== 'admins');
+
   return (
     <div className="space-y-6 md:space-y-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 md:gap-6">
-        {dashboardData.map((item) => (
+        {filteredData.map((item) => (
           <div
             key={item.name}
             className="bg-white p-4 md:p-6 rounded-lg md:rounded-xl shadow-sm hover:shadow-md transition-all"
@@ -34,7 +39,7 @@ const DashboardHome = () => {
         <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">Entity Distribution</h2>
         <div className="h-64 md:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dashboardData}>
+            <BarChart data={filteredData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />

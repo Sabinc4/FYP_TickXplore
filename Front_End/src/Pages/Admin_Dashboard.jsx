@@ -16,7 +16,6 @@ const AdminDashboard = () => {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [users, setUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
-  const [admins, setAdmins] = useState([]);
   const [buses, setBuses] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -64,8 +63,7 @@ const AdminDashboard = () => {
     try {
       const [
         usersRes, 
-        vendorsRes, 
-        adminsRes, 
+        vendorsRes,  
         busesRes, 
         vehiclesRes, 
         bookingsRes,
@@ -73,7 +71,6 @@ const AdminDashboard = () => {
       ] = await Promise.all([
         axios.get("http://localhost:3001/admin/dashboard/get-users", config),
         axios.get("http://localhost:3001/admin/dashboard/get-vendors", config),
-        axios.get("http://localhost:3001/admin/dashboard/get-admins", config),
         axios.get("http://localhost:3001/api/buses?admin=true", config),
         axios.get("http://localhost:3001/api/vehicles?admin=true", config),
         axios.get("http://localhost:3001/admin/bookings", config),
@@ -82,7 +79,6 @@ const AdminDashboard = () => {
       
       setUsers(usersRes.data.users || []);
       setVendors(vendorsRes.data.vendors || []);
-      setAdmins(adminsRes.data.admins || []);
       setBuses(busesRes.data.buses || busesRes.data.data || []);
       setVehicles(vehiclesRes.data.vehicles || vehiclesRes.data.data || []);
       setNotifications(notificationsRes.data.notifications || []);
@@ -131,7 +127,7 @@ const AdminDashboard = () => {
   const toggleVendorStatus = async (vendorId) => {
     try {
       const { data } = await axios.put(
-        `http://localhost:3001/admin/toggle-vendor/${vendorId}`,
+        `http://localhost:3001/admin/vendor/${vendorId}/status`,
         {},
         config
       );
@@ -141,6 +137,8 @@ const AdminDashboard = () => {
       toast.error(error.response?.data?.message || "Failed to update vendor status");
     }
   };
+  
+  
 
   const handleDeleteUser = async (userId) => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
@@ -281,18 +279,14 @@ const AdminDashboard = () => {
     "dashboard",
     "users",
     "vendors",
-    "admins",
     "buses",
     "vehicles",
     "bookings",
-    "notifications",
-    "profile"
   ];
 
   const dashboardData = [
     { name: "Users", count: users.length, color: "#3B82F6" },
     { name: "Vendors", count: vendors.length, color: "#10B981" },
-    { name: "Admins", count: admins.length, color: "#F59E0B" },
     { name: "Buses", count: buses.length, color: "#8B5CF6" },
     { name: "Vehicles", count: vehicles.length, color: "#EF4444" },
     { name: "Bookings", count: bookings.length, color: "#EC4899" },
@@ -750,29 +744,6 @@ const AdminDashboard = () => {
                   onEdit={(vendor) => handleEditClick(vendor, 'vendor')}
                   onDelete={handleDeleteVendor}
                   onToggleStatus={toggleVendorStatus}
-                />
-              </div>
-            )}
-
-            {activeSection === "admins" && (
-              <div className="bg-white p-6 rounded-lg shadow">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold">Admins</h2>
-                  <div className="w-64">
-                    <input
-                      type="text"
-                      placeholder="Search admins..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-                <DataTable
-                  data={filterData(admins, ["name", "email"])}
-                  fields={["name", "email"]}
-                  headers={["Name", "Email"]}
-                  renderCell={(item, field) => item[field]}
                 />
               </div>
             )}

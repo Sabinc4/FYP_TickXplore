@@ -4,11 +4,10 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import useAdminData from '../../hooks/useAdminData';
 
-
 const AdminDashboard = () => {
   const location = useLocation();
   const {
-    users, vendors, admins, buses, vehicles, bookings,
+    users, vendors, buses, vehicles, bookings,
     dashboardData, handleEditClick, handleDeleteUser, 
     handleDeleteVendor, toggleVendorStatus, loading, error
   } = useAdminData();
@@ -42,7 +41,7 @@ const AdminDashboard = () => {
             location.pathname.split('/')[2] || 'dashboard'
           }
         >
-          {["dashboard", "users", "vendors", "admins", "buses", "vehicles", "bookings"].map(
+          {["dashboard", "users", "vendors", "buses", "vehicles", "bookings"].map(
             (section) => (
               <option key={section} value={section}>
                 {section.charAt(0).toUpperCase() + section.slice(1)}
@@ -56,7 +55,7 @@ const AdminDashboard = () => {
       <aside className="hidden md:block w-56 lg:w-64 bg-white shadow-xl p-4 lg:p-6 border-r">
         <h2 className="text-xl lg:text-2xl font-bold mb-6 lg:mb-8 text-blue-700">Admin Dashboard</h2>
         <ul className="space-y-2 lg:space-y-3">
-          {["dashboard", "users", "vendors", "admins", "buses", "vehicles", "bookings"].map(
+          {["dashboard", "users", "vendors", "buses", "vehicles", "bookings"].map(
             (section) => (
               <li
                 key={section}
@@ -81,7 +80,7 @@ const AdminDashboard = () => {
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
         <Outlet context={{
-          users, vendors, admins, buses, vehicles, bookings,
+          users, vendors, buses, vehicles, bookings,
           dashboardData, handleEditClick, handleDeleteUser,
           handleDeleteVendor, toggleVendorStatus, loading, error
         }} />

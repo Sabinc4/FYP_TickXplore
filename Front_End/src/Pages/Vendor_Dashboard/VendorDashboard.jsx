@@ -1,17 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, PieChart, Pie, Cell
 } from "recharts";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
@@ -29,17 +20,26 @@ const VendorDashboard = () => {
   });
 
   const vendorId = localStorage.getItem("vendorId");
+  const token = localStorage.getItem("token");
   const location = useLocation();
   const API_BASE_URL = "http://localhost:3001/api";
+
+  // Axios instance with Authorization header
+  const authAxios = axios.create({
+    baseURL: API_BASE_URL,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
   const fetchData = useCallback(async () => {
     try {
       setDashboardData((prev) => ({ ...prev, loading: true, error: null }));
 
       const [vehiclesRes, busesRes, bookingsRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/vehicles?vendorId=${vendorId}`),
-        axios.get(`${API_BASE_URL}/buses?vendorId=${vendorId}`),
-        axios.get(`${API_BASE_URL}/bookings?vendorId=${vendorId}`),
+        authAxios.get(`/vehicles?vendorId=${vendorId}`),
+        authAxios.get(`/buses?vendorId=${vendorId}`),
+        authAxios.get(`/bookings?vendorId=${vendorId}`),
       ]);
 
       const newData = {

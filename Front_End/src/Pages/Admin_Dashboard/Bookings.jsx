@@ -9,7 +9,7 @@ const Bookings = () => {
   const [bookingType, setBookingType] = useState('bus');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch bookings data from API
+  // Fetch bookings data from backend
   const fetchBookings = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -30,16 +30,50 @@ const Bookings = () => {
     fetchBookings();
   }, []);
 
-  // Filter the bookings based on type (bus or vehicle) and search query
+  // Filter bookings by type (bus or vehicle) and search
   const filteredBookings = bookings
-    .filter(booking => bookingType === 'bus' ? booking.busId : booking.vehicleId)  // Adjust filter condition
-    .filter(booking => 
+    .filter(booking =>
+      bookingType === 'bus' ? booking.bus : booking.vehicle
+    )
+    .filter(booking =>
       booking._id.includes(searchQuery) ||
-      (booking.user?.name?.toLowerCase()?.includes(searchQuery.toLowerCase())) ||
-      (booking.busId?.name?.toLowerCase()?.includes(searchQuery.toLowerCase())) ||  // Ensure field matches
-      (booking.vehicleId?.name?.toLowerCase()?.includes(searchQuery.toLowerCase()))
+      (booking.user?.name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (booking.bus?.name?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (booking.vehicle?.name?.toLowerCase().includes(searchQuery.toLowerCase()))
     );
 
+  // Fields to show in the table for each type
+  const fields = bookingType === 'bus'
+    ? ["_id", "user.name", "bus.name", "selectedSeats", "totalPrice", "commissionAmount", "vendorEarnings", "status", "date"]
+    : ["_id", "user.name", "vehicle.name", "pickupPoint", "dropPoint", "totalPrice", "commissionAmount", "vendorEarnings", "status", "date"];
+
+  // Headers to display for each type
+  const headers = bookingType === 'bus'
+    ? ["Booking ID", "User", "Bus", "Seats", "Price", "Commission", "Vendor Earnings", "Status", "Date"]
+    : ["Booking ID", "User", "Vehicle", "Pickup", "Drop", "Price", "Commission", "Vendor Earnings", "Status", "Date"];
+
+  // Render each cell
+  const renderCell = (item, field) => {
+    if (field.includes('.')) {
+      return field.split('.').reduce((obj, key) => (obj ? obj[key] : 'N/A'), item);
+    }
+
+    if (["commissionAmount", "vendorEarnings", "totalPrice"].includes(field)) {
+      return item[field] != null ? `Rs. ${item[field].toFixed(2)}` : 'N/A';
+    }
+
+    if (field === "selectedSeats") {
+      return item[field]?.length ? item[field].join(", ") : "N/A";
+    }
+
+    if (field === "date" || field === "createdAt") {
+      return item[field] ? new Date(item[field]).toLocaleString() : "N/A";
+    }
+
+    return item[field] ?? 'N/A';
+  };
+
+  // UI
   if (loading) return <div>Loading bookings...</div>;
   if (error) return <div>Error loading bookings: {error}</div>;
 
@@ -59,7 +93,7 @@ const Bookings = () => {
           Vehicle Bookings
         </button>
       </div>
-      
+
       <input
         type="text"
         placeholder="Search bookings..."
@@ -71,18 +105,9 @@ const Bookings = () => {
       <DataTable
         title={`${bookingType === 'bus' ? 'Bus' : 'Vehicle'} Bookings`}
         data={filteredBookings}
-        fields={bookingType === 'bus' ? 
-          ["_id", "user.name", "busId.name", "selectedSeats", "totalPrice", "status", "createdAt"] : 
-          ["_id", "user.name", "vehicleId.name", "pickupPoint", "dropPoint", "totalPrice", "status", "createdAt"]}
-        headers={bookingType === 'bus' ? 
-          ["Booking ID", "User", "Bus", "Seats", "Price", "Status", "Date"] : 
-          ["Booking ID", "User", "Vehicle", "Pickup", "Drop", "Price", "Status", "Date"]}
-        renderCell={(item, field) => {
-          if (field.includes('.')) {
-            return field.split('.').reduce((obj, key) => (obj ? obj[key] : 'N/A'), item);
-          }
-          return item[field] ? item[field] : 'N/A';
-        }}
+        fields={fields}
+        headers={headers}
+        renderCell={renderCell}
         disableEdit={true}
       />
     </div>
