@@ -102,7 +102,7 @@ const Nav = () => {
         const token = localStorage.getItem("token");
         const userId = localStorage.getItem("userId");
         if (token && userId) {
-          const res = await fetch(`http://localhost:3001/api/bookings/my-bookings/${userId}`, {
+          const res = await fetch(`http://localhost:3001/api/refunds/my-bookings/${userId}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const data = await res.json();
@@ -137,7 +137,8 @@ const Nav = () => {
   }, [userLoggedIn, userRole]);
 
   const isVendorOrAdmin = userRole === "vendor" || userRole === "admin";
-  const isActive = (path) => locationHook.pathname === path ? "text-white font-bold" : "hover:text-slate-100";
+  const isActive = (path) =>
+    locationHook.pathname === path ? "text-white font-bold" : "hover:text-slate-100";
 
   const handleLogout = () => {
     toast.dismiss();
@@ -147,6 +148,13 @@ const Nav = () => {
     toast.success("Logged out successfully!");
     navigate("/sign-in");
     window.dispatchEvent(new Event("storageUpdate"));
+  };
+
+  const handleLogoClick = () => {
+    if (userRole === "user") navigate("/");
+    else if (userRole === "vendor") navigate("/VendorDashboard");
+    else if (userRole === "admin") navigate("/Admin_Dashboard");
+    else navigate("/");
   };
 
   const markNotificationAsRead = async (notifId) => {
@@ -169,7 +177,7 @@ const Nav = () => {
   return (
     <nav className="bg-slate-900 text-slate-400 sticky top-0 z-50">
       <div className="flex justify-between items-center lg:py-5 px-8 py-4">
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 cursor-pointer" onClick={handleLogoClick}>
           <img src={logo} alt="TickXplore Logo" className="w-10 h-10" />
         </div>
 

@@ -238,7 +238,7 @@ const getMyBookings = async (req, res) => {
 
     const bookings = await Booking.find({
       userId,
-      status: "Booked", // ✅ Only show current Booked ones (not Cancelled, Pending)
+      status: "Booked", //
     })
     .populate("busId vehicleId")
     .sort({ createdAt: -1 });

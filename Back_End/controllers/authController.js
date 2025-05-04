@@ -331,5 +331,3 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({ message: "Error changing password", error: error.message });
   }
 }; 
-
-

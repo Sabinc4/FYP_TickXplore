@@ -19,7 +19,7 @@ const Refunds = () => {
 
   const fetchBookings = async () => {
     try {
-      const res = await axios.get(`http://localhost:3001/api/bookings/upcoming/${userId}`, {
+      const res = await axios.get(`http://localhost:3001/api/refunds/upcoming/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUpcomingBookings(res.data || []);
@@ -34,13 +34,13 @@ const Refunds = () => {
     if (!reason.trim()) return toast.error("Please enter a refund reason.");
     try {
       await axios.put(
-        `http://localhost:3001/api/bookings/cancel/${selectedBooking._id}`,
+        `http://localhost:3001/api/refunds/cancel/${selectedBooking._id}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       await axios.post(
-        `http://localhost:3001/api/bookings/refund/${selectedBooking._id}`,
+        `http://localhost:3001/api/refunds/refund/${selectedBooking._id}`,
         {
           refundAmount: selectedBooking.totalPrice,
           reason,

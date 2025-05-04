@@ -1,0 +1,83 @@
+[
+    {
+      "location": "Kathmandu",
+      "info": "Popular tourist areas in Kathmandu include Swayambhunath, Boudhanath, Pashupatinath Temple, and Kathmandu Durbar Square. Vehicles available include tourist buses, jeeps, and 4x4s."
+    },
+    {
+      "location": "Pokhara",
+      "info": "Pokhara is famous for its serene lakes like Phewa Lake, viewpoints like Sarangkot and World Peace Pagoda, and adventure sports. You can book jeeps, Scorpios, and tourist buses from TickXplore."
+    },
+    {
+      "location": "Chitwan",
+      "info": "Chitwan is known for Chitwan National Park, jungle safaris, and wildlife experiences. TickXplore offers jeep and 4x4 vehicle bookings to this area."
+    },
+    {
+      "location": "Lumbini",
+      "info": "Lumbini is the birthplace of Lord Buddha and includes the Maya Devi Temple. TickXplore offers both bus and private vehicle bookings to Lumbini."
+    },
+    {
+      "location": "Rara",
+      "info": "Rara Lake is a remote but beautiful destination. TickXplore offers specially reserved off-road jeeps and 4x4s for long-distance travel to Rara."
+    },
+    {
+      "location": "Mustang",
+      "info": "Mustang is popular for its Himalayan desert landscapes and Buddhist culture. TickXplore offers Scorpios and 4x4s for high-altitude travel to this region."
+    },
+    {
+      "location": "Vehicle Booking",
+      "info": "TickXplore allows you to book buses, jeeps, 4x4s, and Scorpios for both tourist areas and intercity travel. Each vehicle can be booked online or paid via Cash on Visit. Users can select custom pickup and drop points."
+    },
+    {
+      "location": "Refund Policy",
+      "info": "TickXplore allows refunds for upcoming bookings. You can request a refund with a reason. The admin reviews the request and approves it via email notification."
+    },
+    {
+      "location": "Payment Options",
+      "info": "TickXplore supports online payments via Khalti and also offers Cash on Visit (CoV) bookings. Both methods ensure secure transactions and booking confirmation."
+    },
+    {
+      "location": "Chatbot",
+      "info": "This chatbot uses TinyLlama with Retrieval-Augmented Generation (RAG) to help you get answers related to tourist areas, bookings, refunds, and policies."
+    },
+    {
+      "location": "Vendors",
+      "info": "TickXplore allows verified vendors to register and manage their own buses or vehicles. Vendors can upload vehicle images, set prices, and track bookings from their dashboard."
+    },
+    {
+      "location": "Admin Role",
+      "info": "TickXplore admins can manage users, vendors, vehicles, and bookings. They can approve refund requests, monitor commission earnings, and receive notifications when actions occur."
+    },
+    {
+      "location": "Commission System",
+      "info": "TickXplore applies a commission on every completed booking. Admins can view total commission earned from bus and vehicle transactions in their dashboard."
+    },
+    {
+      "location": "Booking Notifications",
+      "info": "Vendors and users receive notifications when bookings are made, refunded, or cancelled. Admins are notified of new vendors, refund requests, and earnings updates."
+    },
+    {
+      "location": "Custom Pickup and Drop",
+      "info": "During vehicle booking, users can specify their own pickup and drop-off locations. This adds flexibility for tourist-based travel planning."
+    },
+    {
+      "location": "Booking History",
+      "info": "Users and vendors can view their full booking history including status, date, price, vehicle type, and refund status directly from their dashboard."
+    },
+    {
+      "location": "FAQs",
+      "info": "The FAQs section in TickXplore covers common questions about booking process, payment methods, refund conditions, and contact details for support."
+    },
+    {
+      "location": "Cash On Visit",
+      "info": "TickXplore offers a Cash on Visit (CoV) payment method where users can pay the vendor directly at the time of travel instead of online."
+    },
+    {
+      "location": "Seat Booking",
+      "info": "Users can select specific seats when booking buses. Booked seats are marked unavailable in real-time to avoid conflicts."
+    },
+    {
+      "location": "Tourist Booking",
+      "info": "In addition to buses and jeeps, TickXplore enables bookings for tourist entry to certain areas or packages, making it a one-stop travel platform."
+    }
+  ]
+  
