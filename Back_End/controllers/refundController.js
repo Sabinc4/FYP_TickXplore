@@ -237,6 +237,7 @@ const getMyBookings = async (req, res) => {
     const userId = req.params.userId;
 
     const bookings = await Booking.find({
+      
       userId,
       status: "Booked", //
     })

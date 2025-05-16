@@ -39,14 +39,14 @@ const Tourist_Areas = () => {
           );
           return 0;
         }
-        return prev + 10; // Adjust based on your interval timing
+        return prev + 10; 
       });
-    }, 300); // Adjust the interval for smoother progress
+    }, 300);
 
     return () => clearInterval(interval);
   }, [isPaused, currentIndex]);
 
-  // Keyboard Navigation (Left/Right Arrows)
+  
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === "ArrowLeft") handlePrevious();
@@ -65,7 +65,6 @@ const Tourist_Areas = () => {
     img.onload = () => setLoaded(true);
   }, [currentIndex]);
 
-  // Preload next and previous images
   useEffect(() => {
     const preloadImages = [
       images[(currentIndex + 1) % images.length].src,
@@ -179,7 +178,6 @@ const Tourist_Areas = () => {
               </p>
               <button
                 onClick={() => {
-                  // Redirect or open a modal with more info
                 }}
                 className="mt-4 px-4 py-2 bg-white text-black rounded-full hover:bg-gray-200 transition-all text-sm md:text-base"
               >
@@ -187,7 +185,6 @@ const Tourist_Areas = () => {
               </button>
             </div>
 
-            {/* Right Arrow */}
             <button
               onClick={handleNext}
               aria-label="Next Slide"
@@ -198,7 +195,6 @@ const Tourist_Areas = () => {
           </div>
         </div>
 
-        {/* Progress Bar */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-1/2 md:w-1/3 h-1 bg-gray-400 rounded-full">
           <div
             className="h-1 bg-white rounded-full"
@@ -206,7 +202,6 @@ const Tourist_Areas = () => {
           ></div>
         </div>
 
-        {/* Navigation Dots */}
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
           {images.map((_, index) => (
             <button
@@ -219,7 +214,6 @@ const Tourist_Areas = () => {
           ))}
         </div>
 
-        {/* Fullscreen Button */}
         <button
           onClick={toggleFullscreen}
           className="absolute top-4 right-4 text-white text-xl md:text-2xl bg-gray-800 bg-opacity-50 p-2 rounded-full hover:bg-opacity-80"
@@ -228,7 +222,6 @@ const Tourist_Areas = () => {
         </button>
       </div>
 
-      {/* Tourist Visit Section */}
       <TouristVisit />
     </>
   );

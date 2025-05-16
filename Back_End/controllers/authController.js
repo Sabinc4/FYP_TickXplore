@@ -3,11 +3,10 @@ const mongoose = require('mongoose');
 const AdminModel = require('../models/Admin');
 const VendorModel = require('../models/Vendor');
 const UserModel = require('../models/User');
-const generateToken = require("../utils/generateToken");
+const { generateAccessToken, generateRefreshToken } = require("../utils/generateToken");
 const { sendEmail, sendSignupOTP } = require("../utils/sendEmail");
 const generateOTP = require("../utils/generateOTP");
 const Notification = require("../models/Notification");
-const Booking = require("../models/Booking");
 
 exports.register = async (req, res) => {
   console.log("Registration data received:", req.body);
@@ -133,14 +132,14 @@ exports.register = async (req, res) => {
   }
 };
 
-// Sign-in Controller
 exports.signIn = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await UserModel.findOne({ email }) || 
-                 await VendorModel.findOne({ email }) || 
-                 await AdminModel.findOne({ email });
+    const user =
+      (await UserModel.findOne({ email })) ||
+      (await VendorModel.findOne({ email })) ||
+      (await AdminModel.findOne({ email }));
 
     if (!user) return res.status(400).json({ message: "User not found." });
 
@@ -151,11 +150,25 @@ exports.signIn = async (req, res) => {
       return res.status(403).json({ message: "Account is not verified. Please verify your OTP." });
     }
 
-    const token = generateToken(user._id, user.role);
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    // Set refresh token as httpOnly cookie
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+      maxAge: 15 * 60 * 1000
+    });
+
     res.status(200).json({
       message: "Login successful",
-      token,
-      user: { _id: user._id, email: user.email, role: user.role },
+      token: accessToken,
+      user: {
+        _id: user._id,
+        email: user.email,
+        role: user.role,
+      },
     });
   } catch (error) {
     console.error("Sign-in error:", error.message);

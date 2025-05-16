@@ -3,7 +3,6 @@ const UserModel = require('../models/User');
 const AdminModel = require('../models/Admin');
 const VendorModel = require('../models/Vendor');
 
-
 exports.verifyOTP = async (req, res) => {
   const { email, otp, role } = req.body;
 

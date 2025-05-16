@@ -163,28 +163,3 @@ exports.deleteVendor = async (req, res) => {
   }
 };
 
-exports.getBookingsByVendor = async (req, res) => {
-  try {
-    const { vendorId } = req.query;
-    if (!vendorId) return res.status(400).json({ message: "Vendor ID is required" });
-
-    // Fetch bus and vehicle IDs owned by vendor
-    const buses = await Bus.find({ vendorId }).select("_id");
-    const vehicles = await Vehicle.find({ vendorId }).select("_id");
-
-    const busIds = buses.map(b => b._id);
-    const vehicleIds = vehicles.map(v => v._id);
-
-    const bookings = await Booking.find({
-      $or: [
-        { busId: { $in: busIds } },
-        { vehicleId: { $in: vehicleIds } }
-      ]
-    }).populate("userId busId vehicleId");
-
-    res.status(200).json({ bookings });
-  } catch (error) {
-    console.error("Error fetching bookings for vendor:", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-};

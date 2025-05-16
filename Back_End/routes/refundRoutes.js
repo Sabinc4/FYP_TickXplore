@@ -5,8 +5,8 @@ const {
   getBookingHistory,
   refundBooking,
   cancelBooking,
-  getMyBookings, // ✅ Import this controller
-} = require("../controllers/refundController"); // (assuming refundController has it)
+  getMyBookings, 
+} = require("../controllers/refundController");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
 // New route for Track button

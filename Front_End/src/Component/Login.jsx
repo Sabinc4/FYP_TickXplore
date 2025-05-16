@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../utils/axiosInstance";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { FiEye, FiEyeOff, FiMail, FiLock, FiArrowRight, FiUser } from "react-icons/fi";
+import { FiEye, FiEyeOff, FiMail, FiLock } from "react-icons/fi";
+import { jwtDecode } from "jwt-decode";
+
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -35,22 +37,18 @@ export default function Login() {
     }
 
     try {
-      const response = await axios.post("http://localhost:3001/api/sign-in", {
-        email,
-        password,
-      });
+      const response = await api.post("/auth/sign-in", { email, password });
+
 
       if (response.data?.message?.toLowerCase().includes("not active")) {
-        toast.error(
-          "Your vendor account is not active. Please wait for admin approval."
-        );
-        setLoading(false); 
-        return; 
-      }      
-      else if (response.data?.token) {
-        handleLoginSuccess(response.data);
+        toast.error("Your vendor account is not active. Please wait for admin approval.");
+        setLoading(false);
+        return;
       }
-      else {
+
+      if (response.data?.token) {
+        handleLoginSuccess(response.data);
+      } else {
         toast.error("Unexpected response from server");
       }
     } catch (err) {
@@ -66,23 +64,54 @@ export default function Login() {
     }
   };
 
+    const handleLoginSuccess = (data) => {
+    const { token, user } = data;
+    if (!user?.role) {
+      toast.error("Invalid user data received");
+      return;
+    }
+
+    const decoded = jwtDecode(token);
+    const expiresAt = decoded.exp * 1000;
+
+    localStorage.setItem("token", token);
+    localStorage.setItem("tokenExpiresAt", expiresAt);
+    localStorage.setItem("userRole", user.role);
+    localStorage.setItem("userLoggedIn", "true");
+    localStorage.setItem("userName", user.name);
+
+    const idKey = user.role === "admin" ? "adminId" : user.role === "vendor" ? "vendorId" : "userId";
+    localStorage.setItem(idKey, user._id);
+
+    window.dispatchEvent(new Event("storageUpdate"));
+
+    // ⏳ Force logout when token expires
+    setTimeout(() => {
+      localStorage.clear();
+      toast.error("Session expired. Please log in again.");
+      navigate("/sign-in");
+    }, expiresAt - Date.now());
+
+    const redirectPath =
+      user.role === "admin" ? "/Admin_Dashboard" :
+      user.role === "vendor" ? "/VendorDashboard" : "/";
+    navigate(redirectPath);
+    toast.success("Login successful!");
+  };
+
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     setLoading(true);
-  
+
     if (!resetEmail) {
       toast.error("Please enter your email address");
       setLoading(false);
       return;
     }
-  
+
     try {
-      const response = await axios.post(
-        `http://localhost:3001/auth/forgot-password/${selectedRole}`,
-        { email: resetEmail }
-      );
-  
-      // ✅ Always show OTP modal if the response is 200 OK
+      const response = await api.post(`/auth/forgot-password/${selectedRole}`, { email: resetEmail });
+
       if (response.status === 200) {
         setShowResetOtpModal(true);
         toast.success(response.data.message || "OTP sent to your email!");
@@ -106,14 +135,11 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await axios.post(
-        "http://localhost:3001/auth/verify-reset-otp",
-        {
-          email: resetEmail,
-          otp,
-          role: selectedRole
-        }
-      );
+      const response = await api.post("/auth/verify-reset-otp", {
+        email: resetEmail,
+        otp,
+        role: selectedRole,
+      });
 
       if (response.data.success) {
         setShowResetOtpModal(false);
@@ -122,9 +148,7 @@ export default function Login() {
       }
     } catch (err) {
       console.error("OTP Verification Failed:", err);
-      toast.error(
-        err.response?.data?.message || "Invalid OTP. Please try again."
-      );
+      toast.error(err.response?.data?.message || "Invalid OTP. Please try again.");
       setOtp("");
     } finally {
       setLoading(false);
@@ -133,21 +157,18 @@ export default function Login() {
 
   const handlePasswordReset = async (e) => {
     e.preventDefault();
-    
+
     if (newPassword !== confirmPassword) {
       toast.error("Passwords don't match");
       return;
     }
 
     try {
-      const response = await axios.post(
-        "http://localhost:3001/auth/reset-password",
-        {
-          email: resetEmail,
-          newPassword,
-          role: selectedRole
-        }
-      );
+      const response = await api.post("/auth/reset-password", {
+        email: resetEmail,
+        newPassword,
+        role: selectedRole,
+      });
 
       if (response.data.success) {
         toast.success("Password reset successfully!");
@@ -156,41 +177,14 @@ export default function Login() {
       }
     } catch (err) {
       console.error("Password reset error:", err);
-      toast.error(
-        err.response?.data?.message || "Password reset failed. Please try again."
-      );
+      toast.error(err.response?.data?.message || "Password reset failed. Please try again.");
     }
-  };
-
-  const handleLoginSuccess = (data) => {
-    const { token, user } = data;
-    if (!user?.role) {
-      toast.error("Invalid user data received");
-      return;
-    }
-
-    localStorage.setItem("token", token);
-    localStorage.setItem("userRole", user.role);
-    localStorage.setItem("userLoggedIn", "true");
-    localStorage.setItem("userName", user.name);
-
-    const idKey = user.role === "admin" ? "adminId" :
-                 user.role === "vendor" ? "vendorId" : "userId";
-    localStorage.setItem(idKey, user._id);
-
-    window.dispatchEvent(new Event("storageUpdate"));
-
-    const redirectPath = user.role === "admin" ? "/Admin_Dashboard" :
-                        user.role === "vendor" ? "/VendorDashboard" : "/";
-    navigate(redirectPath);
-    toast.success("Login successful!");
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <ToastContainer position="top-center" autoClose={5000} />
 
-      {/* Password Reset OTP Modal */}
       {showResetOtpModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
@@ -206,17 +200,14 @@ export default function Login() {
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                   placeholder="000000"
-                  className="w-64 p-4 border-2 border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-2xl font-mono tracking-widest"
+                  className="w-64 p-4 border-2 border-gray-200 rounded-lg text-center text-2xl font-mono tracking-widest"
                   maxLength="6"
                   required
                   autoFocus
                 />
               </div>
 
-              <button
-                type="submit"
-                className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
+              <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                 Verify OTP
               </button>
             </form>
@@ -224,10 +215,8 @@ export default function Login() {
         </div>
       )}
 
-      {/* Main Card */}
-      <div className={`w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden ${
-        showResetOtpModal ? "blur-sm" : ""
-      }`}>
+      {/* Main Login / Forgot / Reset */}
+      <div className={`w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden ${showResetOtpModal ? "blur-sm" : ""}`}>
         <div className="p-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
@@ -250,9 +239,7 @@ export default function Login() {
             resetSent ? (
               <form onSubmit={handlePasswordReset} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    New Password
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
                   <input
                     type="password"
                     value={newPassword}
@@ -263,9 +250,7 @@ export default function Login() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirm Password
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
                   <input
                     type="password"
                     value={confirmPassword}
@@ -275,19 +260,14 @@ export default function Login() {
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
+                <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                   Reset Password
                 </button>
               </form>
             ) : (
               <form onSubmit={handleForgotPassword} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Account Type
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Account Type</label>
                   <div className="grid grid-cols-3 gap-2">
                     {["user", "vendor", "admin"].map((role) => (
                       <button
@@ -307,9 +287,7 @@ export default function Login() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email address
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email address</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
                       <FiMail className="text-gray-400" />
@@ -325,18 +303,11 @@ export default function Login() {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
+                <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                   Send OTP
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => setForgotPasswordMode(false)}
-                  className="w-full py-2 text-gray-600 hover:text-gray-800"
-                >
+                <button type="button" onClick={() => setForgotPasswordMode(false)} className="w-full py-2 text-gray-600 hover:text-gray-800">
                   Back to Login
                 </button>
               </form>
@@ -344,9 +315,7 @@ export default function Login() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email address
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email address</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
                     <FiMail className="text-gray-400" />
@@ -362,9 +331,7 @@ export default function Login() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
                     <FiLock className="text-gray-400" />
@@ -386,26 +353,16 @@ export default function Login() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
+              <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                 {loading ? "Signing in..." : "Sign In"}
               </button>
 
-              <button
-                type="button"
-                onClick={() => setForgotPasswordMode(true)}
-                className="w-full text-blue-600 hover:underline"
-              >
+              <button type="button" onClick={() => setForgotPasswordMode(true)} className="w-full text-blue-600 hover:underline">
                 Forgot Password?
               </button>
 
               <div className="text-center pt-4 border-t border-gray-200">
-                <NavLink
-                  to="/signup"
-                  className="text-blue-600 hover:underline"
-                >
+                <NavLink to="/signup" className="text-blue-600 hover:underline">
                   Don't have an account? Sign Up
                 </NavLink>
               </div>

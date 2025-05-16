@@ -6,27 +6,33 @@ const helmet = require("helmet");
 const path = require("path");
 const fs = require("fs");
 const fileUpload = require("express-fileupload");
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
 // Initialize Express App
 const app = express();
 
 // Middleware Configuration
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173", 
+  credentials: true               
+}));
 app.use(morgan("dev"));
-app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" }, crossOriginEmbedderPolicy: false }));
+app.use(helmet({ 
+  crossOriginResourcePolicy: { policy: "cross-origin" }, 
+  crossOriginEmbedderPolicy: false 
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Enable File Upload Handling
-app.use(
-  fileUpload({
-    createParentPath: true,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-    abortOnLimit: true,
-    responseOnLimit: "File size limit exceeded (Max: 5MB)",
-  })
-);
+app.use(fileUpload({
+  createParentPath: true,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  abortOnLimit: true,
+  responseOnLimit: "File size limit exceeded (Max: 5MB)",
+}));
 
 // Static File Serving for Uploaded Images
 const uploadsDir = path.join(__dirname, "uploads");
@@ -35,10 +41,9 @@ if (!fs.existsSync(uploadsDir)) {
 }
 app.use("/uploads", express.static(uploadsDir));
 
-// MongoDB Connection with Error Handling
+// MongoDB Connection
 const mongoUri = process.env.MONGO_URI || "mongodb://localhost:27017/tickxplore";
-mongoose
-  .connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log(" MongoDB Connected Successfully"))
   .catch((err) => {
     console.error(" MongoDB Connection Error:", err.message);
@@ -66,7 +71,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 app.use("/auth", authRoutes);
 app.use("/admin", authRoutes);
 app.use("/vendor", authRoutes);
-app.use('/users', authRoutes);
+app.use("/users", authRoutes);
 app.use("/admin", adminRoutes);
 app.use("/vendor", vendorRoutes);
 app.use("/users", userRoutes);
@@ -83,18 +88,17 @@ app.use('/api/chatbot', chatbotRoutes);
 app.use("/api/reservations", reservationRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-
 // Health Check Route
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "Server is running!", timestamp: new Date() });
 });
 
-// Test Route to Check Image Serving
+// Test Image Route
 app.get("/test-image", (req, res) => {
   res.send(`<img src="http://localhost:3001/uploads/sample.jpg" alt="Test Image"/>`);
 });
 
-// 404 Handler for Undefined Routes
+// 404 Handler
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
@@ -105,7 +109,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "An unexpected error occurred.", details: err.message });
 });
 
-// Graceful Shutdown Handling
+// Graceful Shutdown
 const shutdown = async () => {
   console.log("\n Closing MongoDB Connection...");
   await mongoose.connection.close();
