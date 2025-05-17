@@ -110,7 +110,7 @@ exports.updateVendor = async (req, res) => {
         fs.mkdirSync(uploadPath);
       }
 
-      const filename = `vendor-${Date.now()}-${photo.name}`;
+      const filename = `${photo.name}`;
       const filepath = path.join(uploadPath, filename);
 
       await photo.mv(filepath);

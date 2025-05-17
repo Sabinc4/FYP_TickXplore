@@ -111,39 +111,55 @@ exports.updateAdmin = async (req, res) => {
       updateFields.password = await bcrypt.hash(updateFields.password, 10);
     }
 
-    // 🔽 Handle profile photo upload
+    // 🔍 Find the existing admin to get old profilePhoto URL
+    const existingAdmin = await Admin.findById(id);
+    if (!existingAdmin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    // 📷 Handle new profile photo
     if (req.files && req.files.profilePhoto) {
       const photo = req.files.profilePhoto;
 
-      // Ensure upload folder exists
+      // Delete old photo from uploads
+      if (existingAdmin.profilePhoto) {
+        const oldPath = path.join(
+          __dirname,
+          "../uploads",
+          path.basename(existingAdmin.profilePhoto)
+        );
+
+        if (fs.existsSync(oldPath)) {
+          fs.unlinkSync(oldPath); // delete the file
+        }
+      }
+
+      // Save new photo
       const uploadPath = path.join(__dirname, "../uploads");
       if (!fs.existsSync(uploadPath)) {
         fs.mkdirSync(uploadPath);
       }
 
-      const filename = `admin-${Date.now()}-${photo.name}`;
+      const filename = `${photo.name}`;
       const filepath = path.join(uploadPath, filename);
-
       await photo.mv(filepath);
 
-      // Store the photo URL
       updateFields.profilePhoto = `http://localhost:3001/uploads/${filename}`;
     }
 
+    // 🔄 Update admin
     const updated = await Admin.findByIdAndUpdate(id, updateFields, {
       new: true,
       runValidators: true,
     }).select("-password");
 
-    if (!updated) {
-      return res.status(404).json({ message: "Admin not found" });
-    }
-
     res.json({ message: "Admin updated", admin: updated });
   } catch (err) {
+    console.error("Update admin error:", err);
     res.status(500).json({ message: "Error updating admin", error: err.message });
   }
 };
+
 
 // Toggle Vendor Status (Activate/Deactivate)
 exports.toggleVendorStatus = async (req, res) => {

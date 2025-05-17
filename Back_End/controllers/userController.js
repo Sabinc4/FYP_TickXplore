@@ -80,35 +80,45 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-// Update User (Admin)
+// Update User 
 exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-
-    // Step 1: Prepare updateData
     const updateData = { ...req.body };
 
-    // Step 2: Handle file upload if present
+    // 🔍 Step 1: Get the existing user
+    const existingUser = await UserModel.findById(id);
+    if (!existingUser) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Step 2: Handle profile photo update
     if (req.files && req.files.profilePhoto) {
       const photo = req.files.profilePhoto;
 
-      // Ensure uploads directory exists
+      //  Ensure uploads directory exists
       const uploadPath = path.join(__dirname, "../uploads");
       if (!fs.existsSync(uploadPath)) {
         fs.mkdirSync(uploadPath);
       }
 
-      const filename = `user-${Date.now()}-${photo.name}`;
-      const filepath = path.join(uploadPath, filename);
+      //  Delete old photo
+      if (existingUser.profilePhoto) {
+        const oldPhotoPath = path.join(uploadPath, path.basename(existingUser.profilePhoto));
+        if (fs.existsSync(oldPhotoPath)) {
+          fs.unlinkSync(oldPhotoPath);
+        }
+      }
 
-      // Move file
+      // Save new photo
+      const filename = `${photo.name}`;
+      const filepath = path.join(uploadPath, filename);
       await photo.mv(filepath);
 
-      // Save photo path (URL accessible)
       updateData.profilePhoto = `http://localhost:3001/uploads/${filename}`;
     }
 
-    // Step 3: Update the user in DB
+    // Step 3: Update user in database
     const updatedUser = await UserModel.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
