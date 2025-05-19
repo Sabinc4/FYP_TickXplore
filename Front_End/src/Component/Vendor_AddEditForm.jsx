@@ -68,11 +68,6 @@ const AddEditForm = ({
         formDataToSend.append("image", formData.image);
       }
 
-      if (type === "buses" && !formData.tripDate) {
-        toast.error("Please select a trip date");
-        return;
-      }
-
       let response;
       if (type === "vehicles") {
         response = isAdding
@@ -177,13 +172,6 @@ const AddEditForm = ({
                 name="takeOffDate"
                 value={formData.takeOffDate}
                 onChange={(e) => setFormData({ ...formData, takeOffDate: e.target.value })}
-              />
-              <FormInput
-                label="Trip Date"
-                type="date"
-                name="tripDate"
-                value={formData.tripDate}
-                onChange={(e) => setFormData({ ...formData, tripDate: e.target.value })}
               />
             </>
           )}

@@ -19,6 +19,7 @@ const AdminDashboard = () => {
   const [buses, setBuses] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [refundRequests, setRefundRequests] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -67,14 +68,16 @@ const AdminDashboard = () => {
         busesRes, 
         vehiclesRes, 
         bookingsRes,
-        notificationsRes
+        notificationsRes,
+        refundRes
       ] = await Promise.all([
         axios.get("http://localhost:3001/admin/dashboard/get-users", config),
         axios.get("http://localhost:3001/admin/dashboard/get-vendors", config),
         axios.get("http://localhost:3001/api/buses?admin=true", config),
         axios.get("http://localhost:3001/api/vehicles?admin=true", config),
         axios.get("http://localhost:3001/admin/bookings", config),
-        axios.get("http://localhost:3001/admin/notifications", config)
+        axios.get("http://localhost:3001/admin/notifications", config),
+        axios.get("http://localhost:3001/api/refunds/admin/refund-requests", config),
       ]);
       
       setUsers(usersRes.data.users || []);
@@ -83,6 +86,7 @@ const AdminDashboard = () => {
       setVehicles(vehiclesRes.data.vehicles || vehiclesRes.data.data || []);
       setNotifications(notificationsRes.data.notifications || []);
       setUnreadCount(notificationsRes.data.unreadCount || 0);
+      setRefundRequests(refundRes.data || []);
       
       const formattedBookings = bookingsRes.data.bookings?.map(booking => ({
         ...booking,
@@ -103,6 +107,20 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleRefundAction = async (id, action) => {
+    try {
+      const { data } = await axios.put(
+        `http://localhost:3001/api/refunds/admin/refund-requests/${id}`,
+        { action },
+        config
+      );
+      toast.success(data.message || `Refund ${action}d successfully`);
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || `Failed to ${action} refund`);
+    }
+  };
 
   // Notification handling
   const markNotificationsAsRead = async () => {
@@ -137,8 +155,6 @@ const AdminDashboard = () => {
       toast.error(error.response?.data?.message || "Failed to update vendor status");
     }
   };
-  
-  
 
   const handleDeleteUser = async (userId) => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
@@ -282,6 +298,7 @@ const AdminDashboard = () => {
     "buses",
     "vehicles",
     "bookings",
+    "refunds"
   ];
 
   const dashboardData = [
@@ -290,6 +307,7 @@ const AdminDashboard = () => {
     { name: "Buses", count: buses.length, color: "#8B5CF6" },
     { name: "Vehicles", count: vehicles.length, color: "#EF4444" },
     { name: "Bookings", count: bookings.length, color: "#EC4899" },
+    { name: "Refunds", count: refundRequests.length, color: "#F59E0B" },
   ];
 
   // Components
@@ -602,99 +620,6 @@ const AdminDashboard = () => {
               </div>
             )}
 
-            {activeSection === "profile" && (
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h2 className="text-2xl font-bold mb-6">Admin Profile</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <div className="bg-gray-100 p-4 rounded-lg">
-                      <h3 className="text-lg font-semibold mb-4">Personal Information</h3>
-                      <div className="space-y-3">
-                        <p><span className="font-medium">Name:</span> {decodedToken?.name || "Admin User"}</p>
-                        <p><span className="font-medium">Email:</span> {decodedToken?.email}</p>
-                        <p><span className="font-medium">Role:</span> Administrator</p>
-                        <p><span className="font-medium">Last Login:</span> {new Date(decodedToken?.iat * 1000).toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="bg-gray-100 p-4 rounded-lg">
-                      <h3 className="text-lg font-semibold mb-4">Quick Stats</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white p-3 rounded shadow-sm">
-                          <p className="text-sm text-gray-600">Total Users</p>
-                          <p className="text-xl font-bold">{users.length}</p>
-                        </div>
-                        <div className="bg-white p-3 rounded shadow-sm">
-                          <p className="text-sm text-gray-600">Active Vendors</p>
-                          <p className="text-xl font-bold">{vendors.filter(v => v.isActive).length}</p>
-                        </div>
-                        <div className="bg-white p-3 rounded shadow-sm">
-                          <p className="text-sm text-gray-600">Today's Bookings</p>
-                          <p className="text-xl font-bold">
-                            {bookings.filter(b => 
-                              new Date(b.createdAt).toDateString() === new Date().toDateString()
-                            ).length}
-                          </p>
-                        </div>
-                        <div className="bg-white p-3 rounded shadow-sm">
-                          <p className="text-sm text-gray-600">Unread Notifications</p>
-                          <p className="text-xl font-bold">{unreadCount}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeSection === "notifications" && (
-              <div className="bg-white p-6 rounded-lg shadow">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold">Notifications</h2>
-                  <button 
-                    onClick={() => fetchData()}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    Refresh
-                  </button>
-                </div>
-                
-                {notifications.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">No notifications found</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {notifications.map((notification) => (
-                      <div 
-                        key={notification._id} 
-                        className={`border-l-4 p-4 rounded shadow-sm ${
-                          notification.read ? 'border-gray-300 bg-white' : 'border-blue-500 bg-blue-50'
-                        }`}
-                      >
-                        <div className="flex justify-between">
-                          <h3 className="font-medium">{notification.title}</h3>
-                          <span className="text-sm text-gray-500">
-                            {new Date(notification.createdAt).toLocaleString()}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-gray-700">{notification.message}</p>
-                        {notification.link && (
-                          <a 
-                            href={notification.link} 
-                            className="inline-block mt-2 text-blue-600 hover:underline text-sm"
-                          >
-                            View details
-                          </a>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             {activeSection === "users" && (
               <div className="bg-white p-6 rounded-lg shadow">
                 <div className="flex justify-between items-center mb-6">
@@ -807,6 +732,92 @@ const AdminDashboard = () => {
                 {vehicles.length > itemsPerPage && (
                   <div className="flex justify-center mt-4 md:mt-6 flex-wrap gap-1">
                     {Array.from({ length: totalPages(vehicles) }).map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentPage(index + 1)}
+                        className={`px-3 py-1 md:px-4 md:py-2 rounded-md text-sm md:text-base ${
+                          currentPage === index + 1
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 hover:bg-gray-300"
+                        }`}
+                      >
+                        {index + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeSection === "bookings" && (
+              <div className="bg-white p-6 rounded-lg shadow">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-2xl font-bold">Bookings</h2>
+                  <div className="flex items-center">
+                    <div className="w-64 mr-4">
+                      <input
+                        type="text"
+                        placeholder="Search bookings..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex">
+                      <button
+                        onClick={() => setBookingType('bus')}
+                        className={`px-4 py-2 rounded-l-md ${bookingType === 'bus' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                      >
+                        Bus
+                      </button>
+                      <button
+                        onClick={() => setBookingType('vehicle')}
+                        className={`px-4 py-2 rounded-r-md ${bookingType === 'vehicle' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                      >
+                        Vehicle
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                <BookingFilters bookingType={bookingType} />
+                
+                <DataTable
+                  data={paginatedData(filterBookings(
+                    bookings.filter(b => bookingType === 'bus' ? b.bus : b.vehicle),
+                    bookingType
+                  ))}
+                  fields={bookingType === 'bus' ? 
+                    ["_id", "user", "bus", "selectedSeats", "totalPrice", "status", "createdAt"] : 
+                    ["_id", "user", "vehicle", "pickupPoint", "dropPoint", "totalPrice", "status", "createdAt"]}
+                  headers={bookingType === 'bus' ? 
+                    ["Booking ID", "User", "Bus", "Seats", "Price", "Status", "Date"] : 
+                    ["Booking ID", "User", "Vehicle", "Pickup", "Drop", "Price", "Status", "Date"]}
+                  renderCell={(item, field) => {
+                    if (field === "createdAt") {
+                      return new Date(item[field]).toLocaleString();
+                    }
+                    if (field === "user") {
+                      return item.user?.name || "N/A";
+                    }
+                    if (field === "bus") {
+                      return item.bus?.busName || "N/A";
+                    }
+                    if (field === "vehicle") {
+                      return item.vehicle?.name || "N/A";
+                    }
+                    if (field === "totalPrice") {
+                      return `$${item[field]}`;
+                    }
+                    return item[field];
+                  }}
+                  onEdit={(booking) => handleEditClick(booking, 'booking', 'status')}
+                  onDelete={handleCancelBooking}
+                />
+
+                {bookings.length > itemsPerPage && (
+                  <div className="flex justify-center mt-4 md:mt-6 flex-wrap gap-1">
+                    {Array.from({ length: totalPages(bookings) }).map((_, index) => (
                       <button
                         key={index}
                         onClick={() => setCurrentPage(index + 1)}

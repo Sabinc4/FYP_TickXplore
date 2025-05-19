@@ -6,38 +6,39 @@ const Admin = require("../models/Admin");
 const moment = require("moment");
 const { sendEmail } = require("../utils/sendEmail");
 const Notification = require("../models/Notification");
+const RefundRequest = require("../models/RefundRequest");
 
 const refundBooking = async (req, res) => {
   const { bookingId } = req.params;
   const { refundAmount } = req.body;
 
-  // Check if email credentials are loaded from .env
-  console.log("Checking EMAIL ENV Vars:");
   console.log("EMAIL_USER:", process.env.EMAIL_USER);
   console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "Loaded" : "Missing");
 
   try {
+    // 1. Fetch the booking
     const booking = await Booking.findById(bookingId);
-
     if (!booking) {
       return res.status(404).json({ message: "Booking not found." });
     }
 
+    // 2. Check if already refunded
     if (booking.isRefunded) {
       return res.status(400).json({ message: "Refund already processed." });
     }
 
+    // 3. Refund allowed only if cancelled
     if (booking.status !== "Cancelled") {
       return res.status(400).json({ message: "Only cancelled bookings can be refunded." });
     }
 
-    // Update refund status
+    // 4. Update booking refund status
     booking.isRefunded = true;
     booking.refundAmount = refundAmount;
     booking.refundDate = new Date();
     await booking.save();
 
-    // Identify Vendor
+    // 5. Identify vendor (bus or vehicle)
     let vendorEmail = null;
     let vendorId = null;
 
@@ -61,16 +62,14 @@ const refundBooking = async (req, res) => {
       }
     }
 
-    // Notify Vendor via Email and Notification
+    // 6. Notify Vendor
     if (vendorEmail && vendorId) {
       await sendEmail(
         vendorEmail,
         "Refund Processed",
         `<p>A refund of ₹${refundAmount} has been processed for Booking ID: <strong>${booking._id}</strong>.</p>`
       );
-      console.log("Email sent to vendor:", vendorEmail);
 
-      // Corrected Notification
       await Notification.create({
         userId: vendorId,
         role: "vendor",
@@ -78,7 +77,7 @@ const refundBooking = async (req, res) => {
       });
     }
 
-    // Notify Admins via Email and Notification
+    // 7. Notify Admins
     const admins = await Admin.find({});
     for (let admin of admins) {
       await sendEmail(
@@ -86,7 +85,6 @@ const refundBooking = async (req, res) => {
         "Booking Refund Notification",
         `<p>Booking ID: <strong>${booking._id}</strong> has been refunded ₹${refundAmount}.</p>`
       );
-      console.log("Email sent to admin:", admin.email);
 
       await Notification.create({
         userId: admin._id,
@@ -95,6 +93,23 @@ const refundBooking = async (req, res) => {
       });
     }
 
+    // 8. (Optional) Notify User who requested refund
+    const user = await User.findById(booking.userId);
+    if (user) {
+      await sendEmail(
+        user.email,
+        "Refund Approved",
+        `<p>Your refund of ₹${refundAmount} for booking ID <strong>${booking._id}</strong> has been approved and processed.</p>`
+      );
+
+      await Notification.create({
+        userId: user._id,
+        role: "user",
+        message: `Your refund of ₹${refundAmount} for booking ID ${booking._id} has been approved.`,
+      });
+    }
+
+    // 9. Return success
     res.status(200).json({
       message: "Refund processed and notifications sent.",
       booking,
@@ -106,6 +121,39 @@ const refundBooking = async (req, res) => {
       message: "Server error while processing refund",
       error: err.message,
     });
+  }
+};
+
+
+const requestRefund = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { refundAmount, reason } = req.body;
+    const userId = req.user._id;
+
+    if (!reason || !refundAmount || isNaN(refundAmount)) {
+      return res.status(400).json({ message: "Missing or invalid refund data." });
+    }
+
+    const existingRequest = await RefundRequest.findOne({ bookingId, userId, status: "Pending" });
+    if (existingRequest) {
+      return res.status(400).json({ message: "Refund request already submitted." });
+    }
+
+    const refund = new RefundRequest({
+      bookingId,
+      userId,
+      refundAmount,
+      reason,
+      status: "Pending",
+      createdAt: new Date()
+    });
+
+    await refund.save();
+    res.status(201).json({ message: "Refund request submitted successfully." });
+  } catch (error) {
+    console.error("Refund request error:", error);
+    res.status(500).json({ message: "Server error while requesting refund." });
   }
 };
 
@@ -162,6 +210,18 @@ const getBookingHistory = async (req, res) => {
     res.status(200).json(bookings);
   } catch (error) {
     res.status(500).json({ message: "Error fetching history", error });
+  }
+};
+
+const getRefundRequests = async (req, res) => {
+  try {
+    const requests = await RefundRequest.find({ status: "Pending" })
+      .populate("bookingId")
+      .populate("userId");
+
+    res.status(200).json(requests);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching refund requests", error });
   }
 };
 
@@ -231,6 +291,43 @@ const getBookingsByVendor = async (req, res) => {
   }
 };
 
+const processRefundRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body;
+
+    const refund = await RefundRequest.findById(id).populate("bookingId");
+    if (!refund) return res.status(404).json({ message: "Refund request not found." });
+
+    if (refund.status !== "Pending") {
+      return res.status(400).json({ message: "Refund request already processed." });
+    }
+
+    refund.status = action === "approve" ? "Approved" : "Rejected";
+    refund.processedAt = new Date();
+    await refund.save();
+
+    if (action === "approve") {
+      // Cancel the booking
+      const booking = await Booking.findById(refund.bookingId._id);
+      if (!booking) return res.status(404).json({ message: "Booking not found." });
+
+      booking.status = "Cancelled";
+      await booking.save();
+
+      return res.status(200).json({ message: "Refund approved and booking cancelled." });
+    } else {
+      return res.status(200).json({ message: "Refund request rejected." });
+    }
+
+  } catch (error) {
+    console.error("Process Refund Error:", error);
+    res.status(500).json({ message: "Server error while processing refund" });
+  }
+};
+
+
+
 
 const getMyBookings = async (req, res) => {
   try {
@@ -261,4 +358,7 @@ module.exports = {
   cancelBooking,
   getMyBookings,
   getBookingsByVendor,
+  requestRefund,           //User submits request
+  getRefundRequests,       //Admin views all pending requests
+  processRefundRequest,    // Admin approves or rejects
 };

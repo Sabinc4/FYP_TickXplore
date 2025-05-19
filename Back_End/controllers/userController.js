@@ -140,6 +140,34 @@ exports.updateUser = async (req, res) => {
   }
 };
 
+exports.updateUserLocation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { latitude, longitude } = req.body;
+
+    console.log("Incoming location update for user ID:", id);
+
+    const user = await UserModel.findById(id);
+    if (!user) {
+      console.log("User not found for ID:", id);
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.currentLocation = {
+      latitude,
+      longitude,
+      updatedAt: Date.now(),
+    };
+
+    await user.save();
+    res.status(200).json({ message: "User location updated" });
+  } catch (err) {
+    console.error("Error updating user location:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
 // Delete User (Admin)
 exports.deleteUser = async (req, res) => {
   try {

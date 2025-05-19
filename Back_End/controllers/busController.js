@@ -49,7 +49,6 @@ exports.createBus = async (req, res) => {
       pickupPoint,
       dropPoint,
       totalSeats,
-      tripDate,
       takeOffDate,
     } = req.body;
 
@@ -62,7 +61,6 @@ exports.createBus = async (req, res) => {
         pickupPoint,
         dropPoint,
         totalSeats,
-        tripDate,
         takeOffDate,
       },
       res
@@ -109,7 +107,6 @@ exports.createBus = async (req, res) => {
       pickupPoint,
       dropPoint,
       totalSeats,
-      tripDate,
       takeOffDate,
       bookedSeats,
     });
@@ -335,25 +332,15 @@ exports.deleteBus = async (req, res) => {
   }
 };
 
-exports.updateBusLocation = async (req, res) => {
+// Controller functions
+exports.getBusLocation = async (req, res) => {
   try {
-    const { latitude, longitude } = req.body;
     const bus = await Bus.findById(req.params.id);
-
-    if (!bus) {
-      return res.status(404).json({ message: "Bus not found" });
+    if (!bus || !bus.currentLocation) {
+      return res.status(404).json({ message: "Location not available" });
     }
-
-    bus.currentLocation = {
-      latitude,
-      longitude,
-      updatedAt: Date.now(),
-    };
-
-    await bus.save();
-    res.json({ message: "Bus location updated successfully" });
-  } catch (error) {
-    console.error("Error updating bus location:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.json(bus.currentLocation);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
   }
 };

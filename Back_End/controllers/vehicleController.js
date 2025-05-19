@@ -251,25 +251,14 @@ exports.reserveVehicle = async (req, res) => {
 };
 
 // Update Vehicle Location Controller
-exports.updateVehicleLocation = async (req, res) => {
+exports.getVehicleLocation = async (req, res) => {
   try {
-    const { latitude, longitude } = req.body;
     const vehicle = await Vehicle.findById(req.params.id);
-
-    if (!vehicle) {
-      return res.status(404).json({ message: "Vehicle not found" });
+    if (!vehicle || !vehicle.currentLocation) {
+      return res.status(404).json({ message: "Location not available" });
     }
-
-    vehicle.currentLocation = {
-      latitude,
-      longitude,
-      updatedAt: Date.now(),
-    };
-
-    await vehicle.save();
-    res.json({ message: "Vehicle location updated successfully" });
-  } catch (error) {
-    console.error("Error updating vehicle location:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.json(vehicle.currentLocation);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
   }
 };

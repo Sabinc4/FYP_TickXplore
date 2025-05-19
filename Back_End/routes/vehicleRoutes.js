@@ -7,7 +7,7 @@ const {
   updateVehicle,
   deleteVehicle,
   reserveVehicle,
-  updateVehicleLocation,   
+  getVehicleLocation,   
 } = require("../controllers/vehicleController");
 
 router.post("/", createVehicle);
@@ -15,7 +15,7 @@ router.get("/", getAllVehicles);
 router.get("/:id", getVehicleById);
 router.put("/:id", updateVehicle);
 router.delete("/:id", deleteVehicle);
-router.put("/:id/update-location", updateVehicleLocation);  
+router.get("/:id/location", getVehicleLocation);
 router.post("/:id/reserve", reserveVehicle);
 
 module.exports = router;

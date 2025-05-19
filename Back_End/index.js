@@ -71,7 +71,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 app.use("/auth", authRoutes);
 app.use("/admin", authRoutes);
 app.use("/vendor", authRoutes);
-app.use("/users", authRoutes);
+app.use("/api/users", userRoutes);
 app.use("/admin", adminRoutes);
 app.use("/vendor", vendorRoutes);
 app.use("/users", userRoutes);

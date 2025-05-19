@@ -6,14 +6,14 @@ const {
   getBusById,
   updateBus,
   deleteBus,
-  updateBusLocation,   
+  getBusLocation,   
 } = require("../controllers/busController");
 
 router.post("/", createBus);                     
 router.get("/", getAllBuses);                    
 router.get("/:id", getBusById);                  
 router.put("/:id", updateBus);                 
-router.put("/:id/update-location", updateBusLocation); 
+router.get("/:id/location", getBusLocation);
 router.delete("/:id", deleteBus);                  
 
 module.exports = router;

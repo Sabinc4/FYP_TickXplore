@@ -9,6 +9,7 @@ const useAdminData = () => {
   const [buses, setBuses] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [refundRequests, setRefundRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -23,22 +24,26 @@ const useAdminData = () => {
     setLoading(true);
     setError(null);
     try {
-      const [usersRes, vendorsRes, adminsRes, busesRes, vehiclesRes, bookingsRes] =
-        await Promise.all([
-          axios.get("http://localhost:3001/admin/dashboard/get-users", config),
-          axios.get("http://localhost:3001/admin/dashboard/get-vendors", config),
-          axios.get("http://localhost:3001/admin/dashboard/get-admins", config),
-          axios.get("http://localhost:3001/api/buses?admin=true", config),
-          axios.get("http://localhost:3001/api/vehicles?admin=true", config),
-          axios.get("http://localhost:3001/admin/bookings", config)
-        ]);
-      
+      const [
+        usersRes, vendorsRes, adminsRes, 
+        busesRes, vehiclesRes, bookingsRes, refundRes
+      ] = await Promise.all([
+        axios.get("http://localhost:3001/admin/dashboard/get-users", config),
+        axios.get("http://localhost:3001/admin/dashboard/get-vendors", config),
+        axios.get("http://localhost:3001/admin/dashboard/get-admins", config),
+        axios.get("http://localhost:3001/api/buses?admin=true", config),
+        axios.get("http://localhost:3001/api/vehicles?admin=true", config),
+        axios.get("http://localhost:3001/admin/bookings", config),
+        axios.get("http://localhost:3001/api/refunds/admin/refund-requests", config)
+      ]);
+
       setUsers(usersRes.data.users || []);
       setVendors(vendorsRes.data.vendors || []);
       setAdmins(adminsRes.data.admins || []);
       setBuses(busesRes.data.buses || busesRes.data.data || []);
       setVehicles(vehiclesRes.data.vehicles || vehiclesRes.data.data || []);
       setBookings(bookingsRes.data.bookings || []);
+      setRefundRequests(refundRes.data || []);
     } catch (error) {
       toast.error("Failed to load data. Please check your connection and try again.");
       setError("Failed to load data. Please try again.");
@@ -94,7 +99,6 @@ const useAdminData = () => {
   };
 
   const handleEditClick = (item, type, field = '') => {
-    // Implement your edit logic here
     console.log(`Editing ${type} field: ${field}`, item);
   };
 
@@ -105,10 +109,11 @@ const useAdminData = () => {
     { name: "Buses", count: buses.length, color: "#8B5CF6" },
     { name: "Vehicles", count: vehicles.length, color: "#EF4444" },
     { name: "Bookings", count: bookings.length, color: "#EC4899" },
+    { name: "Refunds", count: refundRequests.length, color: "#F97316" },
   ];
 
   return {
-    users, vendors, admins, buses, vehicles, bookings,
+    users, vendors, admins, buses, vehicles, bookings, refundRequests,
     dashboardData, loading, error, fetchData,
     handleEditClick, handleDeleteUser, handleDeleteVendor, toggleVendorStatus
   };
