@@ -6,7 +6,6 @@ import "react-toastify/dist/ReactToastify.css";
 import { FiEye, FiEyeOff, FiMail, FiLock } from "react-icons/fi";
 import { jwtDecode } from "jwt-decode";
 
-
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,9 +38,9 @@ export default function Login() {
     try {
       const response = await api.post("/auth/sign-in", { email, password });
 
-
-      if (response.data?.message?.toLowerCase().includes("not active")) {
-        toast.error("Your vendor account is not active. Please wait for admin approval.");
+      // Check if vendor account is not active
+      if (response.data?.user?.role === "vendor" && !response.data?.user?.isActive) {
+        toast.error("Your vendor account is not active yet. Please wait for admin approval.");
         setLoading(false);
         return;
       }
@@ -64,8 +63,15 @@ export default function Login() {
     }
   };
 
-    const handleLoginSuccess = (data) => {
+  const handleLoginSuccess = (data) => {
     const { token, user } = data;
+    
+    // Additional check for vendor activation status
+    if (user?.role === "vendor" && !user?.isActive) {
+      toast.error("Vendor account not active. Please contact admin.");
+      return;
+    }
+
     if (!user?.role) {
       toast.error("Invalid user data received");
       return;
@@ -85,7 +91,7 @@ export default function Login() {
 
     window.dispatchEvent(new Event("storageUpdate"));
 
-    // ⏳ Force logout when token expires
+    // Force logout when token expires
     setTimeout(() => {
       localStorage.clear();
       toast.error("Session expired. Please log in again.");

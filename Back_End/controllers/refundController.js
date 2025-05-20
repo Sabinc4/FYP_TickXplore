@@ -327,8 +327,6 @@ const processRefundRequest = async (req, res) => {
 };
 
 
-
-
 const getMyBookings = async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -358,7 +356,7 @@ module.exports = {
   cancelBooking,
   getMyBookings,
   getBookingsByVendor,
-  requestRefund,           //User submits request
-  getRefundRequests,       //Admin views all pending requests
-  processRefundRequest,    // Admin approves or rejects
+  requestRefund,           
+  getRefundRequests,       
+  processRefundRequest,    
 };

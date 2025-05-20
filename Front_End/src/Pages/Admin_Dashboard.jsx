@@ -108,20 +108,6 @@ const AdminDashboard = () => {
     fetchData();
   }, [fetchData]);
 
-  const handleRefundAction = async (id, action) => {
-    try {
-      const { data } = await axios.put(
-        `http://localhost:3001/api/refunds/admin/refund-requests/${id}`,
-        { action },
-        config
-      );
-      toast.success(data.message || `Refund ${action}d successfully`);
-      fetchData();
-    } catch (err) {
-      toast.error(err.response?.data?.message || `Failed to ${action} refund`);
-    }
-  };
-
   // Notification handling
   const markNotificationsAsRead = async () => {
     try {

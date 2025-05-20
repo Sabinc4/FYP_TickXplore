@@ -26,7 +26,7 @@ const LiveTracker = () => {
   const [departureTime, setDepartureTime] = useState(null);
   const [liveTrackingEnabled, setLiveTrackingEnabled] = useState(false);
 
-  // 1️⃣ Track User Location and Send to Server
+  // Track User Location and Send to Server
   useEffect(() => {
     const watchId = navigator.geolocation.watchPosition(
       async (pos) => {
@@ -53,7 +53,7 @@ const LiveTracker = () => {
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
-  // 2️⃣ Fetch Initial Vendor Data (Takeoff Time & First Location)
+  // Fetch Initial Vendor Data (Takeoff Time & First Location)
   useEffect(() => {
     const fetchInitialData = async () => {
       if (!type || !id) return;
@@ -87,7 +87,7 @@ const LiveTracker = () => {
     fetchInitialData();
   }, [type, id]);
 
-  // 3️⃣ Start Live Polling After Departure
+  // Start Live Polling After Departure
   useEffect(() => {
     if (!departureTime) return;
 
@@ -148,7 +148,7 @@ const LiveTracker = () => {
       <div className="mt-6 bg-white shadow p-4 rounded-md w-full max-w-md text-center">
         <p><strong>Type:</strong> {type?.toUpperCase()}</p>
         <p><strong>Departure Time:</strong> {departureTime?.toLocaleString() || "Loading..."}</p>
-        <p><strong>Tracking:</strong> {liveTrackingEnabled ? "✅ Live" : "⏳ Waiting for Departure"}</p>
+        <p><strong>Tracking:</strong> {liveTrackingEnabled ? " Live" : "Waiting for Departure"}</p>
       </div>
     </div>
   );
