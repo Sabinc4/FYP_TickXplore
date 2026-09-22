@@ -359,6 +359,7 @@ const SeatAvailability = () => {
             FRONT
           </div>
 
+          <div className="overflow-x-auto">
           <div className="mb-2 flex justify-end pr-[30px] sm:pr-[46px]">
             <FaUserTie size={24} className="text-slate-700" />
           </div>
@@ -408,6 +409,7 @@ const SeatAvailability = () => {
 
           <div className="mt-4 text-center text-lg font-bold text-slate-500 sm:mt-6 sm:text-xl">
             REAR
+          </div>
           </div>
 
           <div className="mt-6 flex flex-wrap justify-center gap-4">

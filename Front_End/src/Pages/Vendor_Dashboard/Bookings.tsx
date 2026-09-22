@@ -163,7 +163,7 @@ const Bookings = () => {
           <p className="text-sm text-gray-500">
             Showing {startIndex + 1}-{endIndex} of {filteredBookings.length}
           </p>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center justify-center gap-1">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={safePage === 1}

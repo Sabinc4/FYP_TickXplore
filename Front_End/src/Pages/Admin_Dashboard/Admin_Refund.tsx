@@ -33,10 +33,10 @@ const Refunds = () => {
         <div className="space-y-4">
           {refundRequests.map((req) => (
             <div key={req._id} className="rounded bg-gray-50 p-4 shadow-sm border">
-              <p>
+              <p className="break-all">
                 <strong>Booking ID:</strong> {booking(req)?._id}
               </p>
-              <p>
+              <p className="break-all">
                 <strong>User:</strong> {user(req)?.email}
               </p>
               <p>

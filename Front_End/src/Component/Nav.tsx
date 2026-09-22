@@ -46,6 +46,7 @@ const Nav = () => {
 
   const dropRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const notifRefMobile = useRef<HTMLDivElement>(null);
 
   /* ---- auth state ---- */
   const updateNav = useCallback(async () => {
@@ -178,7 +179,12 @@ const Nav = () => {
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropRef.current && !dropRef.current.contains(e.target as Node)) setDropdownOpen(false);
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotificationOpen(false);
+      if (
+        (notifRef.current && !notifRef.current.contains(e.target as Node)) &&
+        (notifRefMobile.current && !notifRefMobile.current.contains(e.target as Node))
+      ) {
+        setNotificationOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -191,6 +197,16 @@ const Nav = () => {
   }, [locationHook.pathname]);
 
   const isActive = (path: string) => locationHook.pathname === path;
+
+  const dashboardPath =
+    userRole === "vendor"
+      ? "/VendorDashboard"
+      : userRole === "admin"
+      ? "/Admin_Dashboard"
+      : null;
+
+  const isDashboardActive = (path: string) =>
+    locationHook.pathname === path || locationHook.pathname.startsWith(`${path}/`);
 
   const handleLogout = () => {
     toast.dismiss();
@@ -239,6 +255,33 @@ const Nav = () => {
     </Link>
   );
 
+  const notificationPanel = notificationOpen ? (
+    <div className="absolute right-0 mt-3 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-slate-100 bg-white text-slate-700 shadow-card-lg">
+      <h3 className="border-b border-slate-100 bg-slate-50 py-3 text-center text-sm font-bold text-slate-700">
+        Notifications
+      </h3>
+      <div className="max-h-80 overflow-y-auto">
+        {notifications.length > 0 ? (
+          notifications.map((notif) => (
+            <button
+              key={notif._id}
+              className={`block w-full border-b border-slate-50 px-4 py-3 text-left text-sm transition-colors hover:bg-slate-50 ${
+                notif.isRead ? "text-slate-500" : "font-semibold text-slate-800 bg-blue-50/40"
+              }`}
+              onClick={() => markNotificationAsRead(notif._id)}
+            >
+              {notif.message}
+            </button>
+          ))
+        ) : (
+          <div className="px-4 py-8 text-center text-sm text-slate-400">
+            No new notifications
+          </div>
+        )}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <header className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur border-b border-white/5 text-slate-300">
       <nav className="mx-auto max-w-7xl px-4 lg:px-8">
@@ -262,8 +305,22 @@ const Nav = () => {
           </button>
 
           {/* Desktop nav */}
-          <div className="hidden lg:flex items-center gap-2">
-            {!userLoggedIn && USER_LINKS.map(renderNavLink)}
+          <div className="hidden lg:flex items-center justify-center gap-1.5 flex-wrap">
+            {USER_LINKS.map(renderNavLink)}
+
+            {dashboardPath && (
+              <Link
+                to={dashboardPath}
+                className={`group flex items-center gap-2 rounded-full px-4 py-2 text-[15px] transition-colors ${
+                  isDashboardActive(dashboardPath)
+                    ? "bg-blue-600 text-white font-semibold shadow shadow-blue-900/40"
+                    : "text-slate-300 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <FaTicketAlt className="text-base" />
+                Dashboard
+              </Link>
+            )}
 
             {userLoggedIn ? (
               <div className="flex items-center gap-2 pl-2">
@@ -287,32 +344,7 @@ const Nav = () => {
                     )}
                   </button>
 
-                  {notificationOpen && (
-                    <div className="absolute right-0 mt-3 w-80 overflow-hidden rounded-xl border border-slate-100 bg-white text-slate-700 shadow-card-lg">
-                      <h3 className="border-b border-slate-100 bg-slate-50 py-3 text-center text-sm font-bold text-slate-700">
-                        Notifications
-                      </h3>
-                      <div className="max-h-80 overflow-y-auto">
-                        {notifications.length > 0 ? (
-                          notifications.map((notif) => (
-                            <button
-                              key={notif._id}
-                              className={`block w-full border-b border-slate-50 px-4 py-3 text-left text-sm transition-colors hover:bg-slate-50 ${
-                                notif.isRead ? "text-slate-500" : "font-semibold text-slate-800 bg-blue-50/40"
-                              }`}
-                              onClick={() => markNotificationAsRead(notif._id)}
-                            >
-                              {notif.message}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="px-4 py-8 text-center text-sm text-slate-400">
-                            No new notifications
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  {notificationPanel}
                 </div>
 
                 {/* Profile dropdown */}
@@ -396,23 +428,46 @@ const Nav = () => {
             )}
           </div>
 
-          {/* Mobile hamburger */}
-          <button
-            className="lg:hidden text-2xl text-white"
-            onClick={() => setClick((v) => !v)}
-            aria-label="Toggle menu"
-            aria-expanded={click}
-          >
-            {click ? <FaTimes /> : <CiMenuBurger />}
-          </button>
+          {/* Mobile actions */}
+          <div className="flex items-center gap-2 lg:hidden">
+            {userLoggedIn && (
+              <div className="relative" ref={notifRefMobile}>
+                <button
+                  className="relative flex h-10 w-10 items-center justify-center rounded-full text-xl text-white hover:bg-white/10 transition-colors"
+                  title="Notifications"
+                  aria-label="Toggle notifications"
+                  aria-expanded={notificationOpen}
+                  onClick={() => {
+                    setNotificationOpen((v) => !v);
+                    setDropdownOpen(false);
+                  }}
+                >
+                  <IoMdNotificationsOutline />
+                  {unreadCount > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+                {notificationPanel}
+              </div>
+            )}
+            <button
+              className="text-2xl text-white"
+              onClick={() => setClick((v) => !v)}
+              aria-label="Toggle menu"
+              aria-expanded={click}
+            >
+              {click ? <FaTimes /> : <CiMenuBurger />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile menu */}
         {click && (
           <div className="lg:hidden animate-fade-in border-t border-white/10 py-4">
             <div className="grid gap-1">
-              {!userLoggedIn &&
-                USER_LINKS.map(({ label, path, icon: Icon }) => (
+              {USER_LINKS.map(({ label, path, icon: Icon }) => (
                   <Link
                     key={path}
                     to={path}

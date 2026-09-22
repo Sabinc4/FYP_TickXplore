@@ -123,7 +123,7 @@ const Registration = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 to-blue-50 p-4">
       {showOTPModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-card-lg">
             <div className="text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">

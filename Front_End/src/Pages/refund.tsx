@@ -118,7 +118,7 @@ const Refunds = () => {
                           {getTransportIcon(booking)}
                         </div>
                         <div className="space-y-1">
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                             <h2 className="text-xl font-bold">{title}</h2>
                             <span className="rounded-full bg-blue-900 px-2 py-1 text-xs text-blue-200">
                               Est. refund: NPR {estimatedRefund.toFixed(2)}
@@ -170,7 +170,7 @@ const Refunds = () => {
             <h3 className="mb-4 text-xl font-semibold">Submit Refund Request</h3>
 
             <div className="mb-6">
-              <div className="mb-4 grid grid-cols-2 gap-4">
+              <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="rounded-xl bg-slate-800 p-3">
                   <p className="text-sm text-slate-400">Original Amount</p>
                   <p className="font-medium">NPR {selectedBooking.totalPrice}</p>

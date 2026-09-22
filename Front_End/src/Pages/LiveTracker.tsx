@@ -129,7 +129,8 @@ const LiveTracker = () => {
         center={vendorPosition || { lat: 27.7172, lng: 85.324 }}
         zoom={14}
         scrollWheelZoom
-        style={{ height: "600px", width: "100%" }}
+        style={{ width: "100%" }}
+        className="h-[45vh] w-full sm:h-[600px]"
       >
         <TileLayer
           attribution='&copy; OpenStreetMap contributors'

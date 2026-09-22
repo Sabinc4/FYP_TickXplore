@@ -1,5 +1,6 @@
 import type { IconType } from "react-icons";
 import { FaSearch, FaCar, FaCreditCard } from "react-icons/fa";
+import Reveal from "./Reveal";
 
 interface CardProps {
   icon: IconType;
@@ -8,7 +9,7 @@ interface CardProps {
 }
 
 const Card = ({ icon: Icon, title, description }: CardProps) => (
-  <div className="flex min-h-[280px] flex-col items-center justify-between rounded-2xl bg-slate-900 p-6 text-center shadow-card transition-transform duration-300 hover:-translate-y-1 hover:scale-[1.02]">
+  <div className="flex h-full min-h-[280px] flex-col items-center justify-between rounded-2xl bg-slate-900 p-6 text-center shadow-card transition-transform duration-300 hover:-translate-y-1 hover:scale-[1.02]">
     <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-blue-600/15 text-blue-400">
       <Icon className="text-4xl" />
     </div>
@@ -41,16 +42,20 @@ const CARDS: CardProps[] = [
 const Bus_Facility = () => (
   <section className="px-4 py-14 sm:px-6 lg:px-8">
     <div className="mx-auto max-w-5xl text-center">
-      <p className="section-eyebrow">How It Works</p>
-      <h2 className="section-title">Get Your Tickets in 3 Easy Steps</h2>
-      <p className="mt-4 text-sm text-slate-500 sm:text-base">
-        Discover why we’re the best choice for your travel needs. With easy
-        booking and trusted services, you can make your trips unforgettable!
-      </p>
+      <Reveal>
+        <p className="section-eyebrow">How It Works</p>
+        <h2 className="section-title">Get Your Tickets in 3 Easy Steps</h2>
+        <p className="mt-4 text-sm text-slate-500 sm:text-base">
+          Discover why we’re the best choice for your travel needs. With easy
+          booking and trusted services, you can make your trips unforgettable!
+        </p>
+      </Reveal>
     </div>
     <div className="mx-auto mt-10 grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      {CARDS.map((card) => (
-        <Card key={card.title} {...card} />
+      {CARDS.map((card, index) => (
+        <Reveal key={card.title} delay={index * 90} className="h-full">
+          <Card {...card} />
+        </Reveal>
       ))}
     </div>
   </section>

@@ -42,7 +42,7 @@ const VehicleCard = ({ vehicle, onRemove }: VehicleCardProps) => {
           {vehicle.type || "4x4"}
         </h3>
 
-        <div className="mb-3 grid grid-cols-2 gap-4">
+        <div className="mb-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <p className="text-sm text-gray-600">Price:</p>
             <p className="font-semibold">NPR {vehicle.price ?? "12"}</p>
@@ -53,7 +53,7 @@ const VehicleCard = ({ vehicle, onRemove }: VehicleCardProps) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <p className="text-sm text-gray-600">Status:</p>
             <p

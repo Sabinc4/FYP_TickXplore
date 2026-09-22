@@ -135,7 +135,7 @@ const ChatBot = () => {
       </button>
 
       {isOpen && (
-        <div className="fixed bottom-20 right-4 z-50 flex max-h-[600px] w-[350px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card-lg">
+        <div className="fixed bottom-20 right-4 z-50 flex max-h-[calc(100vh-7rem)] w-[350px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card-lg">
           <div className="bg-slate-900 border-b border-white/10 px-4 py-4 text-center">
             <h3 className="text-lg font-semibold text-white">TickXplore ChatBot</h3>
             <p className="text-xs text-slate-400">Ask about tourist places & booking</p>

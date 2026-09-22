@@ -338,7 +338,7 @@ const MyBookings = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-100 to-slate-100 p-4 md:p-8">
       <div className="mx-auto max-w-6xl">
-        <h1 className="mb-6 flex items-center gap-3 text-4xl font-bold text-slate-900">
+        <h1 className="mb-6 flex items-center gap-3 text-2xl font-bold text-slate-900 sm:text-4xl">
           <FaQrcode className="text-slate-900" />
           My Travel Reservations
         </h1>

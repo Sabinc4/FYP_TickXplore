@@ -49,7 +49,7 @@ const BusCard = ({ bus, onRemove }: BusCardProps) => {
           {bus.name || "Mountain Bus"}
         </h3>
 
-        <div className="mb-3 grid grid-cols-2 gap-4">
+        <div className="mb-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <p className="text-sm text-gray-600">Price per Seat:</p>
             <p className="font-semibold">NPR {bus.pricePerSeat ?? "12"}</p>
@@ -60,7 +60,7 @@ const BusCard = ({ bus, onRemove }: BusCardProps) => {
           </div>
         </div>
 
-        <div className="mb-3 grid grid-cols-2 gap-4">
+        <div className="mb-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <p className="text-sm text-gray-600">Pickup:</p>
             <p className="font-semibold">{bus.pickupPoint || "Kathmandu"}</p>
@@ -71,7 +71,7 @@ const BusCard = ({ bus, onRemove }: BusCardProps) => {
           </div>
         </div>
 
-        <div className="mb-3 grid grid-cols-2 gap-4">
+        <div className="mb-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <p className="text-sm text-gray-600">Take Off Date:</p>
             <p className="font-semibold">

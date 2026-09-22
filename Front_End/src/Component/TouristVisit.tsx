@@ -3,6 +3,7 @@ import { FaChevronLeft, FaChevronRight, FaStar, FaStarHalfAlt } from "react-icon
 import { useNavigate } from "react-router-dom";
 import { homeApi, API_BASE_URL } from "../api";
 import type { TouristArea } from "../api/types";
+import Reveal from "./Reveal";
 
 const resolveImage = (image: string) =>
   image.startsWith("http") ? image : `${API_BASE_URL}${image}`;
@@ -50,18 +51,21 @@ const TouristVisit = () => {
   return (
     <section className="mt-10 px-4 md:px-8 lg:px-12">
       <div className="mx-auto max-w-5xl text-center">
+      <Reveal>
         <p className="section-eyebrow">Must Visit</p>
         <h2 className="section-title">Explore Popular Tourist Areas</h2>
         <p className="mt-2 text-sm text-slate-500 sm:text-base">
           Discover Nepal’s stunning tourist destinations and plan your next
           adventure with us!
         </p>
-      </div>
+      </Reveal>
+    </div>
 
       {loading && <p className="mt-6 text-center text-slate-500">Loading...</p>}
       {error && <p className="mt-6 text-center text-red-500">{error}</p>}
 
       {!loading && !error && (
+        <Reveal>
         <div className="relative mt-8">
           <button
             onClick={() => scrollCards(-300)}
@@ -123,6 +127,7 @@ const TouristVisit = () => {
             <FaChevronRight />
           </button>
         </div>
+        </Reveal>
       )}
     </section>
   );

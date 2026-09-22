@@ -63,7 +63,7 @@ const TransportCard = ({ item, type, onEdit, onDelete, reservation }: TransportC
       <div className="space-y-3 p-4">
         <h3 className="text-xl font-semibold text-gray-800">{item.name}</h3>
 
-        <div className="grid grid-cols-2 gap-2 text-sm">
+        <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           {type === "bus" ? (
             <>
               <InfoItem label="Price per Seat" value={`NPR ${bus.pricePerSeat}`} />
