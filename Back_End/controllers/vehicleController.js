@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Vehicle = require("../models/Vehicle");
+const Reservation = require("../models/Reservation");
 const path = require("path");
 const fs = require("fs");
 const User = require("../models/User");
@@ -109,7 +110,7 @@ exports.getAllVehicles = async (req, res) => {
     const vehicles = await Vehicle.find(query).populate("vendorId", "name email");
 
     if (!vehicles.length) {
-      return res.status(404).json({ success: false, message: "No vehicles found." });
+      return res.status(200).json({ success: true, vehicles: [], message: "No vehicles found." });
     }
 
     res.status(200).json({

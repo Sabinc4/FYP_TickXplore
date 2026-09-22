@@ -3,6 +3,18 @@ const router = express.Router();
 const Reservation = require("../models/Reservation");
 const Vehicle = require("../models/Vehicle");
 
+// ✅ Get Reservations for a Vehicle
+router.get("/vehicle/:vehicleId", async (req, res) => {
+  try {
+    const { vehicleId } = req.params;
+    const reservations = await Reservation.find({ vehicleId });
+    res.json(reservations);
+  } catch (error) {
+    console.error("Error fetching vehicle reservations:", error);
+    res.status(500).json({ message: "Failed to fetch reservations" });
+  }
+});
+
 // ✅ New route: Get Reservations for a Vendor
 router.get("/vendor/:vendorId", async (req, res) => {
   try {

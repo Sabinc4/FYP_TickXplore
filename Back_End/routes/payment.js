@@ -14,14 +14,266 @@ const Admin = require("../models/Admin");
 const KHALTI_BASE_URL = "https://dev.khalti.com/api/v2/epayment/initiate/";
 const KHALTI_LOOKUP_URL = "https://dev.khalti.com/api/v2/epayment/lookup/";
 
+/* ------------------------------------------------------------------ */
+/* Shared helpers                                                      */
+/* ------------------------------------------------------------------ */
+
+// Run a side-effect without letting a failure break the payment flow.
+async function safeRun(label, fn) {
+  try {
+    await fn();
+  } catch (err) {
+    console.error(`[payment] ${label} failed (non-blocking):`, err.message || err);
+  }
+}
+
+function endOfReservationDay(date) {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+// Marks a booking as booked and performs all downstream effects (seat lock,
+// reservation, vendor/admin commission, notifications, emails) exactly once.
+async function completeBooking(booking, pidx) {
+  const totalPrice = booking.totalPrice || 0;
+  const commissionRate = 10;
+  const commissionAmount = Math.round((commissionRate / 100) * totalPrice * 100) / 100;
+  const vendorEarnings = Math.round((totalPrice - commissionAmount) * 100) / 100;
+  const type = booking.busId ? "bus" : booking.vehicleId ? "vehicle" : null;
+  if (!type) throw new Error("Unknown booking type");
+
+  if (type === "bus") {
+    const seats = booking.selectedSeats || [];
+    const bus = await Bus.findById(booking.busId);
+
+    await safeRun("bus seat lock", async () => {
+      await Bus.findByIdAndUpdate(booking.busId, {
+        $addToSet: { bookedSeats: { $each: seats } },
+      });
+    });
+
+    const vendor = bus ? await Vendor.findById(bus.vendorId) : null;
+    if (vendor) {
+      await safeRun("bus vendor update", async () => {
+        vendor.totalEarnings += vendorEarnings;
+        vendor.totalCommission += commissionAmount;
+        await vendor.save();
+
+        await Notification.create({
+          userId: vendor._id,
+          role: "vendor",
+          message: `New bus booking for "${bus.name}" (Rs. ${totalPrice})`,
+        });
+
+        if (vendor.email) {
+          await sendEmail(
+            vendor.email,
+            "New Bus Booking - TickXplore",
+            `<p>Booking ID: ${booking._id}</p><p>Total: Rs. ${totalPrice}</p>`
+          );
+        }
+      });
+    }
+  } else if (type === "vehicle") {
+    const vehicle = await Vehicle.findById(booking.vehicleId);
+    const reservedFrom = booking.reservationDate ? new Date(booking.reservationDate) : new Date();
+    const reservedUntil = endOfReservationDay(reservedFrom);
+
+    const existingReservation = await Reservation.findOne({ paymentId: pidx }).catch(() => null);
+    if (!existingReservation) {
+      await safeRun("vehicle reservation", async () => {
+        const reservation = await Reservation.create({
+          vehicleId: booking.vehicleId,
+          userId: booking.userId,
+          pickupPoint: booking.pickupPoint || "N/A",
+          dropPoint: booking.dropPoint || "N/A",
+          reservedFrom,
+          reservedUntil,
+          paymentStatus: "completed",
+          paymentId: pidx,
+        });
+
+        await Vehicle.findByIdAndUpdate(booking.vehicleId, {
+          isAvailable: false,
+          reservedFrom,
+          reservedUntil,
+          $push: {
+            reservations: {
+              userId: booking.userId,
+              reservedFrom,
+              reservedUntil,
+              pickupPoint: booking.pickupPoint || "N/A",
+              dropPoint: booking.dropPoint || "N/A",
+            },
+          },
+          $inc: {
+            totalEarnings: vendorEarnings,
+            totalCommission: commissionAmount,
+          },
+        });
+      });
+    }
+
+    const vendor = vehicle ? await Vendor.findById(vehicle.vendorId) : null;
+    if (vendor) {
+      await safeRun("vehicle vendor update", async () => {
+        vendor.totalEarnings += vendorEarnings;
+        vendor.totalCommission += commissionAmount;
+        await vendor.save();
+
+        await Notification.create({
+          userId: vendor._id,
+          role: "vendor",
+          message: `New vehicle booking for "${vehicle.name}" (Rs. ${totalPrice})`,
+        });
+
+        if (vendor.email) {
+          await sendEmail(
+            vendor.email,
+            "New Vehicle Booking - TickXplore",
+            `<p>Booking ID: ${booking._id}</p><p>Total: Rs. ${totalPrice}</p>`
+          );
+        }
+      });
+    }
+  }
+
+  // Admin commission update
+  await safeRun("admin commission update", async () => {
+    const admin = await Admin.findOne();
+    if (admin) {
+      admin.totalCommission += commissionAmount;
+      await admin.save();
+
+      await Notification.create({
+        userId: admin._id,
+        role: "admin",
+        message: `New ${type} booking of Rs. ${totalPrice}. Commission Rs. ${commissionAmount}`,
+      });
+
+      if (admin.email) {
+        await sendEmail(
+          admin.email,
+          "New Booking Confirmed - TickXplore",
+          `<p>Booking ID: ${booking._id}</p><p>Commission: Rs. ${commissionAmount}</p>`
+        );
+      }
+    }
+  });
+
+  // User confirmation
+  await safeRun("user notification", async () => {
+    const user = await User.findById(booking.userId);
+    if (user && user.email) {
+      await sendEmail(
+        user.email,
+        "Your Booking is Confirmed - TickXplore",
+        `<p>Hi ${user.name || "User"}, your booking was successful.</p><p>Total Paid: Rs. ${totalPrice}</p>`
+      );
+
+      await Notification.create({
+        userId: user._id,
+        role: "user",
+        message: `Your ${type} booking (Rs. ${totalPrice}) is confirmed.`,
+      });
+    }
+  });
+
+  booking.commissionAmount = commissionAmount;
+  booking.vendorEarnings = vendorEarnings;
+  booking.status = "Booked";
+  booking.paymentStatus = "Paid";
+  booking.paymentMethod = booking.paymentMethod || "Online";
+  booking.transactionId = pidx;
+  booking.settlementDone = true;
+  await booking.save();
+}
+
+// Best-effort recovery for payments initiated before the pending-booking
+// change (metadata lived only in the in-memory store / redirect data).
+async function createBookingFromLegacyMeta(paymentData, query, pidx) {
+  let rawExtra = paymentData.merchant_extra || query.data;
+  let metadata = null;
+  if (rawExtra) {
+    try {
+      metadata = typeof rawExtra === "string" ? JSON.parse(rawExtra) : rawExtra;
+    } catch {
+      metadata = null;
+    }
+  }
+  if (!metadata && global.khaltiTempStore?.has(query.purchase_order_id)) {
+    metadata = global.khaltiTempStore.get(query.purchase_order_id);
+  }
+  if (!metadata) return null;
+
+  const { type, itemId, userId, seats, takeOffDate, pickupPoint, dropPoint } = metadata;
+  if (!itemId || !userId) return null;
+
+  const commissionRate = 10;
+  let booking;
+
+  if (type === "bus") {
+    if (!seats || seats.length === 0) return null;
+    const bus = await Bus.findById(itemId);
+    if (!bus) return null;
+
+    const totalPrice = bus.pricePerSeat * seats.length;
+    const commissionAmount = Math.round((commissionRate / 100) * totalPrice * 100) / 100;
+    const vendorEarnings = totalPrice - commissionAmount;
+
+    booking = await Booking.create({
+      userId,
+      busId: itemId,
+      selectedSeats: seats,
+      totalPrice,
+      status: "Pending",
+      paymentStatus: "Paid",
+      transactionId: pidx,
+      purchaseOrderId: query.purchase_order_id,
+      takeOffDate: bus.takeOffDate || bus.tripDate || new Date(takeOffDate),
+      commissionAmount,
+      vendorEarnings,
+      settlementDone: false,
+    });
+  } else if (type === "vehicle") {
+    const vehicle = await Vehicle.findById(itemId);
+    if (!vehicle) return null;
+
+    const totalPrice = vehicle.price;
+    const commissionAmount = Math.round((commissionRate / 100) * totalPrice * 100) / 100;
+    const vendorEarnings = totalPrice - commissionAmount;
+
+    booking = await Booking.create({
+      userId,
+      vehicleId: itemId,
+      totalPrice,
+      status: "Pending",
+      paymentStatus: "Paid",
+      transactionId: pidx,
+      purchaseOrderId: query.purchase_order_id,
+      reservationDate: takeOffDate ? new Date(takeOffDate) : new Date(),
+      pickupPoint: pickupPoint || "N/A",
+      dropPoint: dropPoint || "N/A",
+      commissionAmount,
+      vendorEarnings,
+      settlementDone: false,
+    });
+  } else {
+    return null;
+  }
+
+  return booking;
+}
+
 //INITIATE PAYMENT
 router.post("/initiate", async (req, res) => {
   console.log("Received Payment Request:", req.body);
+  let booking = null;
   try {
     const {
       type,
       itemId,
-      userInfo,
       seats,
       userId,
       takeOffDate,
@@ -29,20 +281,22 @@ router.post("/initiate", async (req, res) => {
       dropPoint,
     } = req.body;
 
-    if (!itemId || !userInfo || !userId) {
+    if (!itemId || !userId) {
       return res.status(400).json({ message: "Missing required fields." });
     }
 
     let totalPrice = 0;
     let productName = "";
     let productDetails = [];
+    let bus = null;
+    let vehicle = null;
 
     if (type === "bus") {
       if (!seats || seats.length === 0) {
         return res.status(400).json({ message: "Seats are required for bus booking." });
       }
 
-      const bus = await Bus.findById(itemId);
+      bus = await Bus.findById(itemId);
       if (!bus) return res.status(404).json({ message: "Bus not found." });
 
       totalPrice = bus.pricePerSeat * seats.length;
@@ -58,7 +312,7 @@ router.post("/initiate", async (req, res) => {
     }
 
     else if (type === "vehicle") {
-      const vehicle = await Vehicle.findById(itemId);
+      vehicle = await Vehicle.findById(itemId);
       if (!vehicle) return res.status(404).json({ message: "Vehicle not found." });
 
       totalPrice = vehicle.price;
@@ -77,18 +331,47 @@ router.post("/initiate", async (req, res) => {
       return res.status(400).json({ message: "Invalid booking type." });
     }
 
-    const orderId = `order-${Date.now()}`;
-    const metadata = {
-      type,
-      itemId,
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found." });
+
+    const orderId = `order-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const commissionRate = 10;
+    const commissionAmount = Math.round((commissionRate / 100) * totalPrice * 100) / 100;
+    const vendorEarnings = Math.round((totalPrice - commissionAmount) * 100) / 100;
+
+    // Persist a PENDING booking BEFORE calling Khalti so the charge can never be
+    // lost if the callback restarts or fails. `/callback` and `/verify` complete it.
+    const bookingFields = {
       userId,
-      seats,
-      takeOffDate,
-      pickupPoint,
-      dropPoint,
+      totalPrice,
+      status: "Pending",
+      paymentStatus: "Pending",
+      transactionId: `pending-${orderId}`,
+      purchaseOrderId: orderId,
+      commissionAmount,
+      vendorEarnings,
     };
 
-    //Store temporarily in memory (fallback in callback)
+    if (type === "bus") {
+      bookingFields.busId = itemId;
+      bookingFields.selectedSeats = seats;
+      bookingFields.takeOffDate = bus.takeOffDate || bus.tripDate || new Date();
+    } else {
+      bookingFields.vehicleId = itemId;
+      bookingFields.reservationDate = takeOffDate ? new Date(takeOffDate) : new Date();
+      bookingFields.pickupPoint = pickupPoint || "N/A";
+      bookingFields.dropPoint = dropPoint || "N/A";
+    }
+
+    try {
+      booking = await Booking.create(bookingFields);
+    } catch (createErr) {
+      console.error("CREATE BOOKING ERROR:", createErr.message);
+      return res.status(500).json({ message: "Failed to create booking", error: createErr.message });
+    }
+
+    // Keep a small in-memory fallback for legacy in-flight payments only.
+    const metadata = { type, itemId, userId, seats, takeOffDate, pickupPoint, dropPoint };
     global.khaltiTempStore = global.khaltiTempStore || new Map();
     global.khaltiTempStore.set(orderId, metadata);
 
@@ -98,13 +381,16 @@ router.post("/initiate", async (req, res) => {
       amount: totalPrice * 100,
       purchase_order_id: orderId,
       purchase_order_name: productName,
-      customer_info: userInfo,
+      customer_info: {
+        name: user.name,
+        email: user.email,
+        phone: user.phoneNumber,
+      },
       product_details: productDetails,
-      merchant_extra: JSON.stringify(metadata),
       merchant_username: "tickxplore",
     };
 
-    console.log("Sending to Khalti:", payload); 
+    console.log("Sending to Khalti:", payload);
     const khaltiRes = await axios.post(KHALTI_BASE_URL, payload, {
       headers: {
         Authorization: `Key ${process.env.KHALTI_SECRET_KEY}`,
@@ -112,8 +398,11 @@ router.post("/initiate", async (req, res) => {
       },
     });
 
-
     console.log("Khalti INITIATE RESPONSE:", khaltiRes.data);
+
+    // Attach the real Khalti pidx to the persisted booking.
+    booking.transactionId = khaltiRes.data.pidx;
+    await booking.save();
 
     return res.status(200).json({
       payment_url: khaltiRes.data.payment_url,
@@ -122,6 +411,11 @@ router.post("/initiate", async (req, res) => {
 
   } catch (err) {
     console.error("INITIATE ERROR:", err.message || err);
+    if (err.response?.data) console.error("Khalti error detail:", JSON.stringify(err.response.data));
+    // Clean up the pending booking if Khalti rejected the initiate request.
+    if (booking) {
+      await Booking.deleteOne({ _id: booking._id }).catch(() => {});
+    }
     return res.status(500).json({ message: "Failed to initiate payment", error: err.message });
   }
 });
@@ -147,22 +441,27 @@ router.post("/verify", async (req, res) => {
       return res.status(400).json({ message: "Payment not completed" });
     }
 
-    const booking = await Booking.findOne({ transactionId: pidx });
+    let booking = await Booking.findOne({ transactionId: pidx });
 
     if (!booking) {
       return res.status(404).json({
-        message: "Booking not found. It should have been created via /callback.",
+        message: "No booking found for this payment. Please contact support.",
       });
     }
 
-    // Already verified
-    if (booking.status === "Booked") {
-      return res.status(200).json({ message: "Already verified", status: "Booked" });
+    // Integrity check: the paid amount must match what was charged.
+    const expectedPaisa = Math.round(booking.totalPrice * 100);
+    if (payment.total_amount && Number(payment.total_amount) !== expectedPaisa) {
+      return res.status(400).json({ message: "Payment amount mismatch" });
     }
 
-    // Update booking status
-    booking.status = "Booked";
-    await booking.save();
+    // Already fully processed.
+    if (booking.status === "Booked" && booking.settlementDone) {
+      return res.status(200).json({ message: "Already verified", status: "Booked", bookingId: booking._id });
+    }
+
+    // Complete the booking idempotently (locks seats / creates reservation).
+    await completeBooking(booking, pidx);
 
     return res.status(200).json({
       message: "Payment verified successfully",
@@ -180,11 +479,15 @@ router.post("/verify", async (req, res) => {
 });
 
 router.get("/callback", async (req, res) => {
+  const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+  const frontendUrl = (p, s) =>
+    `${CLIENT_URL}/payment/callback?pidx=${encodeURIComponent(p || "")}&status=${encodeURIComponent(s || "unknown")}`;
+
   try {
     const { pidx, status, purchase_order_id } = req.query;
 
     if (!pidx || status !== "Completed") {
-      return res.status(400).json({ error: "Invalid payment details" });
+      return res.redirect(frontendUrl(pidx, status));
     }
 
     const lookupRes = await axios.post(KHALTI_LOOKUP_URL, { pidx }, {
@@ -196,187 +499,37 @@ router.get("/callback", async (req, res) => {
 
     const paymentData = lookupRes.data;
     if (paymentData.status !== "Completed") {
-      return res.status(400).json({ error: "Payment verification failed" });
+      return res.redirect(frontendUrl(pidx, paymentData.status));
     }
 
-    let rawExtra = paymentData.merchant_extra || req.query.data;
-    let metadata;
-    if (rawExtra) {
-      metadata = typeof rawExtra === "string" ? JSON.parse(rawExtra) : rawExtra;
-    } else if (global.khaltiTempStore?.has(purchase_order_id)) {
-      metadata = global.khaltiTempStore.get(purchase_order_id);
-    } else {
-      return res.status(400).json({ error: "Missing metadata in callback" });
+    const orClauses = [{ transactionId: pidx }];
+    if (purchase_order_id) orClauses.push({ purchaseOrderId: purchase_order_id });
+    let booking = await Booking.findOne({ $or: orClauses });
+
+    // Legacy fallback: recover an in-flight payment that predates the pending-booking change.
+    if (!booking) {
+      booking = await createBookingFromLegacyMeta(paymentData, req.query, pidx);
     }
 
-    const { type, itemId, userId, seats, takeOffDate, pickupPoint, dropPoint } = metadata;
-
-    const existingBooking = await Booking.findOne({ transactionId: pidx });
-    if (existingBooking) {
-      return res.redirect(`http://localhost:5173/payment/callback?pidx=${pidx}&status=Completed`);
+    if (!booking) {
+      return res.redirect(frontendUrl(pidx, "unverified"));
     }
 
-    let booking;
-    const commissionRate = 10;
-    let totalPrice = 0;
-    let commissionAmount = 0;
-    let vendorEarnings = 0;
-
-    if (type === "bus") {
-      const bus = await Bus.findById(itemId);
-      if (!bus) return res.status(404).json({ error: "Bus not found" });
-
-      totalPrice = bus.pricePerSeat * seats.length;
-      commissionAmount = (commissionRate / 100) * totalPrice;
-      vendorEarnings = totalPrice - commissionAmount;
-
-      booking = new Booking({
-        userId,
-        busId: itemId,
-        selectedSeats: seats,
-        totalPrice,
-        commissionAmount,
-        vendorEarnings,
-        status: "Booked",
-        transactionId: pidx,
-        takeOffDate: bus.takeOffDate || bus.tripDate || new Date(takeOffDate),
-      });
-
-      await booking.save();
-
-      await Bus.findByIdAndUpdate(itemId, {
-        $addToSet: { bookedSeats: { $each: seats } },
-      });
-
-      const vendor = await Vendor.findById(bus.vendorId);
-      if (vendor) {
-        vendor.totalEarnings += vendorEarnings;
-        vendor.totalCommission += commissionAmount;
-        await vendor.save();
-
-        await Notification.create({
-          userId: vendor._id,
-          role: "vendor",
-          message: `New bus booking for "${bus.name}" (Rs. ${totalPrice})`,
-        });
-
-        if (vendor.email) {
-          await sendEmail(
-            vendor.email,
-            "New Bus Booking - TickXplore",
-            `<p>Booking ID: ${booking._id}</p><p>Total: Rs. ${totalPrice}</p>`
-          );
-        }
-      }
-
-    } else if (type === "vehicle") {
-      const vehicle = await Vehicle.findById(itemId);
-      if (!vehicle) return res.status(404).json({ error: "Vehicle not found" });
-
-      totalPrice = vehicle.price;
-      commissionAmount = (commissionRate / 100) * totalPrice;
-      vendorEarnings = totalPrice - commissionAmount;
-
-      booking = new Booking({
-        userId,
-        vehicleId: itemId,
-        totalPrice,
-        commissionAmount,
-        vendorEarnings,
-        status: "Booked",
-        transactionId: pidx,
-        reservationDate: takeOffDate || new Date(),
-        pickupPoint: pickupPoint || "N/A",
-        dropPoint: dropPoint || "N/A",
-      });
-
-      await booking.save();
-
-      const reservedFrom = new Date(booking.reservationDate);
-      const reservedUntil = new Date(booking.reservationDate);
-
-      const reservation = await Reservation.create({
-        vehicleId: itemId,
-        userId,
-        pickupPoint,
-        dropPoint,
-        reservedFrom,
-        reservedUntil,
-        paymentStatus: "completed",
-        paymentId: pidx,
-      });
-
-      await Vehicle.findByIdAndUpdate(itemId, {
-        isAvailable: false,
-        reservedFrom,
-        reservedUntil,
-        $push: { reservations: reservation._id },
-        $inc: {
-          totalEarnings: vendorEarnings,
-          totalCommission: commissionAmount,
-        },
-      });
-
-      const vendor = await Vendor.findById(vehicle.vendorId);
-      if (vendor) {
-        vendor.totalEarnings += vendorEarnings;
-        vendor.totalCommission += commissionAmount;
-        await vendor.save();
-
-        await Notification.create({
-          userId: vendor._id,
-          role: "vendor",
-          message: `New vehicle booking for "${vehicle.name}" (Rs. ${totalPrice})`,
-        });
-
-        if (vendor.email) {
-          await sendEmail(
-            vendor.email,
-            "New Vehicle Booking - TickXplore",
-            `<p>Booking ID: ${booking._id}</p><p>Total: Rs. ${totalPrice}</p>`
-          );
-        }
-      }
-    } else {
-      return res.status(400).json({ error: "Invalid booking type" });
+    if (booking.status === "Booked" && booking.settlementDone) {
+      return res.redirect(frontendUrl(pidx, "Completed"));
     }
 
-    // Admin Commission Update
-    const admin = await Admin.findOne();
-    if (admin) {
-      admin.totalCommission += commissionAmount;
-      await admin.save();
-
-      await Notification.create({
-        userId: admin._id,
-        role: "admin",
-        message: `New ${type} booking of Rs. ${totalPrice}. Commission Rs. ${commissionAmount}`,
-      });
-
-      await sendEmail(
-        admin.email,
-        "New Booking Confirmed - TickXplore",
-        `<p>Booking ID: ${booking._id}</p><p>Commission: Rs. ${commissionAmount}</p>`
-      );
+    // Integrity check: the paid amount must match what was charged.
+    const expectedPaisa = Math.round(booking.totalPrice * 100);
+    if (paymentData.total_amount && Number(paymentData.total_amount) !== expectedPaisa) {
+      return res.redirect(frontendUrl(pidx, "amount_mismatch"));
     }
 
-    // Send to User
-    const user = await User.findById(userId);
-    if (user && user.email) {
-      await sendEmail(
-        user.email,
-        "Your Booking is Confirmed - TickXplore",
-        `<p>Hi ${user.name || "User"}, your booking was successful.</p><p>Total Paid: Rs. ${totalPrice}</p>`
-      );
+    // Complete the booking idempotently. Side-effects are guarded so a failure
+    // here can never strand a user who already paid.
+    await completeBooking(booking, pidx);
 
-      await Notification.create({
-        userId: user._id,
-        role: "user",
-        message: `Your ${type} booking (Rs. ${totalPrice}) is confirmed.`,
-      });
-    }
-
-    return res.redirect(`http://localhost:5173/payment/callback?pidx=${pidx}&status=Completed`);
+    return res.redirect(frontendUrl(pidx, "Completed"));
   } catch (err) {
     console.error("❌ Callback error:", err.message || err);
     return res.status(500).json({ error: "Internal server error", details: err.message });

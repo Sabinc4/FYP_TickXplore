@@ -1,7 +1,9 @@
 const Booking = require("../models/Booking");
 const Reservation = require("../models/Reservation");
 const Bus = require("../models/Bus");
-const Vehicle = require("../models/Vehicle"); 
+const Vehicle = require("../models/Vehicle");
+const User = require("../models/User");
+const Notification = require("../models/Notification"); 
 
 
 // ✅ Get all bookings for a user
@@ -128,3 +130,55 @@ exports.getBookingsByVendor = async (req, res) => {
       res.status(500).json({ message: "Internal Server Error" });
     }
   };
+
+// ✅ Confirm a Cash on Visit booking (vendor/admin collect the cash)
+exports.confirmCoDBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+    if (booking.paymentStatus !== "CashOnVisit") {
+      return res.status(400).json({ message: "This booking is not a Cash on Visit booking." });
+    }
+
+    if (booking.status === "Booked") {
+      return res.status(200).json({ message: "Booking already confirmed", booking });
+    }
+
+    booking.status = "Booked";
+    booking.paymentStatus = "Paid";
+    await booking.save();
+
+    // Notify the user
+    const user = await User.findById(booking.userId);
+    if (user) {
+      await Notification.create({
+        userId: user._id,
+        role: "user",
+        message: `Your Cash on Visit booking has been confirmed.`,
+      });
+    }
+
+    // Notify the concerned vendor (only if a different vendor confirms)
+    let vendorId = null;
+    if (booking.busId) {
+      const bus = await Bus.findById(booking.busId);
+      vendorId = bus?.vendorId;
+    } else if (booking.vehicleId) {
+      const vehicle = await Vehicle.findById(booking.vehicleId);
+      vendorId = vehicle?.vendorId;
+    }
+    if (vendorId && String(vendorId) !== String(req.user._id)) {
+      await Notification.create({
+        userId: vendorId,
+        role: "vendor",
+        message: `Cash on Visit payment confirmed for booking ${booking._id}.`,
+      });
+    }
+
+    res.json({ message: "Booking confirmed successfully", booking });
+  } catch (err) {
+    console.error("Confirm CoD booking error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};

@@ -9,6 +9,7 @@ const BookingSchema = new mongoose.Schema(
     selectedSeats: [{ type: Number }],
     totalPrice: { type: Number, required: true },
     transactionId: { type: String, unique: true },
+    purchaseOrderId: { type: String },
     status: {
       type: String,
       enum: ["Pending", "Booked", "Cancelled"],
@@ -38,6 +39,9 @@ const BookingSchema = new mongoose.Schema(
     // ✅ Commission fields
     commissionAmount: { type: Number, default: 0 },
     vendorEarnings: { type: Number, default: 0 },
+
+    // ✅ Settlement guard: true once vendor/admin/user side-effects have run
+    settlementDone: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

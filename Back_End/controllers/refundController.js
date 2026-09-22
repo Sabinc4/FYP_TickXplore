@@ -168,6 +168,8 @@ const requestRefund = async (req, res) => {
         $or: [
           { takeOffDate: { $gte: now } },
           { reservationDate: { $gte: now } },
+          // Unconfirmed Cash on Visit bookings stay visible even after the trip date.
+          { paymentStatus: "CashOnVisit", status: "Pending" },
         ],
       })
         .populate("busId")
@@ -200,6 +202,14 @@ const getBookingHistory = async (req, res) => {
         },
         {
           status: "Cancelled"
+        },
+        // Past Cash on Visit trips appear in history even if never confirmed
+        {
+          paymentStatus: "CashOnVisit",
+          $or: [
+            { takeOffDate: { $lt: now } },
+            { reservationDate: { $lt: now } },
+          ],
         }
       ]
     })
@@ -228,7 +238,7 @@ const getRefundRequests = async (req, res) => {
 
 const cancelBooking = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.bookingId);
+    const booking = await Booking.findById(req.params.bookingId).populate("busId vehicleId");
 
     if (!booking) return res.status(404).json({ message: "Booking not found" });
 
@@ -241,10 +251,11 @@ const cancelBooking = async (req, res) => {
     await booking.save();
 
     // Notify User about cancellation via Notification
+    const itemName = booking.busId?.name || booking.vehicleId?.name || "your trip";
     await Notification.create({
       userId: booking.userId,
       role: "user",
-      message: `Your booking for ${booking.vehicleName || booking.busName} has been cancelled.`,
+      message: `Your booking for ${itemName} has been cancelled.`,
     });
 
     // Free the seats if it's a bus booking

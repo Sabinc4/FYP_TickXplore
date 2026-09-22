@@ -2,3 +2,113 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-800 font-sans;
+  }
+
+  button {
+    @apply cursor-pointer;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-2 ring-offset-white;
+  }
+
+  ::selection {
+    @apply bg-blue-600 text-white;
+  }
+}
+
+@layer components {
+  /* Card surface used across the app */
+  .card-surface {
+    @apply bg-white rounded-xl shadow-card border border-slate-100;
+  }
+
+  /* Primary + secondary button presets */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 text-white font-semibold text-sm
+      hover:bg-blue-700 active:scale-[0.98] transition-all duration-200 shadow-sm hover:shadow-md;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-slate-100 text-slate-700 font-semibold text-sm
+      hover:bg-slate-200 active:scale-[0.98] transition-all duration-200;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-slate-600 font-medium text-sm
+      hover:bg-slate-100 transition-colors duration-200;
+  }
+
+  /* Form input preset */
+  .input-field {
+    @apply w-full px-4 py-2.5 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 placeholder:text-slate-400
+      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow;
+  }
+
+  /* Section headings */
+  .section-eyebrow {
+    @apply text-sm font-semibold uppercase tracking-wider text-blue-600;
+  }
+
+  .section-title {
+    @apply mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbars but keep scrollability (carousels) */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Glassmorphism panel for hero overlays */
+  .glass-panel {
+    @apply bg-white/80 backdrop-blur-xl border border-white/40 shadow-card-lg;
+  }
+}
+
+/* Thin styled scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+  border: 2px solid #f1f5f9;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Respect users that prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -150,6 +150,13 @@ exports.signIn = async (req, res) => {
       return res.status(403).json({ message: "Account is not verified. Please verify your OTP." });
     }
 
+    // Vendors must be activated/approved by an admin before they can log in
+    if (user.role === "vendor" && !user.isActive) {
+      return res
+        .status(403)
+        .json({ message: "Your vendor account is not active yet. Please wait for admin approval." });
+    }
+
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
@@ -168,6 +175,9 @@ exports.signIn = async (req, res) => {
         _id: user._id,
         email: user.email,
         role: user.role,
+        name: user.name || user.vendorName || "",
+        vendorName: user.vendorName || "",
+        isActive: user.isActive ?? true,
       },
     });
   } catch (error) {
