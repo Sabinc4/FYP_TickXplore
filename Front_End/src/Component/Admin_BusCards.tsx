@@ -88,7 +88,7 @@ const BusCard = ({ bus, onRemove }: BusCardProps) => {
           <p className="text-sm text-gray-600">Booked Seats:</p>
           <div className="mt-1 h-2.5 w-full rounded-full bg-gray-200">
             <div
-              className="h-2.5 rounded-full bg-blue-600"
+              className="h-2.5 rounded-full bg-indigo-600"
               style={{ width: `${Math.min(100, (bookedSeats / totalSeats) * 100)}%` }}
             />
           </div>

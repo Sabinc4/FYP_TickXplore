@@ -12,12 +12,14 @@ const VendorSchema = new mongoose.Schema(
     },
     vendorName: {
       type: String,
-      required: true,
+      required: false,
+      default: "",
       trim: true,
     },
     vendorLocation: {
       type: String,
-      required: true,
+      required: false,
+      default: "Pending",
       trim: true,
     },
     email: {
@@ -30,14 +32,19 @@ const VendorSchema = new mongoose.Schema(
     },
     phoneNumber: {
       type: String,
-      required: true,
-      unique: true, // Unique constraint on phone number
+      required: false,
+      unique: true,
+      sparse: true,
       match: /^[0-9]{7,15}$/, // Accepts 7–15 digit phone numbers
     },
     password: {
       type: String,
-      required: true,
+      required: false,
       minlength: 6, // Minimum password length
+    },
+    googleId: {
+      type: String,
+      sparse: true,
     },
     role: {
       type: String,
@@ -48,6 +55,16 @@ const VendorSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: false,
+    },
+    applicationStatus: {
+      type: String,
+      enum: ["pending", "approved", "declined"],
+      default: "pending",
+    },
+    applicationReason: {
+      type: String,
+      default: "",
+      trim: true,
     },
     resetCode: String,
     resetCodeExpires: Date,

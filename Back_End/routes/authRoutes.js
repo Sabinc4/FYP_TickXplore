@@ -5,6 +5,7 @@ const authController = require("../controllers/authController");
 const adminController = require("../controllers/adminController");
 const vendorController = require("../controllers/vendorController");
 const userController = require("../controllers/userController");
+const googleAuthController = require("../controllers/googleAuthController");
 const { protect } = require("../middleware/authMiddleware");
 
 // ✅ Destructure the needed controllers from authController
@@ -20,6 +21,7 @@ const {
 // Auth routes
 router.post("/register", register);
 router.post("/sign-in", signIn);
+router.post("/google-signin", googleAuthController.googleSignIn);
 router.post("/users/register", register);
 router.post("/verify-otp", verifyOTP);
 

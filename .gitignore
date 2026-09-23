@@ -4,6 +4,9 @@
 .env.*.local
 !.env.example
 
+# Firebase service account (secret - never commit)
+Back_End/config/serviceAccountKey.json
+
 node_modules/
 dist/
 logs/

@@ -1,4 +1,5 @@
 import DataTable from "../../Component/Admin_DataTable";
+import AdminPageHeader from "../../Component/AdminPageHeader";
 import { useOutletContext } from "react-router-dom";
 import type { Vendor } from "../../api";
 
@@ -23,15 +24,21 @@ const Admin_Vendors = () => {
   if (error) return <div>Error loading vendors: {error}</div>;
 
   return (
-    <DataTable<Vendor>
-      title="Vendors"
-      data={vendors}
-      fields={["vendorName", "email"]}
-      headers={["Vendor Name", "Email"]}
-      onDelete={handleDeleteVendor}
-      onToggleStatus={toggleVendorStatus}
-      disableEdit
-    />
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Vendors"
+        subtitle="Approved vendors currently operating on TickXplore."
+      />
+      <DataTable<Vendor>
+        title="Vendors"
+        data={vendors}
+        fields={["vendorName", "email"]}
+        headers={["Vendor Name", "Email"]}
+        onDelete={handleDeleteVendor}
+        onToggleStatus={toggleVendorStatus}
+        hideTitle
+      />
+    </div>
   );
 };
 

@@ -1,4 +1,5 @@
 import DataTable from "../../Component/Admin_DataTable";
+import AdminPageHeader from "../../Component/AdminPageHeader";
 import { useOutletContext } from "react-router-dom";
 import type { User } from "../../api";
 
@@ -16,14 +17,20 @@ const Users = () => {
   if (error) return <div>Error loading users: {error}</div>;
 
   return (
-    <DataTable<User>
-      title="Users"
-      data={users}
-      fields={["name", "email"]}
-      headers={["Name", "Email"]}
-      onDelete={handleDeleteUser}
-      disableEdit
-    />
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Users"
+        subtitle="All registered users of TickXplore."
+      />
+      <DataTable<User>
+        title="Users"
+        data={users}
+        fields={["name", "email"]}
+        headers={["Name", "Email"]}
+        onDelete={handleDeleteUser}
+        hideTitle
+      />
+    </div>
   );
 };
 

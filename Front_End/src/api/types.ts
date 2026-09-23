@@ -11,11 +11,15 @@ export interface User {
   role: Role;
   profilePhoto?: string;
   isActive?: boolean;
+  vendorStatus?: "none" | "pending" | "declined" | "active";
 }
 
 export interface Vendor extends User {
   vendorName?: string;
   vendorLocation?: string;
+  applicationStatus?: "pending" | "approved" | "declined";
+  applicationReason?: string;
+  createdAt?: string;
 }
 
 export interface Bus {

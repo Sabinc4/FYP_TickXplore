@@ -11,6 +11,7 @@ interface DashboardItem {
 const useAdminData = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vendorApplications, setVendorApplications] = useState<Vendor[]>([]);
   const [admins, setAdmins] = useState<User[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -25,7 +26,17 @@ const useAdminData = () => {
     try {
       const data = await adminApi.getDashboard();
       setUsers(data.users || []);
-      setVendors(data.vendors || []);
+
+      const allVendors = data.vendors || [];
+      const isApprovedVendor = (v: Vendor) =>
+        v.applicationStatus === "approved" || (!v.applicationStatus && v.isActive);
+      setVendors(allVendors.filter(isApprovedVendor));
+      setVendorApplications(
+        allVendors.filter(
+          (v) => v.applicationStatus === "pending" || (!v.applicationStatus && !v.isActive)
+        )
+      );
+
       setAdmins(data.admins || []);
       setBuses(data.buses || []);
       setVehicles(data.vehicles || []);
@@ -67,6 +78,52 @@ const useAdminData = () => {
     }
   };
 
+  const approveVendor = async (vendorId: string) => {
+    const toastId = toast.loading("Approving vendor application...");
+    try {
+      const data = await adminApi.approveVendor(vendorId);
+      toast.update(toastId, {
+        render:
+          (data as { message?: string }).message ||
+          "Vendor approved successfully",
+        type: "success",
+        isLoading: false,
+      });
+      fetchData();
+    } catch (error) {
+      const axiosErr = error as { response?: { data?: { message?: string } } };
+      toast.update(toastId, {
+        render:
+          axiosErr.response?.data?.message || "Failed to approve vendor",
+        type: "error",
+        isLoading: false,
+      });
+    }
+  };
+
+  const declineVendor = async (vendorId: string) => {
+    const toastId = toast.loading("Declining vendor application...");
+    try {
+      const data = await adminApi.declineVendor(vendorId);
+      toast.update(toastId, {
+        render:
+          (data as { message?: string }).message ||
+          "Vendor application declined",
+        type: "success",
+        isLoading: false,
+      });
+      fetchData();
+    } catch (error) {
+      const axiosErr = error as { response?: { data?: { message?: string } } };
+      toast.update(toastId, {
+        render:
+          axiosErr.response?.data?.message || "Failed to decline vendor",
+        type: "error",
+        isLoading: false,
+      });
+    }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     try {
       const data = await adminApi.deleteUser(userId);
@@ -89,25 +146,34 @@ const useAdminData = () => {
     }
   };
 
-  const handleEditClick = (item: unknown, type: string, field = "") => {
-    console.log(`Editing ${type} field: ${field}`, item);
-  };
+const handleDeleteAdmin = async (adminId: string) => {
+  try {
+    const data = await adminApi.deleteAdmin(adminId);
+    toast.success((data as { message?: string }).message || "Admin deleted successfully");
+    fetchData();
+  } catch (error) {
+    const axiosErr = error as { response?: { data?: { message?: string } } };
+    toast.error(axiosErr.response?.data?.message || "Failed to delete admin");
+  }
+};
 
-  const dashboardData: DashboardItem[] = [
-    { name: "Users", count: users.length, color: "#3B82F6" },
-    { name: "Vendors", count: vendors.length, color: "#10B981" },
-    { name: "Admins", count: admins.length, color: "#F59E0B" },
-    { name: "Buses", count: buses.length, color: "#8B5CF6" },
-    { name: "Vehicles", count: vehicles.length, color: "#EF4444" },
-    { name: "Bookings", count: bookings.length, color: "#EC4899" },
-    { name: "Refunds", count: refundRequests.length, color: "#F97316" },
-  ];
+const dashboardData: DashboardItem[] = [
+  { name: "Users", count: users.length, color: "#3B82F6" },
+  { name: "Vendors", count: vendors.length, color: "#10B981" },
+  { name: "Applications", count: vendorApplications.length, color: "#F59E0B" },
+  { name: "Admins", count: admins.length, color: "#06B6D4" },
+  { name: "Buses", count: buses.length, color: "#8B5CF6" },
+  { name: "Vehicles", count: vehicles.length, color: "#EF4444" },
+  { name: "Bookings", count: bookings.length, color: "#EC4899" },
+  { name: "Refunds", count: refundRequests.length, color: "#F97316" },
+];
 
-  return {
-    users, vendors, admins, buses, vehicles, bookings, refundRequests,
-    dashboardData, loading, error, fetchData,
-    handleEditClick, handleDeleteUser, handleDeleteVendor, toggleVendorStatus,
-  };
+return {
+  users, vendors, vendorApplications, admins, buses, vehicles, bookings, refundRequests,
+  dashboardData, loading, error, fetchData,
+  handleDeleteUser, handleDeleteVendor, handleDeleteAdmin, toggleVendorStatus,
+  approveVendor, declineVendor,
+};
 };
 
 export default useAdminData;

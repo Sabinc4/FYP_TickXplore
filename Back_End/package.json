@@ -21,6 +21,7 @@
     "express-fileupload": "^1.5.1",
     "express-rate-limit": "^7.5.0",
     "express-validator": "^7.2.1",
+    "firebase-admin": "^14.4.0",
     "framer-motion": "^12.5.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",

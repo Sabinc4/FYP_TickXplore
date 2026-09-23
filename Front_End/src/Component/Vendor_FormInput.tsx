@@ -12,7 +12,7 @@ const FormInput = ({ label, type = "text", name, value, onChange, ...props }: Fo
       name={name}
       value={value}
       onChange={onChange}
-      className="w-full rounded-lg border p-2 focus:ring-2 focus:ring-blue-500"
+      className="w-full rounded-lg border p-2 focus:ring-2 focus:ring-indigo-500"
       {...props}
     />
   </div>

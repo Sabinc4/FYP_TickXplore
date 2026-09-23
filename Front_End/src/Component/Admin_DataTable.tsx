@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import EditModal from "./Admin_EditModal";
 import { getPageRange } from "../utils/pagination";
 
 interface DataTableProps<T extends { _id?: string }> {
@@ -8,10 +7,12 @@ interface DataTableProps<T extends { _id?: string }> {
   fields: string[];
   headers?: string[];
   renderCell?: (item: T, field: string) => string | number | null;
-  onEdit?: (item: T) => void;
   onDelete?: (id: string) => void;
   onToggleStatus?: (id: string) => void;
-  disableEdit?: boolean;
+  onApproveStatus?: (id: string) => void;
+  onDeclineStatus?: (id: string) => void;
+  disableDelete?: (item: T) => boolean;
+  hideTitle?: boolean;
   pageSize?: number;
 }
 
@@ -37,19 +38,19 @@ const DataTable = <T extends { _id?: string }>({
   fields,
   headers,
   renderCell,
-  onEdit,
   onDelete,
   onToggleStatus,
-  disableEdit = false,
+  onApproveStatus,
+  onDeclineStatus,
+  disableDelete,
+  hideTitle = false,
   pageSize = 10,
 }: DataTableProps<T>) => {
-  const [editModal, setEditModal] = useState<{
-    isOpen: boolean;
-    currentItem: T | null;
-    field: string;
-  }>({ isOpen: false, currentItem: null, field: "" });
   const [confirmDelete, setConfirmDelete] = useState<T | null>(null);
-  const [confirmToggle, setConfirmToggle] = useState<T | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{
+    item: T;
+    action: "activate" | "deactivate" | "approve" | "decline";
+  } | null>(null);
   const [page, setPage] = useState(1);
 
   const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
@@ -67,18 +68,6 @@ const DataTable = <T extends { _id?: string }>({
   const startIndex = (safePage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, data.length);
 
-  const handleEditClick = (item: T, field: string) => {
-    if (disableEdit) return;
-    setEditModal({ isOpen: true, currentItem: item, field });
-  };
-
-  const handleSave = (newValue: string) => {
-    if (onEdit && editModal.currentItem) {
-      onEdit({ ...editModal.currentItem, [editModal.field]: newValue } as T);
-    }
-    setEditModal({ isOpen: false, currentItem: null, field: "" });
-  };
-
   const renderCellContent = (item: T, field: string): string => {
     try {
       if (renderCell) {
@@ -94,22 +83,19 @@ const DataTable = <T extends { _id?: string }>({
 
   const displayHeaders = headers?.length ? headers : fields;
 
+  const appStatus = (item: T): string =>
+    String((item as Record<string, unknown>).applicationStatus ?? "");
+
+  const decisionText: Record<string, { label: string; confirm: string; buttonClass: string }> = {
+    activate: { label: "activate", confirm: "Activate", buttonClass: "bg-emerald-600 hover:bg-emerald-700" },
+    deactivate: { label: "deactivate", confirm: "Deactivate", buttonClass: "bg-rose-600 hover:bg-rose-700" },
+    approve: { label: "accept", confirm: "Accept", buttonClass: "bg-emerald-600 hover:bg-emerald-700" },
+    decline: { label: "decline", confirm: "Decline", buttonClass: "bg-rose-600 hover:bg-rose-700" },
+  };
+
   return (
     <div className="rounded-2xl bg-white p-6 shadow-card">
-      <h2 className="mb-6 text-2xl font-semibold text-gray-800">{title}</h2>
-
-      <EditModal
-        isOpen={editModal.isOpen}
-        onClose={() => setEditModal({ isOpen: false, currentItem: null, field: "" })}
-        title={`Edit ${editModal.field}`}
-        initialValue={
-          editModal.currentItem
-            ? String(editModal.currentItem[editModal.field as keyof T] ?? "")
-            : ""
-        }
-        onSave={handleSave}
-        fieldName={editModal.field}
-      />
+      {!hideTitle && <h2 className="mb-6 text-2xl font-semibold text-slate-800">{title}</h2>}
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -130,7 +116,7 @@ const DataTable = <T extends { _id?: string }>({
                   onDelete?.(confirmDelete._id!);
                   setConfirmDelete(null);
                 }}
-                className="rounded-xl bg-red-600 px-4 py-2 text-white transition hover:bg-red-700"
+                className="rounded-xl bg-rose-600 px-4 py-2 text-white transition hover:bg-rose-700"
               >
                 Yes
               </button>
@@ -139,30 +125,32 @@ const DataTable = <T extends { _id?: string }>({
         </div>
       )}
 
-      {confirmToggle && (
+      {confirmAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-card-lg">
-            <h2 className="mb-4 text-xl font-bold text-gray-800">Confirm Status Change</h2>
+            <h2 className="mb-4 text-xl font-bold text-gray-800">
+              Confirm {decisionText[confirmAction.action]?.confirm}
+            </h2>
             <p className="mb-6 text-gray-500">
               Are you sure you want to{" "}
-              {(confirmToggle as Record<string, unknown>).isActive
-                ? "deactivate"
-                : "activate"}{" "}
-              this item?
+              {decisionText[confirmAction.action]?.label} this item?
             </p>
             <div className="flex justify-end space-x-4">
               <button
-                onClick={() => setConfirmToggle(null)}
+                onClick={() => setConfirmAction(null)}
                 className="rounded-xl bg-gray-200 px-4 py-2 text-gray-700 transition hover:bg-gray-300"
               >
                 No
               </button>
               <button
                 onClick={() => {
-                  onToggleStatus?.(confirmToggle._id!);
-                  setConfirmToggle(null);
+                  const { item, action } = confirmAction;
+                  if (action === "approve") onApproveStatus?.(item._id!);
+                  else if (action === "decline") onDeclineStatus?.(item._id!);
+                  else onToggleStatus?.(item._id!);
+                  setConfirmAction(null);
                 }}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700"
+                className={`rounded-xl px-4 py-2 text-white transition ${decisionText[confirmAction.action]?.buttonClass}`}
               >
                 Yes
               </button>
@@ -177,7 +165,7 @@ const DataTable = <T extends { _id?: string }>({
         ) : (
           <table className="w-full border rounded-lg border-gray-300">
             <thead>
-              <tr className="bg-blue-600 text-white">
+              <tr className="bg-indigo-600 text-white">
                 {displayHeaders.map((label, idx) => (
                   <th
                     key={idx}
@@ -186,10 +174,10 @@ const DataTable = <T extends { _id?: string }>({
                     {label}
                   </th>
                 ))}
-                {onToggleStatus && (
+                {(onToggleStatus || onApproveStatus) && (
                   <th className="border border-gray-300 px-6 py-3">Status</th>
                 )}
-                {(onEdit || onDelete) && (
+                {(onDelete) && (
                   <th className="border border-gray-300 px-6 py-3">Actions</th>
                 )}
               </tr>
@@ -198,51 +186,74 @@ const DataTable = <T extends { _id?: string }>({
               {pagedData.map((item, index) => (
                 <tr
                   key={item._id ?? index}
-                  className="border border-gray-300 bg-white transition-colors hover:bg-gray-50"
+                  className="border border-gray-300 bg-white transition-colors hover:bg-slate-50"
                 >
                   {fields.map((field, i) => (
                     <td
                       key={i}
                       title={renderCellContent(item, field)}
-                      className={`break-words border border-gray-300 px-4 py-3 text-justify ${
-                        !disableEdit ? "cursor-pointer" : ""
-                      }`}
-                      onClick={() => !disableEdit && handleEditClick(item, field)}
+                      className="break-words border border-gray-300 px-4 py-3 text-justify"
                     >
                       {renderCellContent(item, field)}
                     </td>
                   ))}
-                  {onToggleStatus && (
-                    <td className="border border-gray-300 px-4 py-3">
-                      <button
-                        onClick={() => setConfirmToggle(item)}
-                        className={`rounded-md px-3 py-1 whitespace-nowrap text-white ${
-                          (item as Record<string, unknown>).isActive
-                            ? "bg-red-600 hover:bg-red-700"
-                            : "bg-green-600 hover:bg-green-700"
-                        }`}
-                      >
-                        {(item as Record<string, unknown>).isActive
-                          ? "Deactivate"
-                          : "Activate"}
-                      </button>
-                    </td>
-                  )}
-                  {(onEdit || onDelete) && (
-                    <td className="border border-gray-300 px-4 py-3">
-                      <div className="flex gap-2 whitespace-nowrap">
-                        {onEdit && !disableEdit && (
+                  {(onToggleStatus || onApproveStatus) && (
+                  <td className="border border-gray-300 px-4 py-3">
+                    {appStatus(item) === "pending" ||
+                    appStatus(item) === "declined" ? (
+                      <div className="flex flex-wrap items-center gap-2 whitespace-nowrap">
+                        {appStatus(item) === "declined" && (
+                          <span className="rounded-md bg-rose-100 px-3 py-1 text-rose-700">
+                            Declined
+                          </span>
+                        )}
+                        <button
+                          onClick={() => setConfirmAction({ item, action: "approve" })}
+                          className="rounded-md bg-emerald-600 px-3 py-1 text-white transition-colors hover:bg-emerald-700"
+                        >
+                          Accept
+                        </button>
+                        {appStatus(item) === "pending" && (
                           <button
-                            onClick={() => handleEditClick(item, fields[0])}
-                            className="rounded-md bg-yellow-500 px-3 py-1 whitespace-nowrap text-white transition-colors hover:bg-yellow-600"
+                            onClick={() => setConfirmAction({ item, action: "decline" })}
+                            className="rounded-md bg-rose-600 px-3 py-1 text-white transition-colors hover:bg-rose-700"
                           >
-                            Edit
+                            Decline
                           </button>
                         )}
-                        {onDelete && (
+                      </div>
+                    ) : (
+                      onToggleStatus && (
+                        <button
+                          onClick={() =>
+                            setConfirmAction({
+                              item,
+                              action: (item as Record<string, unknown>).isActive
+                                ? "deactivate"
+                                : "activate",
+                            })
+                          }
+                          className={`rounded-md px-3 py-1 whitespace-nowrap text-white ${
+                            (item as Record<string, unknown>).isActive
+                              ? "bg-rose-600 hover:bg-rose-700"
+                              : "bg-emerald-600 hover:bg-emerald-700"
+                          }`}
+                        >
+                          {(item as Record<string, unknown>).isActive
+                            ? "Deactivate"
+                            : "Activate"}
+                        </button>
+                      )
+                    )}
+                  </td>
+                )}
+                  {(onDelete) && (
+                    <td className="border border-gray-300 px-4 py-3">
+                      <div className="flex gap-2 whitespace-nowrap">
+                        {!disableDelete?.(item) && (
                           <button
                             onClick={() => setConfirmDelete(item)}
-                            className="rounded-md bg-red-500 px-3 py-1 whitespace-nowrap text-white transition-colors hover:bg-red-600"
+                            className="rounded-md bg-rose-500 px-3 py-1 whitespace-nowrap text-white transition-colors hover:bg-rose-600"
                           >
                             Delete
                           </button>
@@ -284,8 +295,8 @@ const DataTable = <T extends { _id?: string }>({
                   onClick={() => setPage(p)}
                   className={`rounded-md px-3 py-1 text-sm transition-colors ${
                     p === safePage
-                      ? "bg-blue-600 text-white"
-                      : "border border-gray-300 text-gray-600 hover:bg-gray-100"
+                      ? "bg-indigo-600 text-white"
+                      : "border border-gray-300 text-gray-600 hover:bg-slate-100"
                   }`}
                 >
                   {p}

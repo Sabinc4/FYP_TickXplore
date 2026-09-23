@@ -12,8 +12,10 @@ interface ProfileData {
   location: string;
   role: string;
   profilePhoto?: string;
+  phoneNumber?: string;
   vendorName?: string;
   vendorLocation?: string;
+  vendorStatus?: "none" | "pending" | "declined" | "active";
   _id: string;
 }
 
@@ -69,6 +71,15 @@ const Profile = () => {
   const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
   const [actionLoading, setActionLoading] = useState({ save: false, password: false, delete: false });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [vendorStatus, setVendorStatus] = useState<ProfileData["vendorStatus"]>("none");
+  const [showApplyForm, setShowApplyForm] = useState(false);
+  const [applyLoading, setApplyLoading] = useState(false);
+  const [applyForm, setApplyForm] = useState({
+    vendorName: "",
+    vendorLocation: "",
+    phoneNumber: "",
+    applicationReason: "",
+  });
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -96,8 +107,15 @@ const Profile = () => {
         if (!profile) throw new Error("Profile data not found");
 
         setUser(profile);
+        setVendorStatus(profile.vendorStatus || "none");
         setProfilePhoto(profile.profilePhoto || "");
         setFormData({ ...extractProfileFields(profile), profilePhotoFile: null });
+        setApplyForm({
+          vendorName: profile.vendorName || profile.name || "",
+          vendorLocation: profile.vendorLocation || profile.location || "",
+          phoneNumber: profile.phoneNumber || "",
+          applicationReason: "",
+        });
       } catch (err) {
         console.error("Profile load error:", err);
         const message = (err as Error).message || "Failed to load profile";
@@ -242,6 +260,47 @@ const Profile = () => {
       toast.error(axiosErr.response?.data?.message || "Password update failed");
     } finally {
       setActionLoading((prev) => ({ ...prev, password: false }));
+    }
+  };
+
+  const handleApplyVendor = async () => {
+    if (!user || !user._id) return;
+
+    if (!applyForm.vendorName.trim() || !applyForm.vendorLocation.trim()) {
+      toast.error("Vendor name and location are required");
+      return;
+    }
+    if (!applyForm.applicationReason.trim()) {
+      toast.error("Please provide a reason for becoming a vendor");
+      return;
+    }
+
+    const toastId = toast.loading("Submitting vendor application...");
+    setApplyLoading(true);
+    try {
+      const data = await usersApi.applyVendor(user._id, {
+        vendorName: applyForm.vendorName.trim(),
+        vendorLocation: applyForm.vendorLocation.trim(),
+        phoneNumber: applyForm.phoneNumber.trim() || undefined,
+        applicationReason: applyForm.applicationReason.trim(),
+      });
+      setVendorStatus((data as { vendorStatus?: ProfileData["vendorStatus"] }).vendorStatus || "pending");
+      setShowApplyForm(false);
+      toast.dismiss(toastId);
+      toast.success((data as { message?: string }).message || "Application submitted!");
+    } catch (err) {
+      const axiosErr = err as { response?: { status?: number; data?: { message?: string } } };
+      if (axiosErr.response?.status === 401) {
+        localStorage.clear();
+        navigate("/sign-in");
+        toast.error("Session expired. Please login again");
+        return;
+      }
+      console.error("Vendor application error:", err);
+      toast.dismiss(toastId);
+      toast.error(axiosErr.response?.data?.message || "Failed to submit application");
+    } finally {
+      setApplyLoading(false);
     }
   };
 
@@ -543,6 +602,217 @@ const Profile = () => {
               <p className="text-sm text-slate-500">Role</p>
               <p className="text-lg font-medium capitalize text-slate-900">{formData.role}</p>
             </div>
+
+            {userRole === "user" && vendorStatus === "none" && (
+              <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-4">
+                <h2 className="mb-1 text-lg font-semibold text-slate-900">
+                  Become a Vendor
+                </h2>
+                <p className="mb-3 text-sm text-slate-600">
+                  Manage your own buses and vehicles on TickXplore. Submit an application and
+                  an admin will review it.
+                </p>
+                {showApplyForm ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">
+                        Vendor Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={applyForm.vendorName}
+                        onChange={(e) =>
+                          setApplyForm((prev) => ({ ...prev, vendorName: e.target.value }))
+                        }
+                        className="input-field"
+                        placeholder="Your business name"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">
+                        Vendor Location *
+                      </label>
+                      <input
+                        type="text"
+                        value={applyForm.vendorLocation}
+                        onChange={(e) =>
+                          setApplyForm((prev) => ({ ...prev, vendorLocation: e.target.value }))
+                        }
+                        className="input-field"
+                        placeholder="City / area"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">
+                        Phone Number (optional)
+                      </label>
+                      <input
+                        type="tel"
+                        value={applyForm.phoneNumber}
+                        onChange={(e) =>
+                          setApplyForm((prev) => ({ ...prev, phoneNumber: e.target.value }))
+                        }
+                        className="input-field"
+                        placeholder="07XXXXXXXX"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">
+                        Why do you want to become a vendor? *
+                      </label>
+                      <textarea
+                        value={applyForm.applicationReason}
+                        onChange={(e) =>
+                          setApplyForm((prev) => ({
+                            ...prev,
+                            applicationReason: e.target.value,
+                          }))
+                        }
+                        maxLength={100}
+                        rows={3}
+                        placeholder="Briefly describe your reason (max 100 characters)"
+                        className="input-field resize-none"
+                      />
+                      <p className="mt-1 text-right text-xs text-slate-400">
+                        {applyForm.applicationReason.length}/100
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleApplyVendor}
+                        disabled={applyLoading}
+                        className="flex-1 rounded-xl bg-emerald-600 py-2 text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        {applyLoading ? "Submitting..." : "Submit Application"}
+                      </button>
+                      <button
+                        onClick={() => setShowApplyForm(false)}
+                        className="flex-1 rounded-xl bg-slate-600 py-2 text-white transition hover:bg-slate-700"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowApplyForm(true)}
+                    className="rounded-xl bg-emerald-600 px-4 py-2 text-white transition hover:bg-emerald-700"
+                  >
+                    Apply for Vendor
+                  </button>
+                )}
+              </div>
+            )}
+
+            {userRole === "user" && vendorStatus === "pending" && (
+              <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <h2 className="mb-1 text-lg font-semibold text-slate-900">
+                  Vendor Application Pending
+                </h2>
+                <p className="text-sm text-slate-600">
+                  Your application to become a vendor is under review by our admin team. You
+                  will be notified once it is approved.
+                </p>
+              </div>
+            )}
+
+            {userRole === "user" && vendorStatus === "declined" && (
+              <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4">
+                <h2 className="mb-1 text-lg font-semibold text-slate-900">
+                  Vendor Application Declined
+                </h2>
+                <p className="mb-3 text-sm text-slate-600">
+                  Unfortunately your application was declined. You are welcome to re-apply with
+                  updated details.
+                </p>
+                {showApplyForm ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">
+                        Vendor Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={applyForm.vendorName}
+                        onChange={(e) =>
+                          setApplyForm((prev) => ({ ...prev, vendorName: e.target.value }))
+                        }
+                        className="input-field"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">
+                        Vendor Location *
+                      </label>
+                      <input
+                        type="text"
+                        value={applyForm.vendorLocation}
+                        onChange={(e) =>
+                          setApplyForm((prev) => ({ ...prev, vendorLocation: e.target.value }))
+                        }
+                        className="input-field"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">
+                        Phone Number (optional)
+                      </label>
+                      <input
+                        type="tel"
+                        value={applyForm.phoneNumber}
+                        onChange={(e) =>
+                          setApplyForm((prev) => ({ ...prev, phoneNumber: e.target.value }))
+                        }
+                        className="input-field"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">
+                        Why do you want to become a vendor? *
+                      </label>
+                      <textarea
+                        value={applyForm.applicationReason}
+                        onChange={(e) =>
+                          setApplyForm((prev) => ({
+                            ...prev,
+                            applicationReason: e.target.value,
+                          }))
+                        }
+                        maxLength={100}
+                        rows={3}
+                        placeholder="Briefly describe your reason (max 100 characters)"
+                        className="input-field resize-none"
+                      />
+                      <p className="mt-1 text-right text-xs text-slate-400">
+                        {applyForm.applicationReason.length}/100
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleApplyVendor}
+                        disabled={applyLoading}
+                        className="flex-1 rounded-xl bg-emerald-600 py-2 text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        {applyLoading ? "Submitting..." : "Re-apply"}
+                      </button>
+                      <button
+                        onClick={() => setShowApplyForm(false)}
+                        className="flex-1 rounded-xl bg-slate-600 py-2 text-white transition hover:bg-slate-700"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowApplyForm(true)}
+                    className="rounded-xl bg-emerald-600 px-4 py-2 text-white transition hover:bg-emerald-700"
+                  >
+                    Re-apply for Vendor
+                  </button>
+                )}
+              </div>
+            )}
 
             <div className={`flex ${userRole !== "admin" ? "justify-between" : ""} gap-4`}>
               <button

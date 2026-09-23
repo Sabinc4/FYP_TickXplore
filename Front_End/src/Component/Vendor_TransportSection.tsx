@@ -12,6 +12,7 @@ interface TransportSectionProps {
   onDelete: (id: string) => void;
   onAddNew: () => void;
   reservations?: Reservation[];
+  showHeader?: boolean;
 }
 
 const TransportSection = ({
@@ -22,24 +23,27 @@ const TransportSection = ({
   onDelete,
   onAddNew,
   reservations = [],
+  showHeader = true,
 }: TransportSectionProps) => (
   <div className="space-y-6">
-    <div className="flex items-center justify-between">
-      <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-      <button
-        onClick={onAddNew}
-        className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-      >
-        Add New
-      </button>
-    </div>
-
-    {items.length === 0 ? (
-      <div className="rounded-lg bg-white p-6 text-center shadow-md">
-        <p className="mb-4 text-gray-500">No {type}s available.</p>
+    {showHeader && (
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
         <button
           onClick={onAddNew}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-white transition-colors hover:bg-indigo-700"
+        >
+          + Add New
+        </button>
+      </div>
+    )}
+
+    {items.length === 0 ? (
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-card">
+        <p className="mb-4 text-slate-500">No {type}s available.</p>
+        <button
+          onClick={onAddNew}
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-white transition-colors hover:bg-indigo-700"
         >
           Add Your First {type === "vehicle" ? "Vehicle" : "Bus"}
         </button>

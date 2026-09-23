@@ -147,11 +147,11 @@ const VendorDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-gray-100">
-      <header className="relative flex h-16 shrink-0 items-center border-b border-gray-800 bg-gray-900 px-4 text-white shadow-sm">
+    <div className="flex h-screen flex-col bg-slate-200">
+      <header className="relative flex h-16 shrink-0 items-center border-b-2 border-indigo-600 bg-white px-4 text-gray-900 shadow-sm">
         <button
           onClick={toggleSidebar}
-          className="rounded-md bg-gray-800 p-2 text-white hover:bg-gray-700 lg:hidden"
+          className="rounded-md bg-slate-100 p-2 text-slate-700 hover:bg-slate-200 lg:hidden"
           aria-label="Toggle menu"
         >
           {data.sidebarOpen ? <FiX size={22} /> : <FiMenu size={22} />}
@@ -164,7 +164,7 @@ const VendorDashboard = () => {
 
       <div className="flex flex-1 overflow-hidden">
         <aside
-          className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-gray-700 bg-gray-800 text-white transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-indigo-100 bg-indigo-50 text-slate-700 transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
             data.sidebarOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
@@ -177,8 +177,8 @@ const VendorDashboard = () => {
                     onClick={() => setData((prev) => ({ ...prev, sidebarOpen: false }))}
                     className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
                       location.pathname === path
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                        ? "bg-indigo-600 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-indigo-100/60 hover:text-indigo-900"
                     }`}
                   >
                     <span className="inline-flex">{icon}</span>
@@ -194,17 +194,17 @@ const VendorDashboard = () => {
         {data.loading ? (
           <div className="space-y-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-20 animate-pulse rounded-lg bg-gray-200" />
+              <div key={i} className="h-20 animate-pulse rounded-lg bg-slate-300/70" />
             ))}
           </div>
         ) : (
           <>
             {data.error && (
-              <div className="mb-6 flex flex-col items-center justify-between gap-4 rounded-lg bg-red-100 p-4 text-red-600 sm:flex-row">
+              <div className="mb-6 flex flex-col items-center justify-between gap-4 rounded-lg bg-rose-100 p-4 text-rose-700 sm:flex-row">
                 <p>{data.error}</p>
                 <button
                   onClick={fetchData}
-                  className="rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
+                  className="rounded-md bg-rose-600 px-4 py-2 text-white transition-colors hover:bg-rose-700"
                 >
                   Retry
                 </button>
@@ -219,7 +219,7 @@ const VendorDashboard = () => {
                   {summaryCards.map((item) => (
                     <div
                       key={item.name}
-                      className="rounded-lg bg-white p-4 shadow-sm transition-all hover:shadow-md md:p-6"
+                      className="rounded-2xl bg-white p-4 shadow-card transition-all hover:shadow-card-lg md:p-6"
                       style={{ borderLeft: `4px solid ${item.color}` }}
                     >
                       <h3 className="text-base font-semibold text-gray-700 md:text-lg">
@@ -236,7 +236,7 @@ const VendorDashboard = () => {
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 md:gap-8 lg:grid-cols-2">
-                  <div className="rounded-lg bg-white p-4 shadow-sm md:p-6">
+                  <div className="rounded-2xl bg-white p-4 shadow-card md:p-6">
                     <h2 className="mb-4 text-lg font-semibold md:text-xl">
                       Entity Distribution
                     </h2>
@@ -262,7 +262,7 @@ const VendorDashboard = () => {
                     </div>
                   </div>
 
-                  <div className="rounded-lg bg-white p-4 shadow-sm md:p-6">
+                  <div className="rounded-2xl bg-white p-4 shadow-card md:p-6">
                     <h2 className="mb-4 text-lg font-semibold md:text-xl">
                       Booking Status
                     </h2>

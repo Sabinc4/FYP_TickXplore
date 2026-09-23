@@ -221,7 +221,7 @@ const AddEditForm = ({
             <input
               type="file"
               accept="image/*"
-              className="w-full rounded-lg border p-2 focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border p-2 focus:ring-2 focus:ring-indigo-500"
               onChange={handleImageChange}
             />
             {imagePreview && (
@@ -246,7 +246,7 @@ const AddEditForm = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-60"
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-white transition-colors hover:bg-indigo-700 disabled:opacity-60"
             >
               {isSubmitting ? "Submitting..." : isAdding ? "Add" : "Save Changes"}
             </button>
