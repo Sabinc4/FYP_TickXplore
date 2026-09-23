@@ -1,5 +1,6 @@
 import { useState } from "react";
 import BusCards from "../../Component/Admin_BusCards";
+import AdminPageHeader from "../../Component/AdminPageHeader";
 import { useOutletContext } from "react-router-dom";
 import { toast } from "react-toastify";
 import { busesApi, type Bus } from "../../api";
@@ -42,13 +43,17 @@ const Admin_Buses = () => {
   if (error) return <div>Error loading buses: {error}</div>;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Buses"
+        subtitle="Manage bus listings across TickXplore."
+      />
       <input
         type="text"
         placeholder="Search buses..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full rounded-md border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full rounded-xl border border-gray-300 p-3 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
       />
       <BusCards
         buses={filteredBuses}
@@ -73,7 +78,7 @@ const Admin_Buses = () => {
               <button
                 onClick={() => handleRemove(busToRemove._id!)}
                 disabled={removing}
-                className="rounded-xl bg-red-600 px-4 py-2 text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-rose-600 px-4 py-2 text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {removing ? "Removing..." : "Yes"}
               </button>

@@ -2,6 +2,9 @@ const bcrypt = require("bcryptjs");
 const path = require("path");
 const fs = require("fs");
 const UserModel = require("../models/User");
+const VendorModel = require("../models/Vendor");
+const AdminModel = require("../models/Admin");
+const Notification = require("../models/Notification");
 const { sendEmail } = require("../utils/sendEmail");
 
 // Get User Profile
@@ -74,9 +77,156 @@ exports.getUserById = async (req, res) => {
     const user = await UserModel.findById(id).select("-password");
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    res.status(200).json({ success: true, user });
+    let vendorStatus = "none";
+    const vendor = await VendorModel.findOne({ email: user.email });
+    if (vendor) {
+      if (vendor.applicationStatus === "declined") {
+        vendorStatus = "declined";
+      } else if (vendor.isActive && vendor.applicationStatus === "approved") {
+        vendorStatus = "active";
+      } else {
+        vendorStatus = "pending";
+      }
+    }
+
+    res.status(200).json({ success: true, user: { ...user.toObject(), vendorStatus } });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to fetch user", error: error.message });
+  }
+};
+
+// Notify all admins of a new vendor application (in-app + email)
+const notifyAdmins = async (message, details) => {
+  const admins = await AdminModel.find({});
+  for (const adminUser of admins) {
+    await Notification.create({
+      userId: adminUser._id,
+      role: "admin",
+      message,
+    });
+
+    try {
+      await sendEmail(
+        adminUser.email,
+        "New Vendor Application - TickXplore",
+        `
+        <h2>New Vendor Application</h2>
+        <p><strong>${details.vendorName}</strong> has applied to become a vendor on TickXplore.</p>
+        <ul>
+          <li><strong>Email:</strong> ${details.email}</li>
+          <li><strong>Location:</strong> ${details.vendorLocation}</li>
+          <li><strong>Reason:</strong> ${details.applicationReason}</li>
+        </ul>
+        <p>Their application is pending your review. Please accept or decline it:</p>
+        <p><a href="http://localhost:5173/Admin_Dashboard/vendor-applications">Review Vendor Applications</a></p>
+        <br/>
+        <p>— Team TickXplore</p>
+        `
+      );
+    } catch (emailError) {
+      console.error("Error notifying admin by email:", emailError);
+    }
+  }
+};
+
+// Apply to become a Vendor (User -> Vendor application)
+exports.applyForVendor = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { vendorName, vendorLocation, phoneNumber, applicationReason } = req.body;
+
+    const user = await UserModel.findById(id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    if (!vendorName || !vendorLocation) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Vendor name and location are required" });
+    }
+
+    const reason = (applicationReason || "").trim();
+    if (!reason) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Please provide a reason for becoming a vendor" });
+    }
+    if (reason.length > 100) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Reason must be 100 characters or fewer" });
+    }
+
+    const displayName = user.name || vendorName || "Vendor";
+
+    let vendor = await VendorModel.findOne({ email: user.email });
+
+    if (vendor) {
+      if (vendor.applicationStatus === "pending" || vendor.isActive) {
+        return res.status(200).json({
+          success: true,
+          vendorStatus: vendor.isActive ? "active" : "pending",
+          message: "You have already applied to become a vendor.",
+        });
+      }
+
+      // A declined application can be re-submitted.
+      vendor.vendorName = vendorName;
+      vendor.vendorLocation = vendorLocation;
+      vendor.applicationReason = reason;
+      if (phoneNumber) vendor.phoneNumber = phoneNumber;
+      vendor.applicationStatus = "pending";
+      vendor.isActive = false;
+      await vendor.save();
+
+      await notifyAdmins(
+        `${vendorName} has re-applied to become a vendor. Please review their application.`,
+        { vendorName, email: user.email, vendorLocation, applicationReason: reason }
+      );
+
+      return res.status(200).json({
+        success: true,
+        vendorStatus: "pending",
+        message: "Application re-submitted. Pending admin approval.",
+      });
+    }
+
+    vendor = await VendorModel.create({
+      name: displayName,
+      vendorName,
+      vendorLocation,
+      applicationReason: reason,
+      email: user.email,
+      phoneNumber: phoneNumber || undefined,
+      googleId: user.googleId || undefined,
+      profilePhoto: user.profilePhoto || "",
+      role: "vendor",
+      isVerified: true,
+      isActive: false,
+      applicationStatus: "pending",
+    });
+
+    await notifyAdmins(
+      `${vendor.vendorName} has applied to become a vendor. Please review their application.`,
+      {
+        vendorName: vendor.vendorName,
+        email: vendor.email,
+        vendorLocation: vendor.vendorLocation,
+        applicationReason: vendor.applicationReason,
+      }
+    );
+
+    res.status(201).json({
+      success: true,
+      vendorStatus: "pending",
+      message: "Vendor application submitted. Pending admin approval.",
+      vendor,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to submit vendor application",
+      error: error.message,
+    });
   }
 };
 

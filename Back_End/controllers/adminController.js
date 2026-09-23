@@ -200,6 +200,84 @@ exports.toggleVendorStatus = async (req, res) => {
   }
 };
 
+// Approve Vendor Application
+exports.approveVendor = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    vendor.isActive = true;
+    vendor.applicationStatus = "approved";
+    await vendor.save();
+
+    await sendEmail(
+      vendor.email,
+      "Your Vendor Account is Now Active",
+      `
+        <h2>Hello ${vendor.vendorName},</h2>
+        <p> Great news! Your vendor account on <strong>TickXplore</strong> has been approved by the admin.</p>
+        <p>You can now log in and start managing your listings!</p>
+        <p><a href="http://localhost:5173/sign-in">Click here to log in</a></p>
+        <br/>
+        <p>Welcome aboard!<br/>— Team TickXplore</p>
+      `
+    );
+
+    res.status(200).json({
+      message: `Vendor ${vendor.vendorName} approved successfully`,
+      vendor,
+    });
+  } catch (error) {
+    console.error("Error approving vendor:", error);
+    res.status(500).json({ message: "Failed to approve vendor" });
+  }
+};
+
+// Decline Vendor Application
+exports.declineVendor = async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    vendor.isActive = false;
+    vendor.applicationStatus = "declined";
+    await vendor.save();
+
+    try {
+      await sendEmail(
+        vendor.email,
+        "Vendor Application Update - TickXplore",
+        `
+        <h2>Hello ${vendor.vendorName},</h2>
+        <p>Thank you for applying to become a vendor on <strong>TickXplore</strong>.</p>
+        <p>Unfortunately, your application has been declined by our admin team at this time.</p>
+        <p>You are welcome to re-apply whenever you are ready.</p>
+        <br/>
+        <p>Warm regards,<br/>— Team TickXplore</p>
+      `
+      );
+    } catch (emailError) {
+      console.error("Error sending decline email:", emailError);
+    }
+
+    res.status(200).json({
+      message: `Vendor ${vendor.vendorName} declined successfully`,
+      vendor,
+    });
+  } catch (error) {
+    console.error("Error declining vendor:", error);
+    res.status(500).json({ message: "Failed to decline vendor" });
+  }
+};
+
 // Delete Admin
 exports.deleteAdmin = async (req, res) => {
   try {
@@ -234,7 +312,6 @@ exports.deleteUserByAdmin = async (req, res) => {
   try {
     const deletedUser = await User.findByIdAndDelete(req.params.userId);
     if (!deletedUser) return res.status(404).json({ message: "User not found" });
-
     res.json({ message: "User deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete user", error });
@@ -264,7 +341,6 @@ exports.deleteVendorByAdmin = async (req, res) => {
   try {
     const deletedVendor = await Vendor.findByIdAndDelete(req.params.vendorId);
     if (!deletedVendor) return res.status(404).json({ message: "Vendor not found" });
-
     res.json({ message: "Vendor deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete vendor", error });

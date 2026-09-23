@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { useOutletContext } from "react-router-dom";
 import TransportSection, { type Reservation } from "../../Component/Vendor_TransportSection";
 import AddEditForm from "../../Component/Vendor_AddEditForm";
+import AdminPageHeader from "../../Component/AdminPageHeader";
 import { bookingsApi, vehiclesApi, type Bus, type Vehicle } from "../../api";
 
 interface OutletContext {
@@ -65,6 +66,18 @@ const Vehicles = () => {
 
   return (
     <>
+      <AdminPageHeader
+        title="Vehicles"
+        subtitle="Manage your vehicles, pricing and availability."
+      >
+        <button
+          onClick={handleAddNew}
+          className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm transition-colors hover:bg-indigo-50"
+        >
+          + Add New
+        </button>
+      </AdminPageHeader>
+
       <TransportSection
         title="Vehicles"
         items={vehicles}
@@ -73,6 +86,7 @@ const Vehicles = () => {
         onDelete={handleDeleteVehicle}
         onAddNew={handleAddNew}
         reservations={reservations}
+        showHeader={false}
       />
 
       {(editMode || isAdding) && (

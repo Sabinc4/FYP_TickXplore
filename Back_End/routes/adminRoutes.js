@@ -24,6 +24,8 @@ router.put("/toggle-vendor/:vendorId", verifyToken, adminController.toggleVendor
 
 // Vendor Management
 router.put("/vendor/:vendorId/status", verifyToken, adminController.toggleVendorStatus);
+router.put("/vendor/:vendorId/approve", verifyToken, adminController.approveVendor);
+router.put("/vendor/:vendorId/decline", verifyToken, adminController.declineVendor);
 router.put("/vendor/:vendorId", verifyToken, adminController.editVendorByAdmin);
 router.delete("/vendor/:vendorId", verifyToken, adminController.deleteVendorByAdmin);
 

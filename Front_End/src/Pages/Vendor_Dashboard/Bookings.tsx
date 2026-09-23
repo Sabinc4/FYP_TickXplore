@@ -8,6 +8,7 @@ import {
   FaTicketAlt,
 } from "react-icons/fa";
 import { getPageRange } from "../../utils/pagination";
+import AdminPageHeader from "../../Component/AdminPageHeader";
 import { bookingsApi, type Booking, type BookingRef } from "../../api";
 
 interface OutletContext {
@@ -19,7 +20,7 @@ const PAGE_SIZE = 10;
 
 const statusPill = (status: string) =>
   status === "Booked"
-    ? "border-teal-500/30 bg-teal-500/10 text-teal-700"
+    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
     : status === "Pending"
     ? "border-amber-500/30 bg-amber-500/10 text-amber-700"
     : "border-rose-500/30 bg-rose-500/10 text-rose-600";
@@ -88,65 +89,65 @@ const Bookings = () => {
       label: "Total Revenue",
       value: money(stats.revenue),
       icon: <FaMoneyBillWave />,
-      accent: "bg-teal-500/20 text-teal-200",
+      accent: "bg-emerald-500/10 text-emerald-700",
     },
     {
       label: "Commission",
       value: money(stats.commission),
       icon: <FaHandHoldingUsd />,
-      accent: "bg-amber-500/20 text-amber-200",
+      accent: "bg-amber-500/10 text-amber-700",
     },
     {
       label: "Vendor Earnings",
       value: money(stats.earnings),
       icon: <FaWallet />,
-      accent: "bg-blue-500/20 text-blue-200",
+      accent: "bg-indigo-500/10 text-indigo-700",
     },
     {
       label: "Bookings",
       value: String(bookings.length),
       icon: <FaTicketAlt />,
-      accent: "bg-violet-500/20 text-violet-200",
+      accent: "bg-violet-500/10 text-violet-700",
     },
   ];
 
   return (
     <div className="space-y-6">
-      <header className="overflow-hidden rounded-2xl bg-gradient-to-r from-teal-500 via-teal-600 to-slate-900 p-6 text-white shadow-card">
-        <h1 className="text-2xl font-bold">Payment Management</h1>
-        <p className="mt-1 text-sm text-teal-50/80">
-          Track revenue, commissions and vendor earnings, and confirm Cash on Visit bookings.
-        </p>
+      <AdminPageHeader
+        title="Payment Management"
+        subtitle="Track revenue, commissions and vendor earnings, and confirm Cash on Visit bookings."
+      >
+        <span className="rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-indigo-700 shadow">
+          {stats.booked} booked · {stats.pending} pending · {stats.cod} cash on visit
+        </span>
+      </AdminPageHeader>
 
-        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {statCards.map((card) => (
-            <div key={card.label} className="rounded-xl bg-white/10 p-4">
-              <div className="flex items-center gap-2">
-                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${card.accent}`}>
-                  {card.icon}
-                </span>
-                <span className="text-xs font-medium text-teal-50/80">{card.label}</span>
-              </div>
-              <p className="mt-2 truncate text-lg font-bold">{card.value}</p>
-              {card.label === "Bookings" && (
-                <p className="mt-1 text-xs text-teal-50/70">
-                  {stats.booked} booked · {stats.pending} pending · {stats.cod} cash on visit
-                </p>
-              )}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {statCards.map((card) => (
+          <div
+            key={card.label}
+            className="rounded-2xl bg-white p-5 shadow-card transition-shadow hover:shadow-card-lg"
+          >
+            <div className="flex items-center gap-2">
+              <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${card.accent}`}>
+                {card.icon}
+              </span>
+              <span className="text-xs font-medium text-gray-500">{card.label}</span>
             </div>
-          ))}
-        </div>
-      </header>
+            <p className="mt-2 truncate text-lg font-bold text-slate-900">{card.value}</p>
+          </div>
+        ))}
+      </div>
 
       <div className="rounded-2xl bg-white p-5 shadow-card sm:p-6">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-xl font-bold text-gray-800">Bookings</h2>
+          <h2 className="text-xl font-bold text-slate-900">Bookings</h2>
           <div className="flex items-center gap-2">
             <input
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="rounded-xl border border-gray-300 p-2 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+              className="rounded-xl border border-gray-300 p-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
             />
             {dateFilter && (
               <button
@@ -162,7 +163,7 @@ const Bookings = () => {
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead>
-              <tr className="bg-gradient-to-r from-teal-600 to-teal-500 text-white">
+              <tr className="bg-indigo-600 text-white">
                 <th className="px-4 py-3 text-left font-semibold">Booking ID</th>
                 <th className="px-4 py-3 text-left font-semibold">User</th>
                 <th className="px-4 py-3 text-left font-semibold">Bus / Vehicle</th>
@@ -180,7 +181,7 @@ const Bookings = () => {
                 const busRef = booking.busId as BookingRef | undefined;
                 const vehicleRef = booking.vehicleId as BookingRef | undefined;
                 return (
-                  <tr key={booking._id} className="transition-colors hover:bg-teal-50/40">
+                  <tr key={booking._id} className="transition-colors hover:bg-slate-50">
                     <td
                       className="px-4 py-3 font-mono text-xs font-semibold text-slate-600"
                       title={booking._id}
@@ -196,7 +197,7 @@ const Bookings = () => {
                     <td className="px-4 py-3 text-gray-700">
                       {booking.selectedSeats?.join(", ") || "—"}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-teal-700">
+                    <td className="px-4 py-3 text-right font-semibold text-indigo-700">
                       {money(booking.totalPrice)}
                     </td>
                     <td className="px-4 py-3 text-right text-gray-600">
@@ -215,7 +216,7 @@ const Bookings = () => {
                           {booking.status || "Unknown"}
                         </span>
                         {isCoD(booking) && (
-                          <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                          <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
                             Cash on Visit
                           </span>
                         )}
@@ -223,7 +224,7 @@ const Bookings = () => {
                           <button
                             onClick={() => handleConfirm(booking._id)}
                             disabled={confirmingId === booking._id}
-                            className="mt-0.5 rounded-md bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="mt-0.5 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {confirmingId === booking._id ? "Confirming..." : "Confirm Payment"}
                           </button>
@@ -270,8 +271,8 @@ const Bookings = () => {
                     onClick={() => setPage(p)}
                     className={`rounded-lg px-3 py-1 text-sm transition-colors ${
                       p === safePage
-                        ? "bg-teal-600 text-white"
-                        : "border border-gray-300 text-gray-600 hover:bg-gray-100"
+                        ? "bg-indigo-600 text-white"
+                        : "border border-gray-300 text-gray-600 hover:bg-slate-100"
                     }`}
                   >
                     {p}

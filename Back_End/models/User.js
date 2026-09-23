@@ -10,7 +10,8 @@ const UserSchema = new mongoose.Schema(
     },
     location: {
       type: String,
-      required: true,
+      required: false,
+      default: "Not provided",
       trim: true,
     },
     email: {
@@ -23,14 +24,19 @@ const UserSchema = new mongoose.Schema(
     },
     phoneNumber: {
       type: String,
-      required: true,
+      required: false,
       unique: true,
+      sparse: true,
       match: /^[0-9]{7,15}$/,
     },
     password: {
       type: String,
-      required: true,
+      required: false,
       minlength: 6,
+    },
+    googleId: {
+      type: String,
+      sparse: true,
     },
     role: {
       type: String,

@@ -7,7 +7,7 @@ The project is split into two parts:
 | Folder       | Description                     | Tech Stack                                |
 | ------------ | ------------------------------- | ----------------------------------------- |
 | `Back_End`   | REST API server                 | Node.js, Express, MongoDB (Mongoose), JWT |
-| `Front_End`  | Web application (all dashboards) | React + Vite + TypeScript, Tailwind CSS   |
+| `Front_End`  | Web application (all dashboards) | React + Vite + TypeScript, Tailwind CSS, Firebase Auth |
 
 ---
 
@@ -43,12 +43,40 @@ EMAIL_PASS=your_email_password
 HUGGINGFACE_API_KEY=your_huggingface_key
 CLIENT_URL=http://localhost:5173
 
+# Firebase Admin SDK (backend) - file lives at Back_End/config/serviceAccountKey.json
+FIREBASE_SERVICE_ACCOUNT_PATH=config/serviceAccountKey.json
+
 # --- Frontend ---
 VITE_API_URL=http://localhost:3001
 VITE_HF_API_KEY=
+
+# Firebase Web SDK (frontend)
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project
+VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
 ```
 
 > `.env` is git-ignored — never commit real secrets. `VITE_`-prefixed vars are exposed to the browser by Vite at build time.
+
+## Firebase Setup
+
+Authentication is handled by **Firebase Auth** (email/password + Google) for identity, while sessions, roles, and tokens stay JWT-based. The database itself stays in MongoDB.
+
+1. Create a project at [Firebase Console](https://console.firebase.google.com).
+2. In **Authentication → Sign-in method**, enable **Email/Password** and **Google**.
+3. Add a **Web app** in Project settings; copy the `apiKey`, `authDomain`, `projectId`, `storageBucket`, `messagingSenderId`, and `appId` into the `VITE_FIREBASE_*` vars above.
+4. In **Project settings → Service accounts**, generate a new private key and save the JSON as `Back_End/config/serviceAccountKey.json` (git-ignored) — the `.env` already points at that path.
+5. Until the two Firebase blocks above are filled, the **"Continue with Google"** button shows a "not configured" toast (backend returns 503) — everything else works.
+
+## Google Sign-In (via Firebase)
+
+The login page includes **"Continue with Google"**:
+
+- Enable the **Google** provider in Firebase Console (this replaces the old raw OAuth client-ID flow — no separate Google Cloud Client ID is needed).
+- New Google sign-ups are auto-created as verified **User** accounts. To become a vendor, a user applies from the **Profile page** ("Apply for Vendor"), which creates a pending Vendor that needs **admin approval** (Accept/Decline). Once approved, the next sign-in routes to the vendor dashboard.
 
 ---
 
@@ -112,7 +140,7 @@ npm run dev
 │   ├── middleware/      # Auth & validation middleware
 │   ├── models/          # Mongoose schemas (Bus, Vehicle, Booking, ...)
 │   ├── routes/          # Express route definitions
-│   ├── utils/           # Helpers (JWT, OTP, email, axios)
+│   ├── utils/           # Helpers (email, payments, ...)
 │   ├── uploads/         # Runtime-uploaded images (git-ignored)
 │   └── index.js         # Server entry point
 └── Front_End/

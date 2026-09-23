@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { FiEye, FiEyeOff, FiMail, FiLock } from "react-icons/fi";
 import { jwtDecode } from "jwt-decode";
 import { authApi } from "../api";
+import { signInWithGoogle } from "../firebase";
 import type { Role } from "../api/types";
 
 type ForgotRole = "user" | "vendor" | "admin";
@@ -22,6 +23,30 @@ export default function Login() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const navigate = useNavigate();
+
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setGoogleLoading(true);
+      const idToken = await signInWithGoogle();
+      const data = await authApi.googleSignIn(idToken);
+      handleLoginSuccess(data as {
+        token: string;
+        user: { _id: string; role: Role; name?: string; email?: string; isActive?: boolean };
+      });
+    } catch (err) {
+      console.error("Google sign-in error:", err);
+      const msg = (err as { message?: string }).message;
+      if (msg?.includes("not configured")) {
+        toast.error(msg);
+      } else {
+        toast.error((err as { response?: { data?: { message?: string } } }).response?.data?.message || "Google sign-in failed. Please try again.");
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const togglePasswordVisibility = () => setShowPassword((v) => !v);
 
@@ -374,6 +399,21 @@ export default function Login() {
                 className="w-full text-blue-600 hover:underline"
               >
                 Forgot Password?
+              </button>
+
+              <div className="flex items-center gap-3 py-2">
+                <div className="h-px flex-1 bg-slate-200" />
+                <span className="text-xs uppercase tracking-wide text-slate-400">or</span>
+                <div className="h-px flex-1 bg-slate-200" />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={googleLoading}
+                className="w-full rounded-xl border-2 border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
+              >
+                {googleLoading ? "Signing in..." : "Continue with Google"}
               </button>
 
               <div className="border-t border-slate-100 pt-4 text-center">

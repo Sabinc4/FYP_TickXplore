@@ -24,6 +24,9 @@ export const authApi = {
   signIn: (data: { email: string; password: string }) =>
     api.post("/auth/sign-in", data).then((r) => r.data),
 
+  googleSignIn: (idToken: string) =>
+    api.post("/auth/google-signin", { idToken }).then((r) => r.data),
+
   forgotPassword: (role: string, email: string) =>
     api.post(`/auth/forgot-password/${role}`, { email }).then((r) => r.data),
 
@@ -33,8 +36,10 @@ export const authApi = {
   resetPassword: (data: { email: string; newPassword: string; role: string }) =>
     api.post("/auth/reset-password", data).then((r) => r.data),
 
-  changePassword: (role: string, data: { currentPassword: string; newPassword: string; confirmPassword: string }) =>
-    api.post(`/auth/change-password/${role}`, data).then((r) => r.data),
+  changePassword: (
+    role: string,
+    data: { currentPassword: string; newPassword: string; confirmPassword: string }
+  ) => api.post(`/auth/change-password/${role}`, data).then((r) => r.data),
 };
 
 /* ------------------------------------------------------------------ */
@@ -52,6 +57,17 @@ export const usersApi = {
 
   updateLocation: (userId: string, location: { latitude: number; longitude: number }) =>
     api.put(`/api/users/${userId}/location`, location).then((r) => r.data),
+
+  applyVendor: (
+    userId: string,
+    payload: {
+      vendorName: string;
+      vendorLocation: string;
+      phoneNumber?: string;
+      applicationReason: string;
+    }
+  ) =>
+    api.put(`/api/users/${userId}/become-vendor`, payload).then((r) => r.data),
 
   getById: (id: string): Promise<{ user?: User; admin?: User; vendor?: Vendor }> => {
     const role = localStorage.getItem("userRole");
@@ -231,11 +247,20 @@ export const adminApi = {
   toggleVendor: (vendorId: string) =>
     api.put(`/admin/toggle-vendor/${vendorId}`).then((r) => r.data),
 
+  approveVendor: (vendorId: string) =>
+    api.put(`/admin/vendor/${vendorId}/approve`).then((r) => r.data),
+
+  declineVendor: (vendorId: string) =>
+    api.put(`/admin/vendor/${vendorId}/decline`).then((r) => r.data),
+
   deleteUser: (userId: string) =>
     api.delete(`/admin/delete-user/${userId}`).then((r) => r.data),
 
   deleteVendor: (vendorId: string) =>
     api.delete(`/admin/delete-vendor/${vendorId}`).then((r) => r.data),
+
+  deleteAdmin: (adminId: string) =>
+    api.delete(`/admin/${adminId}`).then((r) => r.data),
 };
 
 /* ------------------------------------------------------------------ */

@@ -32,7 +32,7 @@ const TransportCard = ({ item, type, onEdit, onDelete, reservation }: TransportC
   const vehicle = item as Vehicle;
 
   return (
-    <div className="overflow-hidden rounded-xl bg-white shadow-lg transition-shadow duration-300 hover:shadow-xl">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card transition-shadow duration-300 hover:shadow-card-lg">
       <div className="relative">
         <img
           src={imageFor(item.image)}
@@ -46,16 +46,16 @@ const TransportCard = ({ item, type, onEdit, onDelete, reservation }: TransportC
           <button
             onClick={() => onEdit(item)}
             aria-label="Edit"
-            className="rounded-full bg-white/90 p-2 transition-colors hover:bg-blue-100"
+            className="rounded-full bg-white/90 p-2 transition-colors hover:bg-indigo-100"
           >
             <FaPen className="text-sm text-slate-700" />
           </button>
           <button
             onClick={() => onDelete(item._id)}
             aria-label="Delete"
-            className="rounded-full bg-white/90 p-2 transition-colors hover:bg-red-100"
+            className="rounded-full bg-white/90 p-2 transition-colors hover:bg-rose-100"
           >
-            <FaTrash className="text-sm text-red-600" />
+            <FaTrash className="text-sm text-rose-500" />
           </button>
         </div>
       </div>
