@@ -115,7 +115,7 @@ exports.updateUser = async (req, res) => {
       const filepath = path.join(uploadPath, filename);
       await photo.mv(filepath);
 
-      updateData.profilePhoto = `http://localhost:3001/uploads/${filename}`;
+      updateData.profilePhoto = `/uploads/${filename}`;
     }
 
     // Step 3: Update user in database

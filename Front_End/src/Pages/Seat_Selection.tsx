@@ -1,11 +1,17 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   FaUserTie,
   FaCalendarAlt,
   FaMapMarkerAlt,
   FaCheck,
   FaTimes,
+  FaArrowLeft,
+  FaArrowRight,
+  FaChair,
+  FaCreditCard,
+  FaMoneyBillWave,
+  FaBus,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { ClipLoader } from "react-spinners";
@@ -79,6 +85,13 @@ const SeatAvailability = () => {
     setTotalPrice(newSelectedSeats.length * selectedBus.pricePerSeat);
   };
 
+  const ensureSignedIn = () => {
+    if (localStorage.getItem("userId")) return true;
+    showErrorToast("Please sign in to book seats and manage your ticket.");
+    window.setTimeout(() => navigate("/sign-in"), 1500);
+    return false;
+  };
+
   const handleProceedToPayment = () => {
     if (!selectedBus) return;
 
@@ -86,6 +99,8 @@ const SeatAvailability = () => {
       showErrorToast("Please select at least one seat.");
       return;
     }
+
+    if (!ensureSignedIn()) return;
 
     if (paymentMethod === "CashOnVisit") {
       showConfirmationToast();
@@ -135,7 +150,9 @@ const SeatAvailability = () => {
       <div className="w-full max-w-md p-4">
         <div className="flex items-start">
           <div className="flex-shrink-0 pt-0.5">
-            <FaUserTie className="h-6 w-6 text-blue-500" />
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100">
+              <FaUserTie className="h-5 w-5 text-teal-600" />
+            </span>
           </div>
           <div className="ml-3 w-0 flex-1">
             <h3 className="text-lg font-medium text-gray-900">Confirm Booking</h3>
@@ -162,13 +179,13 @@ const SeatAvailability = () => {
             <div className="mt-4 flex space-x-3">
               <button
                 onClick={confirmCashBooking}
-                className="inline-flex flex-1 items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="inline-flex flex-1 items-center justify-center rounded-md border border-transparent bg-teal-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
               >
                 <FaCheck className="mr-2" /> Confirm
               </button>
               <button
                 onClick={() => toast.dismiss()}
-                className="inline-flex flex-1 items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="inline-flex flex-1 items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
               >
                 <FaTimes className="mr-2" /> Cancel
               </button>
@@ -182,13 +199,14 @@ const SeatAvailability = () => {
         closeButton: false,
         closeOnClick: false,
         draggable: false,
-        className: "!bg-white !text-gray-900 !shadow-xl !rounded-lg !p-0 !max-w-full",
+        className: "!bg-white !text-gray-900 !shadow-xl !rounded-2xl !p-0 !max-w-full",
       }
     );
   };
 
   const confirmCashBooking = async () => {
     if (!selectedBus) return;
+    if (!ensureSignedIn()) return;
     setIsProcessing(true);
     try {
       const response = await bookingsApi.cashOnVisit({
@@ -221,17 +239,26 @@ const SeatAvailability = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <ClipLoader color="#2563eb" size={50} />
-        <p className="ml-4 text-lg font-semibold text-slate-700">Loading bus data...</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+        <ClipLoader color="#059669" size={50} />
+        <p className="text-lg font-semibold text-slate-700">Loading bus data...</p>
       </div>
     );
   }
 
   if (!selectedBus) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
+        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+          <FaBus className="text-2xl text-slate-400" />
+        </span>
         <p className="text-lg font-semibold text-slate-700">No buses available.</p>
+        <Link
+          to="/tickets"
+          className="rounded-xl bg-teal-600 px-6 py-3 font-semibold text-white transition hover:bg-teal-700"
+        >
+          Browse available buses
+        </Link>
       </div>
     );
   }
@@ -244,10 +271,11 @@ const SeatAvailability = () => {
   };
 
   const seatClasses: Record<string, string> = {
-    booked: "bg-red-500 text-white cursor-not-allowed",
-    cov: "bg-blue-500 text-white cursor-not-allowed",
-    selected: "bg-emerald-500 text-white hover:bg-emerald-600",
-    available: "bg-slate-100 border hover:bg-slate-200",
+    booked: "bg-rose-500 text-white cursor-not-allowed shadow-sm",
+    cov: "bg-blue-500 text-white cursor-not-allowed shadow-sm",
+    selected: "bg-teal-500 text-white shadow-md ring-2 ring-teal-300",
+    available:
+      "bg-white border border-slate-300 text-slate-700 shadow-sm hover:border-teal-500 hover:bg-teal-50",
   };
 
   const busImage =
@@ -256,180 +284,294 @@ const SeatAvailability = () => {
       ? selectedBus.image
       : `${API_BASE_URL}${selectedBus.image}`);
 
-  return (
-    <div className="min-h-screen px-4 py-6 sm:px-6">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 lg:flex-row">
-        <div className="flex-1 rounded-2xl bg-white p-4 shadow-card sm:p-6">
-          <h2 className="mb-4 text-2xl font-bold text-slate-900 sm:text-3xl">
-            Journey Details
-          </h2>
+  const availableCount = Math.max(
+    0,
+    selectedBus.totalSeats - (selectedBus.bookedSeats?.length || 0) - covSeats.length
+  );
 
-          {busImage && (
-            <div className="mb-4 sm:mb-6">
+  const PAYMENT_OPTIONS = [
+    { value: "Online", label: "Pay via Khalti", icon: <FaCreditCard /> },
+    { value: "CashOnVisit", label: "Cash on Visit", icon: <FaMoneyBillWave /> },
+  ];
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-28 lg:pb-8">
+      {/* Journey header band */}
+      <header className="bg-gradient-to-br from-teal-500 via-teal-600 to-slate-900 px-4 py-6 text-white sm:px-6 md:py-8">
+        <div className="mx-auto max-w-6xl">
+          <Link
+            to="/tickets"
+            className="inline-flex items-center gap-2 text-sm font-medium text-teal-100 transition hover:text-white"
+          >
+            <FaArrowLeft /> Back to buses
+          </Link>
+
+          <div className="mt-4 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-teal-200/80">
+                Journey
+              </p>
+              <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{selectedBus.name}</h1>
+
+              <div className="mt-4 flex items-center gap-3 text-teal-50">
+                <span className="flex items-center gap-2 font-medium">
+                  <FaMapMarkerAlt className="text-teal-300" />
+                  {selectedBus.pickupPoint}
+                </span>
+                <FaArrowRight className="text-teal-300" />
+                <span className="flex items-center gap-2 font-medium">
+                  <FaMapMarkerAlt className="text-teal-300" />
+                  {selectedBus.dropPoint}
+                </span>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                <span className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium">
+                  <FaCalendarAlt className="text-teal-300" />
+                  {new Date(selectedBus.takeOffDate || "").toLocaleDateString("en-US")}
+                </span>
+                <span className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium">
+                  NPR {selectedBus.pricePerSeat} / seat
+                </span>
+                <span className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium">
+                  {availableCount} of {selectedBus.totalSeats} seats free
+                </span>
+              </div>
+            </div>
+
+            {busImage ? (
               <img
                 src={busImage}
-                alt="Bus"
-                className="h-48 w-full rounded-xl object-cover shadow-sm sm:h-64"
+                alt={selectedBus.name}
+                className="h-44 w-full rounded-2xl object-cover shadow-lg md:h-32 md:w-64"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "/default-bus-image.jpg";
                 }}
               />
-            </div>
-          )}
+            ) : (
+              <span className="flex h-32 w-full items-center justify-center rounded-2xl bg-white/10 md:w-64">
+                <FaBus className="text-4xl text-teal-200/70" />
+              </span>
+            )}
+          </div>
+        </div>
+      </header>
 
-          <div className="mb-4 space-y-3 sm:mb-6 sm:space-y-4">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <FaCalendarAlt className="text-slate-500" size={20} />
-              <div>
-                <p className="font-semibold text-slate-600">Trip Date</p>
-                <p className="text-base text-slate-900 sm:text-lg">
+      {/* Main layout */}
+      <div className="mx-auto mt-6 grid max-w-6xl gap-6 px-4 sm:px-6 lg:grid-cols-2">
+        {/* Left: journey details + payment + selected seats */}
+        <div className="space-y-6">
+          <section className="rounded-2xl bg-white p-5 shadow-card sm:p-6">
+            <h2 className="mb-4 text-lg font-bold text-slate-900 sm:text-xl">Journey Details</h2>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl bg-slate-50 p-4">
+                <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-teal-100">
+                  <FaCalendarAlt className="text-teal-600" />
+                </span>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Trip Date
+                </p>
+                <p className="mt-1 font-semibold text-slate-900">
                   {new Date(selectedBus.takeOffDate || "").toLocaleDateString("en-US")}
                 </p>
               </div>
-            </div>
-            <div className="flex items-center gap-3 sm:gap-4">
-              <FaMapMarkerAlt className="text-slate-500" size={20} />
-              <div>
-                <p className="font-semibold text-slate-600">Pickup Point</p>
-                <p className="text-base text-slate-900 sm:text-lg">{selectedBus.pickupPoint}</p>
+              <div className="rounded-xl bg-slate-50 p-4">
+                <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-blue-100">
+                  <FaMapMarkerAlt className="text-blue-600" />
+                </span>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Pickup
+                </p>
+                <p className="mt-1 font-semibold text-slate-900">{selectedBus.pickupPoint}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4">
+                <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-rose-100">
+                  <FaMapMarkerAlt className="text-rose-500" />
+                </span>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Drop
+                </p>
+                <p className="mt-1 font-semibold text-slate-900">{selectedBus.dropPoint}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 sm:gap-4">
-              <FaMapMarkerAlt className="text-slate-500" size={20} />
-              <div>
-                <p className="font-semibold text-slate-600">Drop Point</p>
-                <p className="text-base text-slate-900 sm:text-lg">{selectedBus.dropPoint}</p>
-              </div>
-            </div>
-          </div>
+          </section>
 
-          <div className="mb-4 sm:mb-6">
-            <label className="mb-2 block font-medium text-slate-700">Payment Method</label>
-            <select
-              className="input-field"
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
+          <section className="rounded-2xl bg-white p-5 shadow-card sm:p-6">
+            <h2 className="mb-3 text-lg font-bold text-slate-900 sm:text-xl">Payment Method</h2>
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
+              {PAYMENT_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setPaymentMethod(option.value)}
+                  className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                    paymentMethod === option.value
+                      ? "bg-teal-600 text-white shadow"
+                      : "text-slate-600 hover:bg-white"
+                  }`}
+                >
+                  {option.icon}
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-2xl bg-white p-5 shadow-card sm:p-6">
+            <div className="mb-3 flex items-center gap-2">
+              <FaChair className="text-lg text-teal-600" />
+              <h2 className="text-lg font-bold text-slate-900 sm:text-xl">Selected Seats</h2>
+            </div>
+
+            {selectedSeats.length === 0 ? (
+              <div className="rounded-xl border-2 border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
+                No seats selected yet — tap seats on the bus map to choose.
+              </div>
+            ) : (
+              <div className="rounded-xl bg-teal-50/60 p-3">
+                <div className="flex flex-wrap gap-2">
+                  {selectedSeats.map((seatNumber) => (
+                    <button
+                      key={seatNumber}
+                      onClick={() => handleSeatSelection(seatNumber)}
+                      title="Deselect seat"
+                      className="group flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-bold text-white shadow-sm transition hover:bg-rose-500"
+                    >
+                      {getSeatLabel(seatNumber)}
+                      <FaTimes className="hidden text-xs text-teal-100 group-hover:block" />
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-3 flex items-center justify-between border-t border-teal-200 pt-3">
+                  <span className="flex items-baseline gap-1 text-sm text-slate-600">
+                    {selectedSeats.length} seat{selectedSeats.length > 1 ? "s" : ""} × NPR{" "}
+                    {selectedBus.pricePerSeat}
+                  </span>
+                  <span className="text-xl font-bold text-slate-900">
+                    NPR {totalPrice}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleProceedToPayment}
+              disabled={isProcessing}
+              className="mt-4 hidden w-full rounded-xl bg-teal-600 py-3 text-base font-semibold text-white transition-colors hover:bg-teal-700 disabled:opacity-60 lg:block"
             >
-              <option value="Online">Pay via Khalti</option>
-              <option value="CashOnVisit">Cash on Visit</option>
-            </select>
-          </div>
-
-          <h2 className="mb-3 text-xl font-bold text-slate-900 sm:mb-4 sm:text-2xl">
-            Selected Seats
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse rounded-xl">
-              <thead>
-                <tr className="bg-emerald-600 text-white">
-                  <th className="rounded-tl-xl p-2 text-left sm:p-3">Seat</th>
-                  <th className="rounded-tr-xl p-2 text-right sm:p-3">Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedSeats.map((seatNumber) => (
-                  <tr key={seatNumber} className="border-b border-slate-200 hover:bg-slate-50">
-                    <td className="p-2 text-left sm:p-3">Seat {getSeatLabel(seatNumber)}</td>
-                    <td className="p-2 text-right sm:p-3">Rs. {selectedBus.pricePerSeat}</td>
-                  </tr>
-                ))}
-                <tr className="bg-slate-100">
-                  <td className="p-2 text-left font-bold sm:p-3">Total</td>
-                  <td className="p-2 text-right font-bold sm:p-3">Rs. {totalPrice}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <button
-            onClick={handleProceedToPayment}
-            disabled={isProcessing}
-            className="mt-4 w-full rounded-xl bg-emerald-600 py-2 text-base font-semibold text-white transition-colors hover:bg-emerald-700 sm:mt-6 sm:py-3 sm:text-lg"
-          >
-            Continue to Payment
-          </button>
+              Continue to Payment
+              {selectedSeats.length > 0 && ` (${selectedSeats.length} seat${selectedSeats.length > 1 ? "s" : ""})`}
+            </button>
+          </section>
         </div>
 
-        <div className="flex-1 rounded-2xl bg-white p-4 shadow-card sm:p-6">
-          <h2 className="mb-4 text-center text-2xl font-bold text-slate-900 sm:mb-6 sm:text-3xl">
-            Bus Layout
-          </h2>
-
-          <div className="mb-3 text-center text-lg font-bold text-slate-500 sm:mb-4 sm:text-xl">
-            FRONT
+        {/* Right: seat map */}
+        <section className="rounded-2xl bg-white p-5 shadow-card sm:p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold text-slate-900 sm:text-xl">Choose your seats</h2>
+            <span className="rounded-full bg-teal-100 px-3 py-1 text-sm font-semibold text-teal-700">
+              {availableCount} available
+            </span>
           </div>
 
-          <div className="overflow-x-auto">
-          <div className="mb-2 flex justify-end pr-[30px] sm:pr-[46px]">
-            <FaUserTie size={24} className="text-slate-700" />
+          <div className="mb-4 flex items-center justify-between rounded-xl bg-gradient-to-r from-slate-100 to-slate-50 px-4 py-2.5">
+            <FaUserTie size={22} className="text-slate-600" />
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Front
+            </span>
           </div>
 
           <div className="mb-2 flex items-center gap-3 pl-2 sm:gap-4">
-            <div className="w-10 text-center text-slate-500 sm:w-12">DOOR</div>
-            <div className="w-10 sm:w-12" />
+            <span className="rounded-md border border-dashed border-slate-400 px-2 py-0.5 text-xs font-semibold text-slate-500">
+              DOOR
+            </span>
+            <span className="w-10 sm:w-12" />
           </div>
 
-          <div className="flex flex-col gap-2 sm:gap-3">
-            {Array.from({ length: Math.ceil(selectedBus.totalSeats / 4) }, (_, rowIndex) => {
-              const rowLabel = String.fromCharCode(65 + rowIndex);
-              return (
-                <div key={rowLabel} className="flex items-center gap-3 pl-2 sm:gap-4">
-                  <div className="w-10 sm:w-12" />
-                  <div className="flex gap-2 sm:gap-4">
-                    {[1, 2, 3, 4].map((colNum) => {
-                      const seatNumber = rowIndex * 4 + colNum;
-                      if (seatNumber > selectedBus.totalSeats) return null;
+          <div className="overflow-x-auto">
+            <div className="flex flex-col gap-2 sm:gap-3">
+              {Array.from({ length: Math.ceil(selectedBus.totalSeats / 4) }, (_, rowIndex) => {
+                const rowLabel = String.fromCharCode(65 + rowIndex);
+                return (
+                  <div key={rowLabel} className="flex items-center gap-3 pl-2 sm:gap-4">
+                    <span className="w-4 text-center text-xs font-bold text-slate-400 sm:w-6">
+                      {rowLabel}
+                    </span>
+                    <div className="w-10 sm:w-12" />
+                    <div className="flex gap-1.5 sm:gap-2">
+                      {[1, 2, 3, 4].map((colNum) => {
+                        const seatNumber = rowIndex * 4 + colNum;
+                        if (seatNumber > selectedBus.totalSeats) return null;
 
-                      const label = getSeatLabel(seatNumber);
-                      const status = seatStatus(seatNumber);
+                        const label = getSeatLabel(seatNumber);
+                        const status = seatStatus(seatNumber);
 
-                      let gapStyle = "";
-                      if (colNum === 2) gapStyle = "mr-12 sm:mr-20";
-                      if (colNum === 1 || colNum === 3) gapStyle = "mr-2 sm:mr-4";
+                        let gapStyle = "";
+                        if (colNum === 2) gapStyle = "mr-12 sm:mr-20";
+                        if (colNum === 1 || colNum === 3) gapStyle = "mr-2 sm:mr-4";
 
-                      return (
-                        <div key={seatNumber} className={gapStyle}>
-                          <button
-                            onClick={() => handleSeatSelection(seatNumber)}
-                            disabled={status === "booked" || status === "cov"}
-                            className={`h-10 w-10 rounded-lg font-bold transition-colors sm:h-12 sm:w-12 ${seatClasses[status]}`}
-                            data-seat-status={status}
-                            data-seat-number={seatNumber}
-                          >
-                            {label}
-                          </button>
-                        </div>
-                      );
-                    })}
+                        return (
+                          <div key={seatNumber} className={gapStyle}>
+                            <button
+                              onClick={() => handleSeatSelection(seatNumber)}
+                              disabled={status === "booked" || status === "cov"}
+                              className={`h-11 w-11 rounded-lg text-sm font-bold transition-all sm:h-12 sm:w-12 ${seatClasses[status]}`}
+                              data-seat-status={status}
+                              data-seat-number={seatNumber}
+                            >
+                              {label}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            <p className="mt-4 text-center text-xs font-bold uppercase tracking-widest text-slate-400">
+              Rear
+            </p>
           </div>
 
-          <div className="mt-4 text-center text-lg font-bold text-slate-500 sm:mt-6 sm:text-xl">
-            REAR
+          <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 border-t border-slate-100 pt-4">
+            <div className="flex items-center">
+              <span className="mr-2 h-4 w-4 rounded-md bg-teal-500 ring-2 ring-teal-300" />
+              <span className="text-sm text-slate-600">Selected</span>
+            </div>
+            <div className="flex items-center">
+              <span className="mr-2 h-4 w-4 rounded-md bg-rose-500" />
+              <span className="text-sm text-slate-600">Booked</span>
+            </div>
+            <div className="flex items-center">
+              <span className="mr-2 h-4 w-4 rounded-md bg-blue-500" />
+              <span className="text-sm text-slate-600">Cash on Visit</span>
+            </div>
+            <div className="flex items-center">
+              <span className="mr-2 h-4 w-4 rounded-md border border-slate-300 bg-white" />
+              <span className="text-sm text-slate-600">Available</span>
+            </div>
           </div>
-          </div>
+        </section>
+      </div>
 
-          <div className="mt-6 flex flex-wrap justify-center gap-4">
-            <div className="flex items-center">
-              <div className="mr-2 h-4 w-4 rounded bg-emerald-500" />
-              <span className="text-sm">Selected</span>
-            </div>
-            <div className="flex items-center">
-              <div className="mr-2 h-4 w-4 rounded bg-red-500" />
-              <span className="text-sm">Booked</span>
-            </div>
-            <div className="flex items-center">
-              <div className="mr-2 h-4 w-4 rounded bg-blue-500" />
-              <span className="text-sm">Cash on Visit</span>
-            </div>
-            <div className="flex items-center">
-              <div className="mr-2 h-4 w-4 rounded border bg-slate-100" />
-              <span className="text-sm">Available</span>
-            </div>
+      {/* Sticky mobile checkout bar */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+          <div>
+            <p className="text-xs text-slate-500">
+              {selectedSeats.length} seat{selectedSeats.length === 1 ? "" : "s"} selected
+            </p>
+            <p className="text-lg font-bold text-slate-900">NPR {totalPrice}</p>
           </div>
+          <button
+            onClick={handleProceedToPayment}
+            disabled={isProcessing}
+            className="rounded-xl bg-teal-600 px-6 py-3 text-base font-semibold text-white shadow-md transition hover:bg-teal-700 disabled:opacity-60"
+          >
+            Continue to Payment
+          </button>
         </div>
       </div>
     </div>

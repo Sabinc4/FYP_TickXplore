@@ -7,9 +7,6 @@ node_modules/
 .env.*.local
 !.env.example
 
-# Runtime uploads
-uploads/
-
 # Logs
 logs
 *.log

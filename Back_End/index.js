@@ -7,7 +7,7 @@ const path = require("path");
 const fs = require("fs");
 const fileUpload = require("express-fileupload");
 const cookieParser = require("cookie-parser");
-require("dotenv").config();
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
 
 // Initialize Express App
 const app = express();

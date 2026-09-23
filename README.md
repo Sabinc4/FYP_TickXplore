@@ -19,40 +19,44 @@ The project is split into two parts:
 
 ---
 
+## Environment Setup (single `.env` at repo root)
+
+The whole project uses **one** environment file at the repository root: `.env`.
+
+Create it and fill in real values. It serves **both** parts:
+- **Backend** loads it via `Back_End/index.js` (`dotenv` reads `../.env`).
+- **Frontend** loads it via `Front_End/vite.config.js` (`envDir: '..'`).
+
+Example layout:
+
+```env
+# --- Backend ---
+PORT=3001
+MONGO_URI=mongodb://localhost:27017/tickxplore
+JWT_SECRET=your_jwt_secret
+JWT_REFRESH_SECRET=your_refresh_secret
+KHALTI_SECRET_KEY=your_khalti_secret
+KHALTI_RETURN_URL=http://localhost:5173/payment/callback
+KHALTI_WEBSITE_URL=http://localhost:5173
+EMAIL_USER=your_email
+EMAIL_PASS=your_email_password
+HUGGINGFACE_API_KEY=your_huggingface_key
+CLIENT_URL=http://localhost:5173
+
+# --- Frontend ---
+VITE_API_URL=http://localhost:3001
+VITE_HF_API_KEY=
+```
+
+> `.env` is git-ignored — never commit real secrets. `VITE_`-prefixed vars are exposed to the browser by Vite at build time.
+
+---
+
 ## Backend Setup (`Back_End/`)
 
 ```bash
 cd Back_End
 npm install
-```
-
-Create a `.env` file in `Back_End/`:
-
-```env
-# Server
-PORT=3001
-
-# Database (defaults to mongodb://localhost:27017/tickxplore)
-MONGO_URI=mongodb://localhost:27017/tickxplore
-
-# Auth secrets
-JWT_SECRET=your_jwt_secret
-JWT_REFRESH_SECRET=your_refresh_secret
-
-# Khalti payment gateway (optional — used for payments)
-KHALTI_SECRET_KEY=your_khalti_secret
-KHALTI_RETURN_URL=http://localhost:5173/payment/callback
-KHALTI_WEBSITE_URL=http://localhost:5173
-
-# Email (OTP, password reset, notifications)
-EMAIL_USER=your_email
-EMAIL_PASS=your_email_password
-
-# Chatbot
-HUGGINGFACE_API_KEY=your_huggingface_key
-
-# Frontend origin
-CLIENT_URL=http://localhost:5173
 ```
 
 Start the backend (auto-reloads via `nodemon`):
@@ -62,7 +66,7 @@ npm start
 ```
 
 - Runs at **http://localhost:3001** · Health check: `GET /health`
-- Images, logos, and uploads are served from `Back_End/uploads` (auto-created, git-ignored).
+- Images, logos, and uploads are served from `Back_End/uploads` (auto-created; sample images are committed to git so they exist on every clone).
 
 ---
 
@@ -73,16 +77,6 @@ Open a second terminal:
 ```bash
 cd Front_End
 npm install
-```
-
-Create a `.env` file in `Front_End/`:
-
-```env
-# Backend API base URL
-VITE_API_URL=http://localhost:3001
-
-# Hugging Face chatbot key (optional — can be left blank)
-VITE_HF_API_KEY=
 ```
 
 Start the development server:
