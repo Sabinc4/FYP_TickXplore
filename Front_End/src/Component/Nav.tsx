@@ -14,6 +14,7 @@ import { IoMdNotificationsOutline } from "react-icons/io";
 import { FiLogOut, FiUser, FiRefreshCw, FiCreditCard } from "react-icons/fi";
 import { toast } from "react-toastify";
 import type { Notification } from "../api/types";
+import { API_BASE_URL } from "../api";
 
 interface NavLinkItem {
   label: string;
@@ -74,13 +75,17 @@ const Nav = () => {
     if (isLoggedIn && id && token) {
       const endpoint = role === "admin" ? "admin" : role === "vendor" ? "vendor" : "users";
       try {
-        const res = await fetch(`http://localhost:3001/${endpoint}/${id}`, {
+        const res = await fetch(`${API_BASE_URL}/${endpoint}/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
         const profile = data.admin || data.vendor || data.user;
-        if (profile?.profilePhoto?.startsWith("http")) {
-          setProfileImage(profile.profilePhoto);
+        if (profile?.profilePhoto) {
+          setProfileImage(
+            profile.profilePhoto.startsWith("http")
+              ? profile.profilePhoto
+              : `${API_BASE_URL}${profile.profilePhoto}`
+          );
         } else {
           setProfileImage("");
         }

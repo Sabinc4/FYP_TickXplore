@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { usersApi, authApi, type Role } from "../api";
+import { usersApi, authApi, API_BASE_URL, type Role } from "../api";
+
+const resolvePhoto = (photo?: string) =>
+  photo ? (photo.startsWith("http") ? photo : `${API_BASE_URL}${photo}`) : "";
 
 interface ProfileData {
   name: string;
@@ -295,7 +298,7 @@ const Profile = () => {
       </div>
     );
 
-  const avatarImage = preview || profilePhoto;
+  const avatarImage = preview || resolvePhoto(profilePhoto);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10">
@@ -495,7 +498,7 @@ const Profile = () => {
             <div className="mb-6 flex justify-center">
               {profilePhoto ? (
                 <img
-                  src={profilePhoto}
+                  src={resolvePhoto(profilePhoto)}
                   alt="Profile"
                   className="h-24 w-24 rounded-full border-4 border-blue-500 object-cover"
                 />

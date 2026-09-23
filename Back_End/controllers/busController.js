@@ -186,7 +186,7 @@ exports.getAllBuses = async (req, res) => {
 
     const busesWithImages = buses.map((bus) => ({
       ...bus.toObject(),
-      image: bus.image ? `http://localhost:3001${bus.image}` : null,
+      image: bus.image || null,
     }));
 
     res.status(200).json({ success: true, buses: busesWithImages });

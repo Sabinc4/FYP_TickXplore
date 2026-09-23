@@ -86,6 +86,13 @@ const VehicleReservation = () => {
   };
 
   const handlePaymentAndReservation = async () => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      toast.error("Please sign in to book seats and manage your ticket.");
+      window.setTimeout(() => navigate("/sign-in"), 1500);
+      return;
+    }
+
     if (!selectedVehicle || !takeOffDate || !pickupPoint || !dropPoint) {
       toast.error("Please fill all required fields.");
       return;
@@ -95,12 +102,6 @@ const VehicleReservation = () => {
     if (!available) return;
 
     try {
-      const userId = localStorage.getItem("userId");
-      if (!userId) {
-        toast.error("Please log in to make a reservation.");
-        return;
-      }
-
       const payload = {
         type: "vehicle",
         itemId: selectedVehicle._id,

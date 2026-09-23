@@ -31,8 +31,9 @@ const Payment = () => {
       const userId = localStorage.getItem("userId");
 
       if (!userId) {
-        toast.error("User not logged in.");
+        toast.error("Please sign in to book seats and manage your ticket.");
         setLoading(false);
+        window.setTimeout(() => navigate("/sign-in"), 1500);
         return;
       }
 

@@ -115,7 +115,7 @@ exports.updateVendor = async (req, res) => {
 
       await photo.mv(filepath);
 
-      updateData.profilePhoto = `http://localhost:3001/uploads/${filename}`;
+      updateData.profilePhoto = `/uploads/${filename}`;
     }
 
     const updatedVendor = await Vendor.findByIdAndUpdate(id, updateData, {

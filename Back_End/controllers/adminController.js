@@ -144,7 +144,7 @@ exports.updateAdmin = async (req, res) => {
       const filepath = path.join(uploadPath, filename);
       await photo.mv(filepath);
 
-      updateFields.profilePhoto = `http://localhost:3001/uploads/${filename}`;
+      updateFields.profilePhoto = `/uploads/${filename}`;
     }
 
     // 🔄 Update admin

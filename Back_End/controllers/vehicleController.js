@@ -47,7 +47,7 @@ exports.createVehicle = async (req, res) => {
       await file.mv(absolutePath);
     }
 
-    const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${fileName}`;
+    const imageUrl = `/uploads/${fileName}`;
 
     // Create the new vehicle object
     const newVehicle = new Vehicle({
@@ -173,7 +173,7 @@ exports.updateVehicle = async (req, res) => {
       if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
 
       await file.mv(absolutePath);
-      vehicle.image = `${req.protocol}://${req.get("host")}/uploads/${fileName}`;
+      vehicle.image = `/uploads/${fileName}`;
     }
 
     if (vendorId) vehicle.vendorId = objectIdVendorId;
@@ -197,7 +197,7 @@ exports.deleteVehicle = async (req, res) => {
     if (!vehicle) return res.status(404).json({ success: false, message: "Vehicle not found." });
 
     if (vehicle.image) {
-      const filePath = path.join(__dirname, "..", vehicle.image.replace(`${req.protocol}://${req.get("host")}/`, ""));
+      const filePath = path.join(__dirname, "..", vehicle.image.replace(/^\//, ""));
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
