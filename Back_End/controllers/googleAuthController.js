@@ -47,8 +47,15 @@ exports.googleSignIn = async (req, res) => {
         role: "user",
         profilePhoto: picture,
       });
-    } else if (!user.googleId) {
-      user.googleId = googleId;
+    } else {
+      if (!user.googleId) {
+        user.googleId = googleId;
+      }
+      // Sync the Google profile picture for existing accounts, but never
+      // overwrite a profile photo the user has uploaded or set themselves.
+      if (picture && !user.profilePhoto) {
+        user.profilePhoto = picture;
+      }
       await user.save();
     }
 
@@ -77,6 +84,7 @@ exports.googleSignIn = async (req, res) => {
         role: user.role,
         name: user.name || user.vendorName || "",
         vendorName: user.vendorName || "",
+        profilePhoto: user.profilePhoto || (picture || ""),
         isActive: user.isActive ?? true,
       },
     });
