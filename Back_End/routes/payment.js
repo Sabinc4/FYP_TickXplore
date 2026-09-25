@@ -18,6 +18,37 @@ const KHALTI_LOOKUP_URL = "https://dev.khalti.com/api/v2/epayment/lookup/";
 /* Shared helpers                                                      */
 /* ------------------------------------------------------------------ */
 
+// Resolve the customer identity for a booking. Prefers a registered user
+// account when one is supplied; otherwise falls back to the walk-in contact
+// provided by the booking agent (vendor-assisted bookings).
+async function resolveCustomer(body) {
+  const {
+    userId,
+    customerName,
+    customerPhone,
+    customerEmail,
+  } = body;
+
+  if (userId) {
+    const user = await User.findById(userId).catch(() => null);
+    if (user) {
+      return {
+        userId: user._id,
+        customerName: user.name,
+        customerPhone: user.phoneNumber,
+        customerEmail: user.email,
+      };
+    }
+  }
+
+  return {
+    userId: null,
+    customerName: customerName || "",
+    customerPhone: customerPhone || "",
+    customerEmail: customerEmail || "",
+  };
+}
+
 // Run a side-effect without letting a failure break the payment flow.
 async function safeRun(label, fn) {
   try {
@@ -85,7 +116,10 @@ async function completeBooking(booking, pidx) {
       await safeRun("vehicle reservation", async () => {
         const reservation = await Reservation.create({
           vehicleId: booking.vehicleId,
-          userId: booking.userId,
+          userId: booking.userId || undefined,
+          customerName: booking.customerName || undefined,
+          customerPhone: booking.customerPhone || undefined,
+          customerEmail: booking.customerEmail || undefined,
           pickupPoint: booking.pickupPoint || "N/A",
           dropPoint: booking.dropPoint || "N/A",
           reservedFrom,
@@ -162,16 +196,19 @@ async function completeBooking(booking, pidx) {
     }
   });
 
-  // User confirmation
-  await safeRun("user notification", async () => {
-    const user = await User.findById(booking.userId);
-    if (user && user.email) {
+  // Customer confirmation
+  await safeRun("customer confirmation", async () => {
+    const user = booking.userId ? await User.findById(booking.userId) : null;
+    const email = user?.email || booking.customerEmail;
+    if (email) {
       await sendEmail(
-        user.email,
+        email,
         "Your Booking is Confirmed - TickXplore",
-        `<p>Hi ${user.name || "User"}, your booking was successful.</p><p>Total Paid: Rs. ${totalPrice}</p>`
+        `<p>Hi ${user?.name || booking.customerName || "Customer"}, your booking was successful.</p><p>Total Paid: Rs. ${totalPrice}</p>`
       );
+    }
 
+    if (user) {
       await Notification.create({
         userId: user._id,
         role: "user",
@@ -279,10 +316,18 @@ router.post("/initiate", async (req, res) => {
       takeOffDate,
       pickupPoint,
       dropPoint,
+      customerName,
+      customerPhone,
+      customerEmail,
     } = req.body;
 
-    if (!itemId || !userId) {
-      return res.status(400).json({ message: "Missing required fields." });
+    if (
+      !itemId ||
+      (!userId && !(customerName && customerEmail))
+    ) {
+      return res.status(400).json({
+        message: "Missing required fields. Provide itemId and either userId or customer name + email.",
+      });
     }
 
     let totalPrice = 0;
@@ -331,8 +376,10 @@ router.post("/initiate", async (req, res) => {
       return res.status(400).json({ message: "Invalid booking type." });
     }
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found." });
+    const customer = await resolveCustomer(req.body);
+    if (!customer.userId && !customer.customerName) {
+      return res.status(400).json({ message: "Customer name is required for walk-in bookings." });
+    }
 
     const orderId = `order-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const commissionRate = 10;
@@ -342,7 +389,10 @@ router.post("/initiate", async (req, res) => {
     // Persist a PENDING booking BEFORE calling Khalti so the charge can never be
     // lost if the callback restarts or fails. `/callback` and `/verify` complete it.
     const bookingFields = {
-      userId,
+      userId: customer.userId || undefined,
+      customerName: customer.customerName || undefined,
+      customerPhone: customer.customerPhone || undefined,
+      customerEmail: customer.customerEmail || undefined,
       totalPrice,
       status: "Pending",
       paymentStatus: "Pending",
@@ -371,7 +421,7 @@ router.post("/initiate", async (req, res) => {
     }
 
     // Keep a small in-memory fallback for legacy in-flight payments only.
-    const metadata = { type, itemId, userId, seats, takeOffDate, pickupPoint, dropPoint };
+    const metadata = { type, itemId, userId: customer.userId, customerName: customer.customerName, seats, takeOffDate, pickupPoint, dropPoint };
     global.khaltiTempStore = global.khaltiTempStore || new Map();
     global.khaltiTempStore.set(orderId, metadata);
 
@@ -382,9 +432,9 @@ router.post("/initiate", async (req, res) => {
       purchase_order_id: orderId,
       purchase_order_name: productName,
       customer_info: {
-        name: user.name,
-        email: user.email,
-        phone: user.phoneNumber,
+        name: customer.customerName,
+        email: customer.customerEmail,
+        phone: customer.customerPhone,
       },
       product_details: productDetails,
       merchant_username: "tickxplore",
@@ -537,9 +587,34 @@ router.get("/callback", async (req, res) => {
 });
 
 router.post("/cash-on-visit", async (req, res) => {
-  const { type, itemId, userId, seats, takeOffDate, pickupPoint, dropPoint } = req.body;
+  const {
+    type,
+    itemId,
+    userId,
+    seats,
+    takeOffDate,
+    pickupPoint,
+    dropPoint,
+    customerName,
+    customerPhone,
+    customerEmail,
+  } = req.body;
+
+  if (
+    !itemId ||
+    (!userId && !(customerName && customerEmail))
+  ) {
+    return res.status(400).json({
+      message: "Missing required fields. Provide itemId and either userId or customer name + email.",
+    });
+  }
 
   try {
+    const customer = await resolveCustomer(req.body);
+    if (!customer.userId && !customer.customerName) {
+      return res.status(400).json({ message: "Customer name is required for walk-in bookings." });
+    }
+
     let totalPrice = 0, booking;
     const commissionRate = 10;
     let vendorEmail = "", productName = "", vendorId;
@@ -553,7 +628,10 @@ router.post("/cash-on-visit", async (req, res) => {
       const vendorEarnings = totalPrice - commissionAmount;
 
       booking = await Booking.create({
-        userId,
+        userId: customer.userId || undefined,
+        customerName: customer.customerName || undefined,
+        customerPhone: customer.customerPhone || undefined,
+        customerEmail: customer.customerEmail || undefined,
         busId: itemId,
         selectedSeats: seats,
         totalPrice,
@@ -586,7 +664,10 @@ router.post("/cash-on-visit", async (req, res) => {
       const vendorEarnings = totalPrice - commissionAmount;
 
       booking = await Booking.create({
-        userId,
+        userId: customer.userId || undefined,
+        customerName: customer.customerName || undefined,
+        customerPhone: customer.customerPhone || undefined,
+        customerEmail: customer.customerEmail || undefined,
         vehicleId: itemId,
         totalPrice,
         status: "Pending",
@@ -626,14 +707,13 @@ router.post("/cash-on-visit", async (req, res) => {
       await admin.save();
     }
 
-    // ✅ User email + notification
-    const user = await User.findById(userId);
-    if (user?.email) {
+    // ✅ Customer email + notification (walk-in welcome too)
+    if (customer.customerEmail) {
       await sendEmail(
-        user.email,
+        customer.customerEmail,
         "Cash on Visit Booking - TickXplore",
         `
-        <p>Dear ${user.name || "user"},</p>
+        <p>Dear ${customer.customerName || "Customer"},</p>
         <p>Your booking has been created with <strong>Cash on Visit</strong>.</p>
         <p><strong>Total to Pay:</strong> Rs. ${totalPrice}</p>
         <p>Please complete your payment in person and confirm via our Gmail:</p>
@@ -642,9 +722,11 @@ router.post("/cash-on-visit", async (req, res) => {
         <p>Booking ID: ${booking._id}</p>
         `
       );
+    }
 
+    if (customer.userId) {
       await Notification.create({
-        userId: new mongoose.Types.ObjectId(userId),
+        userId: new mongoose.Types.ObjectId(customer.userId),
         role: "user",
         message: `Your booking for ${productName} is confirmed with Cash on Visit.`,
       });

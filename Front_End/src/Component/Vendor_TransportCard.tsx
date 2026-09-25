@@ -102,6 +102,28 @@ const TransportCard = ({ item, type, onEdit, onDelete, reservation }: TransportC
           )}
         </div>
 
+        {type === "bus" && bus.totalSeats > 0 && (
+          <div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500">Seat occupancy</span>
+              <span className="font-semibold text-slate-700">
+                {bus.bookedSeats?.length || 0}/{bus.totalSeats}
+              </span>
+            </div>
+            <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-indigo-500"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    ((bus.bookedSeats?.length || 0) / bus.totalSeats) * 100
+                  )}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {type === "vehicle" && (
           <div className="mt-2 space-y-1 text-sm text-gray-700">
             {reservation ? (

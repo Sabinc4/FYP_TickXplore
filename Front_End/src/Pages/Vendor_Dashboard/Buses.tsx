@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { useOutletContext } from "react-router-dom";
 import TransportSection from "../../Component/Vendor_TransportSection";
 import AddEditForm from "../../Component/Vendor_AddEditForm";
+import ConfirmDialog from "../../Component/ConfirmDialog";
 import AdminPageHeader from "../../Component/AdminPageHeader";
 import { busesApi, type Bus, type Vehicle } from "../../api";
 
@@ -16,6 +17,8 @@ const Buses = () => {
   const [editMode, setEditMode] = useState(false);
   const [selectedBus, setSelectedBus] = useState<Bus | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Bus | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const addBus = (payload: FormData) => busesApi.create(payload);
   const updateBus = (id: string, payload: FormData) => busesApi.update(id, payload);
@@ -33,15 +36,19 @@ const Buses = () => {
     setSelectedBus(bus as Bus);
   };
 
-  const handleDeleteBus = async (busId: string) => {
-    if (window.confirm("Are you sure you want to delete this bus?")) {
-      try {
-        await deleteBus(busId);
-        toast.success("Bus deleted successfully!");
-        fetchData();
-      } catch (error) {
-        toast.error("Error deleting bus.");
-      }
+  const handleDeleteBus = async () => {
+    const busId = pendingDelete?._id;
+    if (!busId) return;
+    setDeletingId(busId);
+    try {
+      await deleteBus(busId);
+      toast.success("Bus deleted successfully!");
+      fetchData();
+    } catch (error) {
+      toast.error("Error deleting bus.");
+    } finally {
+      setDeletingId(null);
+      setPendingDelete(null);
     }
   };
 
@@ -64,7 +71,7 @@ const Buses = () => {
         items={buses}
         type="bus"
         onEdit={handleEditBus}
-        onDelete={handleDeleteBus}
+        onDelete={(id) => setPendingDelete(buses.find((b) => b._id === id) ?? null)}
         onAddNew={handleAddNew}
         showHeader={false}
       />
@@ -83,6 +90,17 @@ const Buses = () => {
           updateBus={updateBus}
         />
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete bus"
+        message={`Are you sure you want to delete "${pendingDelete?.name || pendingDelete?.busName || "this bus"}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        tone="danger"
+        busy={deletingId !== null}
+        onConfirm={handleDeleteBus}
+        onCancel={() => setPendingDelete(null)}
+      />
     </>
   );
 };
