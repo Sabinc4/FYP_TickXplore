@@ -1,6 +1,6 @@
 import SkeletonLoader from "./Admin_SkeletonLoader";
 import { X } from "lucide-react";
-import { API_BASE_URL, type Vehicle } from "../api";
+import { API_BASE_URL, type Vehicle } from "../../api";
 
 interface VehicleCardProps {
   vehicle: Vehicle;

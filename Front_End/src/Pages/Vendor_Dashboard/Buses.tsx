@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
 import { useOutletContext } from "react-router-dom";
-import TransportSection from "../../Component/Vendor_TransportSection";
-import AddEditForm from "../../Component/Vendor_AddEditForm";
-import AdminPageHeader from "../../Component/AdminPageHeader";
+import TransportSection from "../../Component/Vendor Component/Vendor_TransportSection";
+import AddEditForm from "../../Component/Vendor Component/Vendor_AddEditForm";
+import AdminPageHeader from "../../Component/Admin Component/AdminPageHeader";
 import { busesApi, type Bus, type Vehicle } from "../../api";
 
 interface OutletContext {

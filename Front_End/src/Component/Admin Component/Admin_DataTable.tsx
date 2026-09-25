@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getPageRange } from "../utils/pagination";
+import { getPageRange } from "../../utils/pagination";
 
 interface DataTableProps<T extends { _id?: string }> {
   title: string;

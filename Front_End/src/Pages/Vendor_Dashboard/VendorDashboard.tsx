@@ -13,9 +13,10 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { Link, Outlet, useLocation } from "react-router-dom";
-import { FiMenu, FiX, FiGrid, FiTruck, FiList, FiBookOpen } from "react-icons/fi";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { FiMenu, FiX, FiGrid, FiTruck, FiList, FiBookOpen, FiLogOut } from "react-icons/fi";
 import { vendorApi, type Booking, type Bus, type Vehicle } from "../../api";
+import LogoutConfirmModal from "../../Component/LogoutConfirmModal";
 
 interface VendorData {
   vehicles: Vehicle[];
@@ -59,6 +60,17 @@ const VendorDashboard = () => {
 
   const vendorId = localStorage.getItem("vendorId") || "";
   const location = useLocation();
+  const navigate = useNavigate();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const userName = localStorage.getItem("userName") || "Vendor";
+
+  const confirmLogout = () => {
+    toast.dismiss();
+    localStorage.clear();
+    toast.success("Logged out successfully!");
+    navigate("/sign-in");
+    window.dispatchEvent(new Event("storageUpdate"));
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -148,18 +160,24 @@ const VendorDashboard = () => {
 
   return (
     <div className="flex h-screen flex-col bg-slate-200">
-      <header className="relative flex h-16 shrink-0 items-center border-b-2 border-indigo-600 bg-white px-4 text-gray-900 shadow-sm">
-        <button
-          onClick={toggleSidebar}
-          className="rounded-md bg-slate-100 p-2 text-slate-700 hover:bg-slate-200 lg:hidden"
-          aria-label="Toggle menu"
-        >
-          {data.sidebarOpen ? <FiX size={22} /> : <FiMenu size={22} />}
-        </button>
+      <header className="relative flex h-16 shrink-0 items-center justify-between gap-3 border-b-2 border-indigo-600 bg-white px-4 text-gray-900 shadow-sm">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            onClick={toggleSidebar}
+            className="rounded-md bg-slate-100 p-2 text-slate-700 hover:bg-slate-200 lg:hidden"
+            aria-label="Toggle menu"
+          >
+            {data.sidebarOpen ? <FiX size={22} /> : <FiMenu size={22} />}
+          </button>
 
-        <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold tracking-wide md:text-xl">
-          Vendor Portal
-        </h1>
+          <h1 className="truncate text-lg font-semibold tracking-wide md:text-xl">
+            Vendor Portal
+          </h1>
+        </div>
+
+        <span className="min-w-0 truncate text-sm text-gray-600">
+          Welcome, <span className="font-medium text-indigo-600">{userName}</span>
+        </span>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -188,6 +206,16 @@ const VendorDashboard = () => {
               ))}
             </ul>
           </nav>
+
+          <div className="mt-auto w-full border-t border-indigo-100 p-4">
+            <button
+              onClick={() => setShowLogoutModal(true)}
+              className="flex w-full items-center gap-3 rounded-lg border-l-4 border-transparent px-4 py-2.5 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700"
+            >
+              <FiLogOut size={18} />
+              Logout
+            </button>
+          </div>
         </aside>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -298,6 +326,12 @@ const VendorDashboard = () => {
         )}
       </main>
       </div>
+
+      <LogoutConfirmModal
+        open={showLogoutModal}
+        onCancel={() => setShowLogoutModal(false)}
+        onConfirm={confirmLogout}
+      />
     </div>
   );
 };

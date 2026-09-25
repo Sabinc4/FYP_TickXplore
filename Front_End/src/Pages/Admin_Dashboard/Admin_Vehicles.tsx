@@ -1,6 +1,6 @@
 import { useState } from "react";
-import VehicleCards from "../../Component/Admin_VehicleCards";
-import AdminPageHeader from "../../Component/AdminPageHeader";
+import VehicleCards from "../../Component/Admin Component/Admin_VehicleCards";
+import AdminPageHeader from "../../Component/Admin Component/AdminPageHeader";
 import { useOutletContext } from "react-router-dom";
 import { toast } from "react-toastify";
 import { vehiclesApi, type Vehicle } from "../../api";

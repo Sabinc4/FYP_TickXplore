@@ -1,6 +1,6 @@
 import { FaPen, FaTrash } from "react-icons/fa";
 import InfoItem from "./Vendor_InfoItem";
-import { API_BASE_URL, type Bus, type Vehicle } from "../api";
+import { API_BASE_URL, type Bus, type Vehicle } from "../../api";
 
 export interface Reservation {
   _id: string;

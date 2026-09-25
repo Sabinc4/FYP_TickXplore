@@ -4,14 +4,14 @@ import Main from "../layout/Main";
 import ScrollToTop from "../Component/ScrollToTop";
 import ProtectedRoute from "./ProtectedRoute";
 // Pages
-import Home from "../home/Home";
-import AboutUs from "../Component/About";
+import Home from "../Pages/Home Pages/Home";
+import AboutUs from "../Pages/Home Pages/About";
 import Tourist_Areas from "../Pages/Tourist_Areas";
 import TouristBlog from "../blogs/TouristBlog";
 import Registration from "../Component/Registration";
 import Login from "../Component/Login";
 import Vehicle_Booking from "../Pages/Vehicle_Booking";
-import FAQs from "../Pages/FAQs";
+import FAQs from "../Pages/Home Pages/FAQs";
 import Profile from "../Component/Profile";
 import Tickets from "../Pages/tickets";
 import Seat_Selection from "../Pages/Seat_Selection";
@@ -27,6 +27,10 @@ import NoPage from "../Pages/NoPage";
 // Lazy-loaded dashboards for code-splitting
 const AdminDashboard = lazy(() => import("../Pages/Admin_Dashboard/AdminDashboard"));
 const VendorDashboard = lazy(() => import("../Pages/Vendor_Dashboard/VendorDashboard"));
+
+// Lazy-loaded accommodation (Stay) page
+const AccommodationPage = lazy(() => import("../Pages/AccommodationPage"));
+const AccommodationDetails = lazy(() => import("../Pages/AccommodationDetails"));
 
 /* Lazy admin / vendor sub-routes (must be declared before `router` uses them) */
 const DashboardChildren = {
@@ -81,43 +85,21 @@ const router = createBrowserRouter([
       },
 
       {
-        path: "/Admin_Dashboard",
+        path: "/stay",
         element: (
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <Suspense fallback={<PageFallback />}>
-              <AdminDashboard />
-            </Suspense>
-          </ProtectedRoute>
+          <Suspense fallback={<PageFallback />}>
+            <AccommodationPage />
+          </Suspense>
         ),
-        children: [
-          { index: true, element: <DashboardChildren.Home /> },
-          { path: "users", element: <DashboardChildren.Users /> },
-          { path: "vendors", element: <DashboardChildren.Vendors /> },
-          { path: "vendor-applications", element: <DashboardChildren.VendorApplications /> },
-          { path: "buses", element: <DashboardChildren.Buses /> },
-          { path: "vehicles", element: <DashboardChildren.Vehicles /> },
-          { path: "bookings", element: <DashboardChildren.Bookings /> },
-          { path: "admins", element: <DashboardChildren.Admins /> },
-          { path: "refunds", element: <DashboardChildren.Refunds /> },
-        ],
       },
-
       {
-        path: "/VendorDashboard",
+        path: "/stay/:id",
         element: (
-          <ProtectedRoute allowedRoles={["vendor"]}>
-            <Suspense fallback={<PageFallback />}>
-              <VendorDashboard />
-            </Suspense>
-          </ProtectedRoute>
+          <Suspense fallback={<PageFallback />}>
+            <AccommodationDetails />
+          </Suspense>
         ),
-        children: [
-          { path: "vehicles", element: <DashboardChildren.VendorVehicles /> },
-          { path: "buses", element: <DashboardChildren.VendorBuses /> },
-          { path: "bookings", element: <DashboardChildren.VendorBookings /> },
-        ],
       },
-
       { path: "/Seat_Selection/:id", element: <Seat_Selection /> },
       { path: "/vehicle/:id", element: <Vehicle_Seats /> },
       { path: "/payment", element: <KhaltiPayment /> },
@@ -148,6 +130,42 @@ const router = createBrowserRouter([
         ),
       },
       { path: "*", element: <NoPage /> },
+    ],
+  },
+  {
+    path: "/Admin_Dashboard",
+    element: (
+      <ProtectedRoute allowedRoles={["admin"]}>
+        <Suspense fallback={<PageFallback />}>
+          <AdminDashboard />
+        </Suspense>
+      </ProtectedRoute>
+    ),
+    children: [
+      { index: true, element: <DashboardChildren.Home /> },
+      { path: "users", element: <DashboardChildren.Users /> },
+      { path: "vendors", element: <DashboardChildren.Vendors /> },
+      { path: "vendor-applications", element: <DashboardChildren.VendorApplications /> },
+      { path: "buses", element: <DashboardChildren.Buses /> },
+      { path: "vehicles", element: <DashboardChildren.Vehicles /> },
+      { path: "bookings", element: <DashboardChildren.Bookings /> },
+      { path: "admins", element: <DashboardChildren.Admins /> },
+      { path: "refunds", element: <DashboardChildren.Refunds /> },
+    ],
+  },
+  {
+    path: "/VendorDashboard",
+    element: (
+      <ProtectedRoute allowedRoles={["vendor"]}>
+        <Suspense fallback={<PageFallback />}>
+          <VendorDashboard />
+        </Suspense>
+      </ProtectedRoute>
+    ),
+    children: [
+      { path: "vehicles", element: <DashboardChildren.VendorVehicles /> },
+      { path: "buses", element: <DashboardChildren.VendorBuses /> },
+      { path: "bookings", element: <DashboardChildren.VendorBookings /> },
     ],
   },
 ]);
