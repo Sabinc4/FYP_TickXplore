@@ -177,6 +177,7 @@ exports.signIn = async (req, res) => {
         role: user.role,
         name: user.name || user.vendorName || "",
         vendorName: user.vendorName || "",
+        profilePhoto: user.profilePhoto || "",
         isActive: user.isActive ?? true,
       },
     });

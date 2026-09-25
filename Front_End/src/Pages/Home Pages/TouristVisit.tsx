@@ -1,9 +1,10 @@
 import { useRef, useState, useEffect } from "react";
-import { FaChevronLeft, FaChevronRight, FaStar, FaStarHalfAlt } from "react-icons/fa";
+import { FaChevronLeft, FaChevronRight, FaArrowRight } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { homeApi, API_BASE_URL } from "../../api";
-import type { TouristArea } from "../../api/types";
-import Reveal from "../../Component/Reveal";
+import { homeApi, API_BASE_URL } from "../api";
+import type { TouristArea } from "../api/types";
+import { slugForTitle } from "../blogs";
+import Reveal from "./Reveal";
 
 const resolveImage = (image: string) =>
   image.startsWith("http") ? image : `${API_BASE_URL}${image}`;
@@ -79,44 +80,48 @@ const TouristVisit = () => {
             ref={cardRef}
             className="flex gap-4 overflow-x-auto overflow-y-hidden px-2 pb-5 pt-1 scroll-smooth no-scrollbar sm:gap-6 sm:px-6"
           >
-            {areas.map((area) => (
+            {areas.map((area) => {
+              const blogSlug = slugForTitle(area.title);
+              return (
               <div
                 key={area._id}
                 onClick={() => handleCardClick(area)}
-                className="flex min-w-[250px] cursor-pointer flex-col rounded-2xl bg-white p-4 text-center shadow-card transition-transform duration-300 hover:-translate-y-1 hover:shadow-card-lg sm:min-w-[300px] sm:p-6 md:min-w-[350px]"
+                className="group flex min-w-[250px] cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-card transition-all duration-300 hover:-translate-y-1.5 hover:shadow-card-lg sm:min-w-[300px] md:min-w-[350px]"
               >
-                <img
-                  src={resolveImage(area.image)}
-                  alt={area.title}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
-                  }}
-                  className="mb-3 h-32 w-full rounded-xl object-cover sm:mb-4 sm:h-40"
-                />
-                <h3 className="mb-1 text-base font-bold text-slate-900 sm:mb-2 sm:text-lg">
-                  {area.title}
-                </h3>
-                <p className="mb-2 text-xs text-slate-500 sm:mb-3 sm:text-sm">
-                  {area.description}
-                </p>
-                <div className="mb-2 flex items-center justify-center">
-                  {[...Array(5)].map((_, i) => (
-                    <FaStar
-                      key={i}
-                      className={`${
-                        i < Math.floor(area.rating) ? "text-amber-400" : "text-slate-200"
-                      } text-sm sm:text-base`}
-                    />
-                  ))}
-                  {area.rating % 1 !== 0 && (
-                    <FaStarHalfAlt className="text-sm text-amber-400 sm:text-base" />
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-200 sm:aspect-[3/2]">
+                  <img
+                    src={resolveImage(area.image)}
+                    alt={area.title}
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = FALLBACK_IMAGE;
+                    }}
+                    className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+                  />
+                </div>
+                <div className="flex flex-1 flex-col p-4 text-center sm:p-5">
+                  <h3 className="text-base font-bold text-slate-900 sm:text-lg">
+                    {area.title}
+                  </h3>
+                  <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-slate-500 sm:text-sm">
+                    {area.description}
+                  </p>
+                  {blogSlug && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/blogs/${blogSlug}`);
+                      }}
+                      className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-blue-700 active:scale-[0.98] sm:text-sm"
+                    >
+                      Read More <FaArrowRight />
+                    </button>
                   )}
                 </div>
-                <p className="text-sm font-medium text-slate-800 sm:text-base">
-                  Price: {area.price}
-                </p>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <button

@@ -90,7 +90,7 @@ const PopularRoutes = () => {
             <button
             type="button"
             onClick={() => handleRoute(route)}
-            className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/40 hover:shadow-card-lg"
+            className="group flex items-center justify-between  rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/40 hover:shadow-card-lg"
           >
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600/10 text-blue-600">

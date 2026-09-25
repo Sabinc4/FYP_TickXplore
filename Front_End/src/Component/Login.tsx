@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { FiEye, FiEyeOff, FiMail, FiLock } from "react-icons/fi";
+import { FcGoogle } from "react-icons/fc";
 import { jwtDecode } from "jwt-decode";
 import { authApi } from "../api";
 import { signInWithGoogle } from "../firebase";
@@ -411,8 +412,9 @@ export default function Login() {
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={googleLoading}
-                className="w-full rounded-xl border-2 border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center gap-2.5 rounded-xl border-2 border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
               >
+                <FcGoogle className="h-5 w-5 shrink-0" />
                 {googleLoading ? "Signing in..." : "Continue with Google"}
               </button>
 
