@@ -56,6 +56,10 @@ export interface Vehicle {
   takeOffDate?: string;
   image?: string;
   vendorId?: string;
+  reservations?: {
+    reservedFrom?: string;
+    reservedUntil?: string;
+  }[];
 }
 
 export type BookingStatus = "Booked" | "Pending" | "Cancelled";
@@ -68,6 +72,11 @@ export interface BookingRef {
   departureTime?: string;
 }
 
+export interface Passenger {
+  name?: string;
+  phone?: string;
+}
+
 export interface Booking {
   _id: string;
   bookingId?: string;
@@ -77,6 +86,7 @@ export interface Booking {
   customerName?: string;
   customerPhone?: string;
   customerEmail?: string;
+  passengers?: Passenger[];
   seats?: number[];
   selectedSeats?: Array<number | string>;
   totalPrice?: number;

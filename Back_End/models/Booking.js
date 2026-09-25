@@ -7,6 +7,14 @@ const BookingSchema = new mongoose.Schema(
     customerName: { type: String, trim: true },
     customerPhone: { type: String, trim: true },
     customerEmail: { type: String, trim: true },
+    /* Per-seat passenger details for vendor-assisted bookings */
+    passengers: [
+      {
+        name: { type: String, trim: true, default: "" },
+        phone: { type: String, trim: true, default: "" },
+        _id: false,
+      },
+    ],
     busId: { type: mongoose.Schema.Types.ObjectId, ref: "Bus" },
     vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
 

@@ -9,6 +9,7 @@ import {
   FaRegClock,
   FaDownload,
   FaTrash,
+  FaEnvelope,
 } from "react-icons/fa";
 import { ImSpinner8 } from "react-icons/im";
 import { motion } from "framer-motion";
@@ -42,14 +43,33 @@ interface BookingTicketProps {
   booking: Booking;
   showCancel?: boolean;
   onCancel?: (id: string) => void;
+  onEmail?: (id: string) => Promise<void> | void;
 }
 
-const BookingTicket = ({ booking, showCancel = false, onCancel }: BookingTicketProps) => {
+const BookingTicket = ({
+  booking,
+  showCancel = false,
+  onCancel,
+  onEmail,
+}: BookingTicketProps) => {
   const [downloading, setDownloading] = useState(false);
+  const [emailing, setEmailing] = useState(false);
 
   const isBus = !!booking.busId;
   const isCoD =
     booking.paymentMethod === "CashOnVisit" || booking.paymentStatus === "CashOnVisit";
+
+  const passengers = booking.passengers?.filter((p) => p && p.name) || [];
+
+  const handleEmail = async () => {
+    if (!onEmail) return;
+    setEmailing(true);
+    try {
+      await onEmail(booking._id);
+    } finally {
+      setEmailing(false);
+    }
+  };
 
   const bookingRef = isBus ? booking.busId : booking.vehicleId;
   const depart = booking.takeOffDate || booking.reservationDate || "";
@@ -128,6 +148,20 @@ const BookingTicket = ({ booking, showCancel = false, onCancel }: BookingTicketP
           <p style="font-size: 16px;">${departDate}</p>
         </div>
       </div>
+
+      ${
+        passengers.length
+          ? `<div style="margin-bottom: 20px;">
+            <p style="color: #94a3b8; font-size: 14px;">Passengers</p>
+            ${passengers
+              .map(
+                (p) =>
+                  `<p style="font-size: 14px;">${p.name}${p.phone ? ` — ${p.phone}` : ""}</p>`
+              )
+              .join("")}
+          </div>`
+          : ""
+      }
 
       <div style="border-top: 1px solid #334155; padding-top: 15px; text-align: center; color: #94a3b8;">
         Thank you for choosing our service
@@ -298,9 +332,44 @@ const BookingTicket = ({ booking, showCancel = false, onCancel }: BookingTicketP
                 <FaTrash /> Cancel Booking
               </button>
             )}
+            {onEmail && (
+              <button
+                onClick={handleEmail}
+                disabled={emailing}
+                className="flex items-center justify-center gap-2 rounded-xl bg-emerald-800 px-4 py-2 text-white transition-colors hover:bg-emerald-900"
+              >
+                {emailing ? (
+                  <ImSpinner8 className="animate-spin" />
+                ) : (
+                  <>
+                    <FaEnvelope /> Email Ticket
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {passengers.length > 0 && (
+        <div className="border-t border-slate-600 p-4 md:p-6">
+          <div className="flex items-center gap-2">
+            <FaChair className="text-emerald-400" />
+            <h3 className="font-semibold text-white">Passengers</h3>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {passengers.map((p, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between rounded-lg bg-slate-800 px-3 py-2 text-sm"
+              >
+                <span className="font-medium text-white">{p.name}</span>
+                {p.phone && <span className="text-slate-400">{p.phone}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 border-t border-slate-600 bg-slate-800 p-4 text-sm text-slate-400">
         <FaCalendarAlt />

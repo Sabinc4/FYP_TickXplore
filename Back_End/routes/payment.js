@@ -68,15 +68,21 @@ function endOfReservationDay(date) {
 // taken if it appears in the bus bookedSeats (completed online + CoV pending),
 // in a pending Cash on Visit booking, or in an in-flight online booking that is
 // still waiting on Khalti.
+//
+// Stranded online payments (initiated but never completed) are only counted for
+// PENDING_TTL_MINUTES so an abandoned Khalti tab stops blocking seats.
+const PENDING_TTL_MINUTES = 60;
 async function findSeatConflicts(busId, seats, excludeBookingId) {
   if (!seats || seats.length === 0) return [];
 
   const bus = await Bus.findById(busId).select("bookedSeats");
   const taken = new Set((bus?.bookedSeats || []).map(Number));
 
+  const activeSince = new Date(Date.now() - PENDING_TTL_MINUTES * 60 * 1000);
   const pendingBookings = await Booking.find({
     busId,
     status: "Pending",
+    createdAt: { $gte: activeSince },
     ...(excludeBookingId ? { _id: { $ne: excludeBookingId } } : {}),
   }).select("selectedSeats");
   pendingBookings.forEach((b) => {
@@ -88,12 +94,13 @@ async function findSeatConflicts(busId, seats, excludeBookingId) {
     .filter((s) => taken.has(s));
 }
 
-// Ensures the requested date is actually free for a vehicle (not marked
-// unavailable and not overlapping any existing reservation).
+// Ensures the requested date is actually free for a vehicle. When a date is
+// supplied the check is date-scoped (a Reservation overlapping that date), so a
+// vehicle can be re-booked for a later/different date after a prior booking.
+// The legacy hard `isAvailable` flag only still matters when no date is given.
 async function findVehicleConflict(vehicleId, requestedDate) {
   const vehicle = await Vehicle.findById(vehicleId).select("isAvailable");
   if (!vehicle) return true;
-  if (vehicle.isAvailable === false) return true;
 
   if (requestedDate) {
     const from = new Date(requestedDate);
@@ -104,7 +111,10 @@ async function findVehicleConflict(vehicleId, requestedDate) {
       reservedUntil: { $gte: from },
     });
     if (existing) return true;
+    return false;
   }
+
+  if (vehicle.isAvailable === false) return true;
   return false;
 }
 
@@ -119,6 +129,108 @@ async function tryLockBusSeats(busId, seats) {
   );
   return Boolean(result);
 }
+
+// Same 4-per-row layout as the seat map (A1…J4, etc.) used by the ticket card.
+function formatSeatLabel(seat) {
+  const n = Number(seat);
+  if (!Number.isFinite(n) || n <= 0) return String(seat);
+  const row = Math.floor((n - 1) / 4);
+  const col = ((n - 1) % 4) + 1;
+  return `${String.fromCharCode(65 + row)}${col}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[c]));
+}
+
+// Emails a formatted ticket to the booking's customer. Used to re-deliver a
+// ticket for a walk-in / vendor-assisted booking at any time.
+router.post("/resend-ticket", async (req, res) => {
+  try {
+    const { bookingId } = req.body;
+    if (!bookingId) return res.status(400).json({ message: "Missing bookingId" });
+
+    const booking = await Booking.findById(bookingId).populate("busId vehicleId userId");
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+    const userObj =
+      typeof booking.userId === "object" && booking.userId ? booking.userId : null;
+    const to = booking.customerEmail || userObj?.email;
+    if (!to) {
+      return res.status(400).json({ message: "Booking has no customer email on file" });
+    }
+
+    const isBus = !!booking.busId;
+    const item = isBus ? booking.busId : booking.vehicleId;
+    const itemName = item?.name || "TickXplore trip";
+    const route = isBus
+      ? `${item?.pickupPoint || booking.pickupPoint || "N/A"} → ${item?.dropPoint || booking.dropPoint || "N/A"}`
+      : `${booking.pickupPoint || "N/A"} → ${booking.dropPoint || "N/A"}`;
+    const depart = booking.takeOffDate || booking.reservationDate;
+    const seatsLabel = isBus
+      ? (booking.selectedSeats || []).map(formatSeatLabel).join(", ")
+      : "Whole vehicle";
+    const commaRate = 10;
+    const commission = Math.round((commaRate / 100) * (booking.totalPrice || 0) * 100) / 100;
+    const cashOnVisit =
+      booking.paymentMethod === "CashOnVisit" || booking.paymentStatus === "CashOnVisit";
+
+    const passengersRows = (booking.passengers || [])
+      .filter((p) => p && p.name)
+      .map(
+        (p) =>
+          `<tr><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.phone || "-")}</td></tr>`
+      )
+      .join("");
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+        <div style="background: #2563eb; color: #fff; padding: 16px 20px;">
+          <h2 style="margin: 0;">Your Ticket — TickXplore</h2>
+        </div>
+        <div style="padding: 20px;">
+          <p>Dear <strong>${escapeHtml(
+            booking.customerName || userObj?.name || "Customer"
+          )}</strong>, here is your ticket:</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+            <tr><td style="padding: 8px 0; color: #6b7280;">Booking ID</td><td style="padding: 8px 0;"><strong>${booking._id}</strong></td></tr>
+            <tr><td style="padding: 8px 0; color: #6b7280;">Transport</td><td style="padding: 8px 0;"><strong>${escapeHtml(itemName)}</strong></td></tr>
+            <tr><td style="padding: 8px 0; color: #6b7280;">Route</td><td style="padding: 8px 0;"><strong>${escapeHtml(route)}</strong></td></tr>
+            <tr><td style="padding: 8px 0; color: #6b7280;">Departure</td><td style="padding: 8px 0;"><strong>${depart ? new Date(depart).toLocaleString() : "N/A"}</strong></td></tr>
+            <tr><td style="padding: 8px 0; color: #6b7280;">Seats</td><td style="padding: 8px 0;"><strong>${escapeHtml(seatsLabel)}</strong></td></tr>
+            <tr><td style="padding: 8px 0; color: #6b7280;">Total Paid</td><td style="padding: 8px 0;"><strong>Rs. ${booking.totalPrice || 0}</strong></td></tr>
+            <tr><td style="padding: 8px 0; color: #6b7280;">Payment</td><td style="padding: 8px 0;"><strong>${cashOnVisit ? "Cash on Visit" : "Online (Khalti)"}</strong></td></tr>
+            <tr><td style="padding: 8px 0; color: #6b7280;">Commission</td><td style="padding: 8px 0;">Rs. ${commission}</td></tr>
+          </table>
+          ${
+            passengersRows
+              ? `<p style="color: #6b7280; margin-bottom: 4px;">Passengers:</p>
+                 <table style="width: 100%; border-collapse: collapse;">
+                   <tr style="background: #f3f4f6; text-align: left;">
+                     <th style="padding: 8px;">Name</th><th style="padding: 8px;">Phone</th>
+                   </tr>${passengersRows}
+                 </table>`
+              : ""
+          }
+          <p style="font-size: 12px; color: #9ca3af; margin-top: 20px;">
+            For any changes please contact TickXplore support.
+          </p>
+        </div>
+      </div>`;
+
+    await sendEmail(to, `Your Ticket - ${itemName}`, html);
+    return res.status(200).json({ message: "Ticket emailed successfully" });
+  } catch (err) {
+    console.error("Resend ticket error:", err.message || err);
+    return res.status(500).json({ message: "Failed to email ticket" });
+  }
+});
 
 // Marks a booking as booked and performs all downstream effects (seat lock,
 // reservation, vendor/admin commission, notifications, emails) exactly once.
@@ -394,6 +506,7 @@ router.post("/initiate", async (req, res) => {
       customerName,
       customerPhone,
       customerEmail,
+      passengers,
     } = req.body;
 
     if (
@@ -488,6 +601,7 @@ router.post("/initiate", async (req, res) => {
       customerName: customer.customerName || undefined,
       customerPhone: customer.customerPhone || undefined,
       customerEmail: customer.customerEmail || undefined,
+      passengers: Array.isArray(passengers) ? passengers : [],
       totalPrice,
       status: "Pending",
       paymentStatus: "Pending",
@@ -700,14 +814,15 @@ router.post("/cash-on-visit", async (req, res) => {
     customerName,
     customerPhone,
     customerEmail,
+    passengers,
   } = req.body;
 
   if (
     !itemId ||
-    (!userId && !(customerName && customerEmail))
+    (!userId && !customerName)
   ) {
     return res.status(400).json({
-      message: "Missing required fields. Provide itemId and either userId or customer name + email.",
+      message: "Missing required fields. Provide itemId and either userId or customer name.",
     });
   }
 
@@ -743,6 +858,7 @@ router.post("/cash-on-visit", async (req, res) => {
         customerName: customer.customerName || undefined,
         customerPhone: customer.customerPhone || undefined,
         customerEmail: customer.customerEmail || undefined,
+        passengers: Array.isArray(passengers) ? passengers : [],
         busId: itemId,
         selectedSeats: seats,
         totalPrice,
@@ -795,6 +911,7 @@ router.post("/cash-on-visit", async (req, res) => {
         customerName: customer.customerName || undefined,
         customerPhone: customer.customerPhone || undefined,
         customerEmail: customer.customerEmail || undefined,
+        passengers: Array.isArray(passengers) ? passengers : [],
         vehicleId: itemId,
         totalPrice,
         status: "Pending",
@@ -808,9 +925,36 @@ router.post("/cash-on-visit", async (req, res) => {
         vendorEarnings,
       });
 
+      // Date-scoped reservation (mirrors the online flow) so the vehicle can be
+      // re-booked for other dates and conflicts are checked per-date.
+      const reservedFrom = takeOffDate ? new Date(takeOffDate) : new Date();
+      const reservedUntil = endOfReservationDay(reservedFrom);
+      await Reservation.create({
+        vehicleId: itemId,
+        userId: customer.userId || undefined,
+        customerName: customer.customerName || undefined,
+        customerPhone: customer.customerPhone || undefined,
+        customerEmail: customer.customerEmail || undefined,
+        pickupPoint: pickupPoint || "N/A",
+        dropPoint: dropPoint || "N/A",
+        reservedFrom,
+        reservedUntil,
+        paymentStatus: "CashOnVisit",
+      });
+
       await Vehicle.findByIdAndUpdate(itemId, {
         isAvailable: false,
-        $push: { reservations: booking._id },
+        reservedFrom,
+        reservedUntil,
+        $push: {
+          reservations: {
+            userId: customer.userId || undefined,
+            reservedFrom,
+            reservedUntil,
+            pickupPoint: pickupPoint || "N/A",
+            dropPoint: dropPoint || "N/A",
+          },
+        },
         $inc: { totalEarnings: vendorEarnings, totalCommission: commissionAmount },
       });
 
