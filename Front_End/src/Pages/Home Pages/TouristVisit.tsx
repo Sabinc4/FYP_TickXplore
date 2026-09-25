@@ -1,10 +1,10 @@
 import { useRef, useState, useEffect } from "react";
 import { FaChevronLeft, FaChevronRight, FaArrowRight } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { homeApi, API_BASE_URL } from "../api";
-import type { TouristArea } from "../api/types";
-import { slugForTitle } from "../blogs";
-import Reveal from "./Reveal";
+import { homeApi, API_BASE_URL } from "../../api";
+import type { TouristArea } from "../../api/types";
+import { slugForTitle } from "../../blogs";
+import Reveal from "../../Component/Reveal";
 
 const resolveImage = (image: string) =>
   image.startsWith("http") ? image : `${API_BASE_URL}${image}`;
