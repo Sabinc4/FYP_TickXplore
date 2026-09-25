@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { useOutletContext } from "react-router-dom";
 import TransportSection, { type Reservation } from "../../Component/Vendor Component/Vendor_TransportSection";
 import AddEditForm from "../../Component/Vendor Component/Vendor_AddEditForm";
+import ConfirmDialog from "../../Component/ConfirmDialog";
 import AdminPageHeader from "../../Component/Admin Component/AdminPageHeader";
 import { bookingsApi, vehiclesApi, type Bus, type Vehicle } from "../../api";
 
@@ -17,6 +18,8 @@ const Vehicles = () => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<Vehicle | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const vendorId = localStorage.getItem("vendorId") || "";
 
@@ -32,6 +35,7 @@ const Vehicles = () => {
       setReservations(Array.isArray(raw) ? raw : raw.reservations || []);
     } catch (error) {
       console.error("Failed to fetch reservations");
+      toast.error("Failed to load reservations.");
     }
   }, [vendorId]);
 
@@ -51,16 +55,20 @@ const Vehicles = () => {
     setSelectedVehicle(vehicle as Vehicle);
   };
 
-  const handleDeleteVehicle = async (vehicleId: string) => {
-    if (window.confirm("Are you sure you want to delete this vehicle?")) {
-      try {
-        await deleteVehicle(vehicleId);
-        toast.success("Vehicle deleted successfully!");
-        fetchData();
-        fetchReservations();
-      } catch (error) {
-        toast.error("Error deleting vehicle.");
-      }
+  const handleDeleteVehicle = async () => {
+    const vehicleId = pendingDelete?._id;
+    if (!vehicleId) return;
+    setDeletingId(vehicleId);
+    try {
+      await deleteVehicle(vehicleId);
+      toast.success("Vehicle deleted successfully!");
+      fetchData();
+      fetchReservations();
+    } catch (error) {
+      toast.error("Error deleting vehicle.");
+    } finally {
+      setDeletingId(null);
+      setPendingDelete(null);
     }
   };
 
@@ -83,7 +91,9 @@ const Vehicles = () => {
         items={vehicles}
         type="vehicle"
         onEdit={handleEditVehicle}
-        onDelete={handleDeleteVehicle}
+        onDelete={(id) =>
+          setPendingDelete(vehicles.find((v) => v._id === id) ?? null)
+        }
         onAddNew={handleAddNew}
         reservations={reservations}
         showHeader={false}
@@ -106,6 +116,17 @@ const Vehicles = () => {
           updateVehicle={updateVehicle}
         />
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete vehicle"
+        message={`Are you sure you want to delete "${pendingDelete?.name || "this vehicle"}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        tone="danger"
+        busy={deletingId !== null}
+        onConfirm={handleDeleteVehicle}
+        onCancel={() => setPendingDelete(null)}
+      />
     </>
   );
 };

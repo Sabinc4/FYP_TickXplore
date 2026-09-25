@@ -2,7 +2,11 @@ const mongoose = require("mongoose");
 
 const BookingSchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    /* Walk-in customer contact (used when there is no registered user account) */
+    customerName: { type: String, trim: true },
+    customerPhone: { type: String, trim: true },
+    customerEmail: { type: String, trim: true },
     busId: { type: mongoose.Schema.Types.ObjectId, ref: "Bus" },
     vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
 

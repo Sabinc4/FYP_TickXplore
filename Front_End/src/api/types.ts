@@ -74,6 +74,9 @@ export interface Booking {
   busId?: string | BookingRef;
   vehicleId?: string | BookingRef;
   userId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
   seats?: number[];
   selectedSeats?: Array<number | string>;
   totalPrice?: number;

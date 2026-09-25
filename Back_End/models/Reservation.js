@@ -13,8 +13,12 @@ const reservationSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User", // Reference to the User model
-      required: true,
     },
+
+    // Walk-in customer contact (used when there is no registered user account)
+    customerName: { type: String, trim: true },
+    customerPhone: { type: String, trim: true },
+    customerEmail: { type: String, trim: true },
 
     // Pickup and Drop-off Locations
     pickupPoint: {
