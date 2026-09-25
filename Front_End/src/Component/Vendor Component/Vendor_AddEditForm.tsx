@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { toast } from "react-toastify";
 import FormInput from "./Vendor_FormInput";
 import { type Bus, type Vehicle } from "../../api";
@@ -67,6 +67,18 @@ const AddEditForm = ({
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseRef.current();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, []);
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -132,18 +144,29 @@ const AddEditForm = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl space-y-4 rounded-xl bg-white p-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">
-            {isAdding
-              ? `Add New ${type === "vehicles" ? "Vehicle" : "Bus"}`
-              : `Edit ${type === "vehicles" ? "Vehicle" : "Bus"}`}
-          </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            ✕
-          </button>
-        </div>
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-edit-form-title"
+    >
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="w-full max-w-2xl space-y-4 rounded-xl bg-white p-6">
+          <div className="flex items-center justify-between">
+            <h2 id="add-edit-form-title" className="text-2xl font-bold">
+              {isAdding
+                ? `Add New ${type === "vehicles" ? "Vehicle" : "Bus"}`
+                : `Edit ${type === "vehicles" ? "Vehicle" : "Bus"}`}
+            </h2>
+            <button
+              ref={closeButtonRef}
+              onClick={onClose}
+              aria-label="Close dialog"
+              className="rounded-md p-1 text-gray-500 transition-colors hover:bg-slate-100 hover:text-gray-700"
+            >
+              ✕
+            </button>
+          </div>
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormInput
@@ -252,6 +275,7 @@ const AddEditForm = ({
             </button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   );

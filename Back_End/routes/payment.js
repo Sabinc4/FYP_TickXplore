@@ -18,6 +18,37 @@ const KHALTI_LOOKUP_URL = "https://dev.khalti.com/api/v2/epayment/lookup/";
 /* Shared helpers                                                      */
 /* ------------------------------------------------------------------ */
 
+// Resolve the customer identity for a booking. Prefers a registered user
+// account when one is supplied; otherwise falls back to the walk-in contact
+// provided by the booking agent (vendor-assisted bookings).
+async function resolveCustomer(body) {
+  const {
+    userId,
+    customerName,
+    customerPhone,
+    customerEmail,
+  } = body;
+
+  if (userId) {
+    const user = await User.findById(userId).catch(() => null);
+    if (user) {
+      return {
+        userId: user._id,
+        customerName: user.name,
+        customerPhone: user.phoneNumber,
+        customerEmail: user.email,
+      };
+    }
+  }
+
+  return {
+    userId: null,
+    customerName: customerName || "",
+    customerPhone: customerPhone || "",
+    customerEmail: customerEmail || "",
+  };
+}
+
 // Run a side-effect without letting a failure break the payment flow.
 async function safeRun(label, fn) {
   try {
@@ -33,6 +64,62 @@ function endOfReservationDay(date) {
   return d;
 }
 
+// Returns the subset of `seats` that are already taken on `busId`. A seat is
+// taken if it appears in the bus bookedSeats (completed online + CoV pending),
+// in a pending Cash on Visit booking, or in an in-flight online booking that is
+// still waiting on Khalti.
+async function findSeatConflicts(busId, seats, excludeBookingId) {
+  if (!seats || seats.length === 0) return [];
+
+  const bus = await Bus.findById(busId).select("bookedSeats");
+  const taken = new Set((bus?.bookedSeats || []).map(Number));
+
+  const pendingBookings = await Booking.find({
+    busId,
+    status: "Pending",
+    ...(excludeBookingId ? { _id: { $ne: excludeBookingId } } : {}),
+  }).select("selectedSeats");
+  pendingBookings.forEach((b) => {
+    (b.selectedSeats || []).forEach((s) => taken.add(Number(s)));
+  });
+
+  return seats
+    .map(Number)
+    .filter((s) => taken.has(s));
+}
+
+// Ensures the requested date is actually free for a vehicle (not marked
+// unavailable and not overlapping any existing reservation).
+async function findVehicleConflict(vehicleId, requestedDate) {
+  const vehicle = await Vehicle.findById(vehicleId).select("isAvailable");
+  if (!vehicle) return true;
+  if (vehicle.isAvailable === false) return true;
+
+  if (requestedDate) {
+    const from = new Date(requestedDate);
+    const until = endOfReservationDay(from);
+    const existing = await Reservation.findOne({
+      vehicleId,
+      reservedFrom: { $lte: until },
+      reservedUntil: { $gte: from },
+    });
+    if (existing) return true;
+  }
+  return false;
+}
+
+// Clocks the requested seats into a bus atomically. Returns false (and locks
+// nothing) when any of the seats is already taken so callers can reject the
+// booking instead of overbooking.
+async function tryLockBusSeats(busId, seats) {
+  const result = await Bus.findOneAndUpdate(
+    { _id: busId, bookedSeats: { $not: { $elemMatch: { $in: seats.map(Number) } } } },
+    { $addToSet: { bookedSeats: { $each: seats.map(Number) } } },
+    { new: false }
+  );
+  return Boolean(result);
+}
+
 // Marks a booking as booked and performs all downstream effects (seat lock,
 // reservation, vendor/admin commission, notifications, emails) exactly once.
 async function completeBooking(booking, pidx) {
@@ -46,6 +133,17 @@ async function completeBooking(booking, pidx) {
   if (type === "bus") {
     const seats = booking.selectedSeats || [];
     const bus = await Bus.findById(booking.busId);
+
+    // Defense-in-depth for the rare initiate -> verify race: if the seats were
+    // taken after the customer was charged, do not lock them. The booking stays
+    // stranded so the frontend can surface the conflict.
+    const conflicts = await findSeatConflicts(booking.busId, seats, booking._id);
+    if (conflicts.length > 0) {
+      const err = new Error("Seat conflict: seats became unavailable after payment.");
+      err.code = "SEAT_CONFLICT";
+      err.conflictSeats = conflicts;
+      throw err;
+    }
 
     await safeRun("bus seat lock", async () => {
       await Bus.findByIdAndUpdate(booking.busId, {
@@ -82,10 +180,21 @@ async function completeBooking(booking, pidx) {
 
     const existingReservation = await Reservation.findOne({ paymentId: pidx }).catch(() => null);
     if (!existingReservation) {
+      // Guard against the rare initiate -> verify race where the vehicle got
+      // reserved by someone else after the customer was charged.
+      const conflicted = await findVehicleConflict(booking.vehicleId, reservedFrom);
+      if (conflicted) {
+        const err = new Error("Vehicle conflict: the vehicle became unavailable after payment.");
+        err.code = "VEHICLE_CONFLICT";
+        throw err;
+      }
       await safeRun("vehicle reservation", async () => {
         const reservation = await Reservation.create({
           vehicleId: booking.vehicleId,
-          userId: booking.userId,
+          userId: booking.userId || undefined,
+          customerName: booking.customerName || undefined,
+          customerPhone: booking.customerPhone || undefined,
+          customerEmail: booking.customerEmail || undefined,
           pickupPoint: booking.pickupPoint || "N/A",
           dropPoint: booking.dropPoint || "N/A",
           reservedFrom,
@@ -162,16 +271,19 @@ async function completeBooking(booking, pidx) {
     }
   });
 
-  // User confirmation
-  await safeRun("user notification", async () => {
-    const user = await User.findById(booking.userId);
-    if (user && user.email) {
+  // Customer confirmation
+  await safeRun("customer confirmation", async () => {
+    const user = booking.userId ? await User.findById(booking.userId) : null;
+    const email = user?.email || booking.customerEmail;
+    if (email) {
       await sendEmail(
-        user.email,
+        email,
         "Your Booking is Confirmed - TickXplore",
-        `<p>Hi ${user.name || "User"}, your booking was successful.</p><p>Total Paid: Rs. ${totalPrice}</p>`
+        `<p>Hi ${user?.name || booking.customerName || "Customer"}, your booking was successful.</p><p>Total Paid: Rs. ${totalPrice}</p>`
       );
+    }
 
+    if (user) {
       await Notification.create({
         userId: user._id,
         role: "user",
@@ -279,10 +391,18 @@ router.post("/initiate", async (req, res) => {
       takeOffDate,
       pickupPoint,
       dropPoint,
+      customerName,
+      customerPhone,
+      customerEmail,
     } = req.body;
 
-    if (!itemId || !userId) {
-      return res.status(400).json({ message: "Missing required fields." });
+    if (
+      !itemId ||
+      (!userId && !(customerName && customerEmail))
+    ) {
+      return res.status(400).json({
+        message: "Missing required fields. Provide itemId and either userId or customer name + email.",
+      });
     }
 
     let totalPrice = 0;
@@ -331,8 +451,30 @@ router.post("/initiate", async (req, res) => {
       return res.status(400).json({ message: "Invalid booking type." });
     }
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found." });
+    const customer = await resolveCustomer(req.body);
+    if (!customer.userId && !customer.customerName) {
+      return res.status(400).json({ message: "Customer name is required for walk-in bookings." });
+    }
+
+    // Reject before any money moves if the item was just taken by someone else.
+    if (type === "bus") {
+      const conflictSeats = await findSeatConflicts(itemId, seats);
+      if (conflictSeats.length > 0) {
+        return res.status(409).json({
+          message: "Some selected seats were just booked by another customer.",
+          code: "SEAT_CONFLICT",
+          conflictSeats,
+        });
+      }
+    } else if (type === "vehicle") {
+      const conflicted = await findVehicleConflict(itemId, takeOffDate);
+      if (conflicted) {
+        return res.status(409).json({
+          message: "This vehicle was just reserved by another customer.",
+          code: "VEHICLE_CONFLICT",
+        });
+      }
+    }
 
     const orderId = `order-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const commissionRate = 10;
@@ -342,7 +484,10 @@ router.post("/initiate", async (req, res) => {
     // Persist a PENDING booking BEFORE calling Khalti so the charge can never be
     // lost if the callback restarts or fails. `/callback` and `/verify` complete it.
     const bookingFields = {
-      userId,
+      userId: customer.userId || undefined,
+      customerName: customer.customerName || undefined,
+      customerPhone: customer.customerPhone || undefined,
+      customerEmail: customer.customerEmail || undefined,
       totalPrice,
       status: "Pending",
       paymentStatus: "Pending",
@@ -371,7 +516,7 @@ router.post("/initiate", async (req, res) => {
     }
 
     // Keep a small in-memory fallback for legacy in-flight payments only.
-    const metadata = { type, itemId, userId, seats, takeOffDate, pickupPoint, dropPoint };
+    const metadata = { type, itemId, userId: customer.userId, customerName: customer.customerName, seats, takeOffDate, pickupPoint, dropPoint };
     global.khaltiTempStore = global.khaltiTempStore || new Map();
     global.khaltiTempStore.set(orderId, metadata);
 
@@ -382,9 +527,9 @@ router.post("/initiate", async (req, res) => {
       purchase_order_id: orderId,
       purchase_order_name: productName,
       customer_info: {
-        name: user.name,
-        email: user.email,
-        phone: user.phoneNumber,
+        name: customer.customerName,
+        email: customer.customerEmail,
+        phone: customer.customerPhone,
       },
       product_details: productDetails,
       merchant_username: "tickxplore",
@@ -471,6 +616,13 @@ router.post("/verify", async (req, res) => {
 
   } catch (err) {
     console.error("VERIFY ERROR:", err.message || err);
+    if (err.code === "SEAT_CONFLICT" || err.code === "VEHICLE_CONFLICT") {
+      return res.status(409).json({
+        message: err.message,
+        code: err.code,
+        conflictSeats: err.conflictSeats,
+      });
+    }
     return res.status(500).json({
       message: "Failed to verify payment",
       error: err.message,
@@ -537,9 +689,34 @@ router.get("/callback", async (req, res) => {
 });
 
 router.post("/cash-on-visit", async (req, res) => {
-  const { type, itemId, userId, seats, takeOffDate, pickupPoint, dropPoint } = req.body;
+  const {
+    type,
+    itemId,
+    userId,
+    seats,
+    takeOffDate,
+    pickupPoint,
+    dropPoint,
+    customerName,
+    customerPhone,
+    customerEmail,
+  } = req.body;
+
+  if (
+    !itemId ||
+    (!userId && !(customerName && customerEmail))
+  ) {
+    return res.status(400).json({
+      message: "Missing required fields. Provide itemId and either userId or customer name + email.",
+    });
+  }
 
   try {
+    const customer = await resolveCustomer(req.body);
+    if (!customer.userId && !customer.customerName) {
+      return res.status(400).json({ message: "Customer name is required for walk-in bookings." });
+    }
+
     let totalPrice = 0, booking;
     const commissionRate = 10;
     let vendorEmail = "", productName = "", vendorId;
@@ -548,12 +725,24 @@ router.post("/cash-on-visit", async (req, res) => {
       const bus = await Bus.findById(itemId).populate("vendorId");
       if (!bus) return res.status(404).json({ message: "Bus not found" });
 
+      const conflictSeats = await findSeatConflicts(itemId, seats);
+      if (conflictSeats.length > 0) {
+        return res.status(409).json({
+          message: "Some selected seats were just booked by another customer.",
+          code: "SEAT_CONFLICT",
+          conflictSeats,
+        });
+      }
+
       totalPrice = bus.pricePerSeat * seats.length;
       const commissionAmount = (commissionRate / 100) * totalPrice;
       const vendorEarnings = totalPrice - commissionAmount;
 
       booking = await Booking.create({
-        userId,
+        userId: customer.userId || undefined,
+        customerName: customer.customerName || undefined,
+        customerPhone: customer.customerPhone || undefined,
+        customerEmail: customer.customerEmail || undefined,
         busId: itemId,
         selectedSeats: seats,
         totalPrice,
@@ -566,7 +755,15 @@ router.post("/cash-on-visit", async (req, res) => {
         vendorEarnings,
       });
 
-      await Bus.findByIdAndUpdate(itemId, { $addToSet: { bookedSeats: { $each: seats } } });
+      const locked = await tryLockBusSeats(itemId, seats);
+      if (!locked) {
+        await Booking.deleteOne({ _id: booking._id }).catch(() => {});
+        return res.status(409).json({
+          message: "Some selected seats were just booked by another customer.",
+          code: "SEAT_CONFLICT",
+          conflictSeats: seats.map(Number),
+        });
+      }
 
       if (bus.vendorId) {
         await Vendor.findByIdAndUpdate(bus.vendorId._id, {
@@ -581,12 +778,23 @@ router.post("/cash-on-visit", async (req, res) => {
       const vehicle = await Vehicle.findById(itemId).populate("vendorId");
       if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
 
+      const conflicted = await findVehicleConflict(itemId, takeOffDate);
+      if (conflicted) {
+        return res.status(409).json({
+          message: "This vehicle was just reserved by another customer.",
+          code: "VEHICLE_CONFLICT",
+        });
+      }
+
       totalPrice = vehicle.price;
       const commissionAmount = (commissionRate / 100) * totalPrice;
       const vendorEarnings = totalPrice - commissionAmount;
 
       booking = await Booking.create({
-        userId,
+        userId: customer.userId || undefined,
+        customerName: customer.customerName || undefined,
+        customerPhone: customer.customerPhone || undefined,
+        customerEmail: customer.customerEmail || undefined,
         vehicleId: itemId,
         totalPrice,
         status: "Pending",
@@ -626,14 +834,13 @@ router.post("/cash-on-visit", async (req, res) => {
       await admin.save();
     }
 
-    // ✅ User email + notification
-    const user = await User.findById(userId);
-    if (user?.email) {
+    // ✅ Customer email + notification (walk-in welcome too)
+    if (customer.customerEmail) {
       await sendEmail(
-        user.email,
+        customer.customerEmail,
         "Cash on Visit Booking - TickXplore",
         `
-        <p>Dear ${user.name || "user"},</p>
+        <p>Dear ${customer.customerName || "Customer"},</p>
         <p>Your booking has been created with <strong>Cash on Visit</strong>.</p>
         <p><strong>Total to Pay:</strong> Rs. ${totalPrice}</p>
         <p>Please complete your payment in person and confirm via our Gmail:</p>
@@ -642,9 +849,11 @@ router.post("/cash-on-visit", async (req, res) => {
         <p>Booking ID: ${booking._id}</p>
         `
       );
+    }
 
+    if (customer.userId) {
       await Notification.create({
-        userId: new mongoose.Types.ObjectId(userId),
+        userId: new mongoose.Types.ObjectId(customer.userId),
         role: "user",
         message: `Your booking for ${productName} is confirmed with Cash on Visit.`,
       });

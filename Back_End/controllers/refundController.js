@@ -251,12 +251,14 @@ const cancelBooking = async (req, res) => {
     await booking.save();
 
     // Notify User about cancellation via Notification
-    const itemName = booking.busId?.name || booking.vehicleId?.name || "your trip";
-    await Notification.create({
-      userId: booking.userId,
-      role: "user",
-      message: `Your booking for ${itemName} has been cancelled.`,
-    });
+    if (booking.userId) {
+      const itemName = booking.busId?.name || booking.vehicleId?.name || "your trip";
+      await Notification.create({
+        userId: booking.userId,
+        role: "user",
+        message: `Your booking for ${itemName} has been cancelled.`,
+      });
+    }
 
     // Free the seats if it's a bus booking
     if (booking.busId && booking.selectedSeats && booking.selectedSeats.length > 0) {

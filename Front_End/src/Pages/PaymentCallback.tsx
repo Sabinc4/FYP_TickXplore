@@ -14,6 +14,7 @@ const PaymentCallback = () => {
     const queryParams = new URLSearchParams(location.search);
     const pidx = queryParams.get("pidx");
     const paymentStatus = queryParams.get("status");
+    const isVendor = localStorage.getItem("userRole") === "vendor";
 
     if (!pidx || paymentStatus !== "Completed") {
       setStatus("Payment Failed. Redirecting to homepage...");
@@ -24,10 +25,22 @@ const PaymentCallback = () => {
 
     bookingsApi
       .verifyPayment({ pidx })
-      .then(() => {
+      .then((res) => {
         setSuccess(true);
-        setStatus("Payment Successful! Redirecting to My Bookings...");
-        window.setTimeout(() => navigate("/my-bookings"), 3000);
+        if (isVendor) {
+          const bookingId = (res as { bookingId?: string }).bookingId;
+          setStatus("Payment Successful! Redirecting to vendor bookings...");
+          window.setTimeout(
+            () =>
+              navigate(
+                `/VendorDashboard/book-ticket?paid=1${bookingId ? `&booking=${bookingId}` : ""}`
+              ),
+            3000
+          );
+        } else {
+          setStatus("Payment Successful! Redirecting to My Bookings...");
+          window.setTimeout(() => navigate("/my-bookings"), 3000);
+        }
       })
       .catch((err) => {
         console.error("Payment Verification Error:", err.response?.data || err.message);
