@@ -1,6 +1,7 @@
 const Booking = require("../models/Booking");
 const Bus = require("../models/Bus");
 const Vehicle = require("../models/Vehicle");
+const Reservation = require("../models/Reservation");
 const Vendor = require("../models/Vendor");
 const Admin = require("../models/Admin");
 const moment = require("moment");
@@ -269,6 +270,21 @@ const cancelBooking = async (req, res) => {
         );
         await bus.save();
         console.log(`Freed seats: ${booking.selectedSeats.join(", ")} from bus: ${bus.name}`);
+      }
+    }
+
+    // Release the vehicle if it's a vehicle booking so it can be re-booked
+    if (booking.vehicleId) {
+      const vehicle = await Vehicle.findById(booking.vehicleId);
+      if (vehicle) {
+        vehicle.isAvailable = true;
+        vehicle.reservations = vehicle.reservations || [];
+        vehicle.reservations = vehicle.reservations.filter(
+          (r) => String(r) !== String(booking._id)
+        );
+        await vehicle.save();
+        await Reservation.deleteMany({ vehicleId: booking.vehicleId }).catch(() => {});
+        console.log(`Released vehicle: ${vehicle.name}`);
       }
     }
 

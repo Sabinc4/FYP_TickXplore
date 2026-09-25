@@ -639,6 +639,51 @@ const VendorDashboard = () => {
                         ))}
                       </div>
 
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        <Link
+                          to="/VendorDashboard/book-ticket"
+                          className="group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 p-5 text-white shadow-card transition-all hover:shadow-card-lg"
+                        >
+                          <div>
+                            <h3 className="text-lg font-bold md:text-xl">Book a Ticket</h3>
+                            <p className="mt-1 text-sm text-indigo-100">
+                              Quickly create a booking for a walk-in customer — bus seats or a whole vehicle.
+                            </p>
+                          </div>
+                          <span className="mt-4 inline-flex w-fit items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-indigo-700 transition-transform group-hover:translate-x-0.5">
+                            <FiPlusCircle /> Start booking
+                          </span>
+                        </Link>
+                        <Link
+                          to="/VendorDashboard/bookings"
+                          className="group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 p-5 text-white shadow-card transition-all hover:shadow-card-lg"
+                        >
+                          <div>
+                            <h3 className="text-lg font-bold md:text-xl">Confirm Payments</h3>
+                            <p className="mt-1 text-sm text-emerald-100">
+                              Review pending Cash on Visit bookings and settle them from the Bookings section.
+                            </p>
+                          </div>
+                          <span className="mt-4 inline-flex w-fit items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-emerald-700 transition-transform group-hover:translate-x-0.5">
+                            Go to bookings
+                          </span>
+                        </Link>
+                        <Link
+                          to="/VendorDashboard/buses"
+                          className="group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br from-slate-700 to-slate-800 p-5 text-white shadow-card transition-all hover:shadow-card-lg"
+                        >
+                          <div>
+                            <h3 className="text-lg font-bold md:text-xl">Manage Fleet</h3>
+                            <p className="mt-1 text-sm text-slate-300">
+                              Add or update your buses and vehicles so new bookings always go through.
+                            </p>
+                          </div>
+                          <span className="mt-4 inline-flex w-fit items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-transform group-hover:translate-x-0.5">
+                            Manage fleet
+                          </span>
+                        </Link>
+                      </div>
+
                       <div className="grid grid-cols-1 gap-6 md:gap-8 lg:grid-cols-2">
                         <div className="rounded-2xl bg-white p-4 shadow-card md:p-6">
                           <h2 className="mb-4 text-lg font-semibold md:text-xl">
