@@ -216,6 +216,8 @@ const Nav = () => {
 
   const isActive = (path: string) => locationHook.pathname === path;
 
+  const isDashboardOnly = userRole === "vendor" || userRole === "admin";
+
   const dashboardPath =
     userRole === "vendor"
       ? "/VendorDashboard"
@@ -332,7 +334,7 @@ const Nav = () => {
 
           {/* Desktop nav */}
           <div className="hidden lg:flex items-center justify-center gap-1.5 flex-wrap">
-            {USER_LINKS.map(renderNavLink)}
+            {!isDashboardOnly && USER_LINKS.map(renderNavLink)}
 
             {dashboardPath && (
               <Link
@@ -348,6 +350,7 @@ const Nav = () => {
               </Link>
             )}
 
+            {!isDashboardOnly && (
             <form
               onSubmit={handleNavSearch}
               className="ml-1 flex items-center gap-1 rounded-full border border-white/10 bg-white/10 pl-3 pr-1 transition focus-within:border-blue-400"
@@ -369,6 +372,7 @@ const Nav = () => {
                 <FaSearch className="text-xs" />
               </button>
             </form>
+            )}
 
             {userLoggedIn ? (
               <div className="flex items-center gap-2 pl-2">
@@ -519,6 +523,7 @@ const Nav = () => {
         {/* Mobile menu */}
         {click && (
           <div className="lg:hidden animate-fade-in border-t border-white/10 py-4">
+            {!isDashboardOnly && (
             <form
               onSubmit={handleNavSearch}
               className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3 transition focus-within:border-blue-400"
@@ -533,8 +538,9 @@ const Nav = () => {
                 className="w-full bg-transparent py-2.5 text-sm text-white placeholder:text-slate-400 focus:outline-none"
               />
             </form>
+            )}
             <div className="grid gap-1">
-              {USER_LINKS.map(({ label, path, icon: Icon }) => (
+              {!isDashboardOnly && USER_LINKS.map(({ label, path, icon: Icon }) => (
                   <Link
                     key={path}
                     to={path}

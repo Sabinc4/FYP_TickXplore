@@ -174,7 +174,7 @@ export const bookingsApi = {
   cashOnVisit: (payload: Record<string, unknown>): Promise<{ bookingId?: string }> =>
     api.post("/api/payments/cash-on-visit", payload).then((r) => r.data),
 
-  sendTicket: (bookingId: string): Promise<{ message: string }> =>
+  sendTicket: (bookingId: string): Promise<{ message: string; emailStatus?: string }> =>
     api.post("/api/payments/resend-ticket", { bookingId }).then((r) => r.data),
 
   getReservationsByVehicle: (vehicleId: string): Promise<unknown[]> =>

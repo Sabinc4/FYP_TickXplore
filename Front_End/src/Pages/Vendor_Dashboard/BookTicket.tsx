@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
+  FaArrowLeft,
   FaBus,
   FaCar,
   FaArrowRight,
@@ -21,6 +22,7 @@ import { formatMoney } from "../../utils/format";
 import AdminPageHeader from "../../Component/Admin Component/AdminPageHeader";
 import BusSeatGrid from "../../Component/BusSeatGrid";
 import BookingTicket, { getSeatLabel } from "../../Component/BookingTicket";
+import EmailStatusBadge from "../../Component/EmailStatusBadge";
 
 interface OutletContext {
   vehicles: Vehicle[];
@@ -63,18 +65,39 @@ const imageUrlFor = (image?: string, fallback = "/default-bus-image.jpg") =>
       : `${API_BASE_URL}${image}`
     : fallback;
 
+const departureLabel = (d?: string | Date): string =>
+  d
+    ? new Date(d).toLocaleString("en-US", {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "Date TBD";
+
+const busFreeSeats = (bus: Bus): number => bus.totalSeats - (bus.bookedSeats || []).length;
+
 const BookTicket = () => {
   const { buses, vehicles, bookings, fetchData } = useOutletContext<OutletContext>();
   const location = useLocation();
   const navigate = useNavigate();
 
+  const bookingsPath = location.pathname.startsWith("/Admin_Dashboard")
+    ? "/Admin_Dashboard/bookings"
+    : "/VendorDashboard/bookings";
+
   const queryParams = new URLSearchParams(location.search);
   const paidParam = queryParams.get("paid") === "1";
   const bookingParam = queryParams.get("booking");
 
+  /* Two-stage flow: "select" shows the fleet, "book" runs the existing booking
+     page. Landing on a payment callback must go straight to the ticket. */
+  const [stage, setStage] = useState<"select" | "book">(bookingParam ? "book" : "select");
+
   const [form, setForm] = useState<SearchForm>({ pickup: "", drop: "", date: "" });
   const [passengerCount, setPassengerCount] = useState(1);
-  const [activeTab, setActiveTab] = useState<"all" | "bus" | "vehicle">("all");
 
   const [selectedBus, setSelectedBus] = useState<Bus | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
@@ -117,6 +140,24 @@ const BookTicket = () => {
     return reservations.some((r) => r.reservedUntil && new Date(r.reservedUntil) >= new Date());
   };
 
+  /* ---- fleet for the selection screen (no filters) ---- */
+  const availableBuses = useMemo(() => {
+    const now = Date.now();
+    return buses
+      .filter((bus) => !bus.takeOffDate || new Date(bus.takeOffDate).getTime() >= now)
+      .sort(
+        (a, b) =>
+          (a.takeOffDate ? new Date(a.takeOffDate).getTime() : 0) -
+          (b.takeOffDate ? new Date(b.takeOffDate).getTime() : 0)
+      )
+      .map((bus) => {
+        const booked = (bus.bookedSeats || []).length;
+        return { ...bus, available: bus.totalSeats - booked, bookedSeatCount: booked };
+      });
+  }, [buses]);
+
+  const fleetEmpty = availableBuses.length === 0 && vehicles.length === 0;
+
   /* ---- resolve the booking to display after payment / cash booking ---- */
   useEffect(() => {
     if (!lastBookingId) return;
@@ -140,68 +181,6 @@ const BookTicket = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seatCount]);
 
-  /* ---- travel options ---- */
-  const pickupOptions = useMemo(
-    () =>
-      [...new Set(
-        [
-          ...buses.map((b) => b.pickupPoint),
-          ...vehicles.map((v) => v.pickupPoint),
-        ].filter(Boolean) as string[]
-      )].sort(),
-    [buses, vehicles]
-  );
-
-  const dropOptions = useMemo(
-    () =>
-      [...new Set(
-        [
-          ...buses.map((b) => b.dropPoint),
-          ...vehicles.map((v) => v.dropPoint),
-        ].filter(Boolean) as string[]
-      )].sort(),
-    [buses, vehicles]
-  );
-
-  const filteredBuses = useMemo(() => {
-    const now = Date.now();
-    const enriched = buses
-      .filter((bus) => {
-        if (form.pickup && bus.pickupPoint?.toLowerCase() !== form.pickup.toLowerCase()) return false;
-        if (form.drop && bus.dropPoint?.toLowerCase() !== form.drop.toLowerCase()) return false;
-        if (form.date && bus.takeOffDate && toLocalDateKey(bus.takeOffDate) !== form.date) return false;
-        const hasDeparted = !!bus.takeOffDate && new Date(bus.takeOffDate).getTime() < now;
-        if (hasDeparted) return false;
-        return true;
-      })
-      .sort((a, b) =>
-        (a.takeOffDate ? new Date(a.takeOffDate).getTime() : 0) -
-        (b.takeOffDate ? new Date(b.takeOffDate).getTime() : 0)
-      )
-      .map((bus) => {
-        const booked = (bus.bookedSeats || []).length;
-        return { ...bus, available: bus.totalSeats - booked };
-      });
-
-    if (passengerCount > 0) {
-      return enriched.filter((bus) => bus.available >= passengerCount);
-    }
-    return enriched;
-  }, [buses, form, passengerCount]);
-
-  const filteredVehicles = useMemo(() => {
-    return vehicles.filter((vehicle) => {
-      if (form.pickup && vehicle.pickupPoint?.toLowerCase() !== form.pickup.toLowerCase()) return false;
-      if (form.drop && vehicle.dropPoint?.toLowerCase() !== form.drop.toLowerCase()) return false;
-      return true;
-    });
-  }, [vehicles, form]);
-
-  const resultsEmpty =
-    (activeTab === "all" && filteredBuses.length === 0 && filteredVehicles.length === 0) ||
-    (activeTab === "bus" && filteredBuses.length === 0) ||
-    (activeTab === "vehicle" && filteredVehicles.length === 0);
-
   /* ---- select a trip ---- */
   const selectBus = async (bus: Bus) => {
     setLoadingDetails(true);
@@ -221,6 +200,7 @@ const BookTicket = () => {
           date: toLocalDateKey(detail.bus.takeOffDate!),
         }));
       }
+      setStage("book");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       console.error("Select bus error:", err);
@@ -237,6 +217,15 @@ const BookTicket = () => {
     setPickupPoint(vehicle.pickupPoint || "");
     setDropPoint(vehicle.dropPoint || "");
     setReservationDate(form.date || "");
+    setStage("book");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  /* back to the fleet grid (drop the bus-specific search date so vehicle
+     availability falls back to unexpired reservations again) */
+  const goToFleet = () => {
+    setStage("select");
+    setForm((prev) => ({ ...prev, date: "" }));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -302,6 +291,7 @@ const BookTicket = () => {
     setPassengerRows([]);
     setCreatedBooking(null);
     setLastBookingId(null);
+    setStage("select");
     navigate(location.pathname, { replace: true });
     window.scrollTo(0, 0);
   };
@@ -315,9 +305,8 @@ const BookTicket = () => {
 
   const customerReady =
     Boolean(customer.name.trim()) &&
-    (paymentMethod !== "Online" ||
-      (Boolean(customer.email.trim()) &&
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim())));
+    Boolean(customer.email.trim()) &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim());
 
   const canConfirm = tripReady && customerReady;
 
@@ -350,12 +339,12 @@ const BookTicket = () => {
       toast.error("Customer name is required.");
       return;
     }
-    if (paymentMethod === "Online" && !customer.email.trim()) {
-      toast.error("Customer email is required for online payment.");
+    if (!customer.email.trim()) {
+      toast.error("Customer email is required so the ticket can be emailed.");
       return;
     }
-    if (paymentMethod === "Online" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim()) === false) {
-      toast.error("Please enter a valid customer email for online payment.");
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim()) === false) {
+      toast.error("Please enter a valid customer email so the ticket can be emailed.");
       return;
     }
     const invalidTrip = validateTripStep();
@@ -429,7 +418,12 @@ const BookTicket = () => {
 
   const handleEmailTicket = async (id: string) => {
     try {
-      await bookingsApi.sendTicket(id);
+      const res = (await bookingsApi.sendTicket(id)) as { emailStatus?: string };
+      setCreatedBooking((prev) =>
+        prev && prev._id === id
+          ? { ...prev, emailStatus: res.emailStatus || "Sent", emailSentAt: new Date().toISOString(), emailError: undefined }
+          : prev
+      );
       toast.success("Ticket emailed to the customer.");
     } catch (err) {
       const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
@@ -442,13 +436,13 @@ const BookTicket = () => {
     <div className="space-y-6 pb-24 lg:pb-0">
       <AdminPageHeader
         title="Book Bus / Vehicle Ticket"
-        subtitle="Pick a trip, choose seats or a vehicle, enter the passenger and confirm — all on this page."
+        subtitle="Choose an available bus or vehicle from your fleet, then complete the booking."
       >
         <span className="rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-indigo-700 shadow">
           {buses.length} buses · {vehicles.length} vehicles
         </span>
         <Link
-          to="/VendorDashboard/bookings"
+          to={bookingsPath}
           className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm transition-colors hover:bg-indigo-50"
         >
           View Bookings
@@ -473,10 +467,18 @@ const BookTicket = () => {
         /* ------------------------------------------------ */
         <div className="space-y-4">
           <div className="rounded-2xl bg-white p-5 shadow-card sm:p-6">
-            <h2 className="text-lg font-bold text-slate-900">Ticket Issued</h2>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              {createdBooking.bookingNumber && (
+                <p className="rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-bold text-indigo-700">
+                  {createdBooking.bookingNumber}
+                </p>
+              )}
+              <EmailStatusBadge status={createdBooking.emailStatus} error={createdBooking.emailError} />
+            </div>
+            <h2 className="mt-2 text-lg font-bold text-slate-900">Ticket Issued</h2>
             <p className="text-sm text-slate-500">
               Booking {createdBooking._id.slice(-8).toUpperCase()} is visible in the Bookings section
-              under Payment Management for confirmation and settlement.
+              under Payment Management for confirmation and settlement. The PDF ticket was emailed to the customer automatically.
             </p>
           </div>
           <BookingTicket booking={createdBooking} onEmail={handleEmailTicket} />
@@ -488,270 +490,281 @@ const BookTicket = () => {
               Book another
             </button>
             <Link
-              to="/VendorDashboard/bookings"
+              to={bookingsPath}
               className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
             >
               Go to Bookings
             </Link>
           </div>
         </div>
-      ) : (
+      ) : stage === "select" ? (
         /* ------------------------------------------------ */
-        /*  Single page: left details + sticky summary      */
+        /*  Step 1 — Available Buses & Vehicles (pure grid) */
         /* ------------------------------------------------ */
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* ================= LEFT ================= */}
-          <div className="space-y-6 lg:col-span-2">
-            {/* 1 — Trip / Route */}
-            <section className="rounded-2xl bg-white p-5 shadow-card sm:p-6">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-bold text-slate-900">Trip / Route</h2>
-                <div className="flex items-center gap-2">
-                  {(["all", "bus", "vehicle"] as const).map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
-                        activeTab === tab
-                          ? "border-indigo-600 bg-indigo-600 text-white"
-                          : "border-gray-300 text-gray-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </div>
-              </div>
+        <section className="rounded-2xl bg-white p-5 shadow-card sm:p-6">
+          <h2 className="text-lg font-bold text-slate-900">Available Buses & Vehicles</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Select the transport you want to book — the seats and passenger form open next.
+          </p>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <label htmlFor="pickup" className="mb-1.5 block text-sm font-medium text-slate-700">
-                    Pickup
-                  </label>
-                  <select
-                    id="pickup"
-                    className={inputCls}
-                    value={form.pickup}
-                    onChange={(e) => setForm((prev) => ({ ...prev, pickup: e.target.value }))}
+          {availableBuses.length > 0 && (
+            <>
+              <h3 className="mb-3 mt-6 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                <FaBus className="text-indigo-600" /> Buses
+              </h3>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {availableBuses.map((bus) => (
+                  <div
+                    key={bus._id}
+                    className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-indigo-300 hover:shadow-card"
                   >
-                    <option value="">Anywhere</option>
-                    {pickupOptions.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="drop" className="mb-1.5 block text-sm font-medium text-slate-700">
-                    Destination
-                  </label>
-                  <select
-                    id="drop"
-                    className={inputCls}
-                    value={form.drop}
-                    onChange={(e) => setForm((prev) => ({ ...prev, drop: e.target.value }))}
-                  >
-                    <option value="">Anywhere</option>
-                    {dropOptions.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="date" className="mb-1.5 block text-sm font-medium text-slate-700">
-                    Travel Date (buses)
-                  </label>
-                  <input
-                    id="date"
-                    type="date"
-                    className={inputCls}
-                    value={form.date}
-                    onChange={(e) => setForm((prev) => ({ ...prev, date: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <span className="mb-1.5 block text-sm font-medium text-slate-700">Passengers</span>
-                  <div className="flex items-center gap-1 rounded-xl border border-gray-300 p-1">
-                    <button
-                      type="button"
-                      aria-label="Decrease passengers"
-                      onClick={() => setPassengerCount((c) => Math.max(1, c - 1))}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100"
-                    >
-                      <FaMinus />
-                    </button>
-                    <span className="flex flex-1 items-center justify-center gap-1 text-sm font-bold text-slate-800">
-                      <FaUsers className="text-indigo-500" /> {passengerCount}
-                    </span>
-                    <button
-                      type="button"
-                      aria-label="Increase passengers"
-                      onClick={() => setPassengerCount((c) => Math.min(30, c + 1))}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100"
-                    >
-                      <FaPlus />
-                    </button>
+                    <div className="flex items-start gap-3">
+                      <img
+                        src={imageUrlFor(bus.image)}
+                        alt={bus.name}
+                        className="h-16 w-16 shrink-0 rounded-xl object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "/default-bus-image.jpg";
+                        }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="flex items-center gap-2 truncate font-bold text-slate-900">
+                          <FaBus className="shrink-0 text-indigo-600" />
+                          {bus.name || bus.busName || "Bus"}
+                        </h3>
+                        <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                          <FaMapMarkerAlt className="text-teal-600" />
+                          {bus.pickupPoint} <FaArrowRight className="text-slate-400" /> {bus.dropPoint}
+                        </p>
+                        <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
+                          <FaCalendarAlt className="text-indigo-500" />
+                          Departure: {departureLabel(bus.takeOffDate)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 text-center">
+                      <div>
+                        <p className="text-xs text-slate-500">Total Seats</p>
+                        <p className="mt-0.5 text-base font-bold text-slate-800">{bus.totalSeats}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Available</p>
+                        <p className="mt-0.5 text-base font-bold text-emerald-700">{bus.available}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Booked</p>
+                        <p className="mt-0.5 text-base font-bold text-rose-600">{bus.bookedSeatCount}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                      <div>
+                        <p className="text-xs text-slate-500">Fare</p>
+                        <p className="text-sm font-bold text-slate-900">{formatMoney(bus.pricePerSeat)} / seat</p>
+                      </div>
+                      <button
+                        onClick={() => selectBus(bus)}
+                        disabled={loadingDetails}
+                        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {loadingDetails ? "Loading…" : "Select Bus"}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
-              <div className="mt-3 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForm({ pickup: "", drop: "", date: "" });
-                    setPassengerCount(1);
-                  }}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 transition-colors hover:bg-gray-100"
-                >
-                  Clear
-                </button>
-              </div>
-            </section>
+            </>
+          )}
 
-            {/* 2 — Vehicle / transport selection */}
-            {activeTab !== "vehicle" && filteredBuses.length > 0 && (
-              <section className="space-y-3">
-                <h2 className="text-lg font-bold text-slate-900">Buses</h2>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {filteredBuses.map((bus) => (
+          {vehicles.length > 0 && (
+            <>
+              <h3 className="mb-3 mt-8 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                <FaCar className="text-indigo-600" /> Vehicles
+              </h3>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {vehicles.map((vehicle) => {
+                  const unavailable = vehicleBlocked(vehicle);
+                  return (
                     <div
-                      key={bus._id}
-                      className={`rounded-2xl bg-white p-4 shadow-card transition sm:p-5 ${
-                        selectedBus?._id === bus._id ? "ring-2 ring-indigo-600" : ""
-                      }`}
+                      key={vehicle._id}
+                      className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-indigo-300 hover:shadow-card"
                     >
                       <div className="flex items-start gap-3">
                         <img
-                          src={imageUrlFor(bus.image)}
-                          alt={bus.name}
+                          src={imageUrlFor(vehicle.image, "/default-vehicle.jpg")}
+                          alt={vehicle.name}
                           className="h-16 w-16 shrink-0 rounded-xl object-cover"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = "/default-bus-image.jpg";
+                            (e.target as HTMLImageElement).src = "/default-vehicle.jpg";
                           }}
                         />
                         <div className="min-w-0 flex-1">
                           <h3 className="flex items-center gap-2 truncate font-bold text-slate-900">
-                            <FaBus className="shrink-0 text-indigo-600" />
-                            {bus.name || bus.busName || "Bus"}
+                            <FaCar className="shrink-0 text-indigo-600" />
+                            {vehicle.name}
                           </h3>
                           <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
                             <FaMapMarkerAlt className="text-teal-600" />
-                            {bus.pickupPoint} <FaArrowRight className="text-slate-400" /> {bus.dropPoint}
+                            {vehicle.pickupPoint || "N/A"} <FaArrowRight className="text-slate-400" />{" "}
+                            {vehicle.dropPoint || "N/A"}
                           </p>
-                          <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
-                            <FaCalendarAlt className="text-indigo-500" />
-                            {bus.takeOffDate
-                              ? new Date(bus.takeOffDate).toLocaleDateString("en-US", {
-                                  weekday: "short",
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                })
-                              : "Date TBD"}
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            {vehicle.totalSeats || vehicle.capacity || "—"} seats · whole-vehicle rental
                           </p>
                         </div>
                       </div>
-                      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                        <div>
-                          <p className="text-sm text-slate-500">
-                            {bus.available} seats free · {formatMoney(bus.pricePerSeat)}/seat
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => selectBus(bus)}
-                          disabled={loadingDetails}
-                          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
-                        >
-                          {loadingDetails ? "Loading…" : "Select"}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
 
-            {activeTab !== "bus" && filteredVehicles.length > 0 && (
-              <section className="space-y-3">
-                <h2 className="text-lg font-bold text-slate-900">Vehicles</h2>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {filteredVehicles.map((vehicle) => {
-                    const unavailable = vehicleBlocked(vehicle);
-                    return (
-                      <div
-                        key={vehicle._id}
-                        className={`rounded-2xl bg-white p-4 shadow-card transition sm:p-5 ${
-                          selectedVehicle?._id === vehicle._id ? "ring-2 ring-indigo-600" : ""
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <img
-                            src={imageUrlFor(vehicle.image, "/default-vehicle.jpg")}
-                            alt={vehicle.name}
-                            className="h-16 w-16 shrink-0 rounded-xl object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = "/default-vehicle.jpg";
-                            }}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <h3 className="flex items-center gap-2 truncate font-bold text-slate-900">
-                              <FaCar className="shrink-0 text-indigo-600" />
-                              {vehicle.name}
-                            </h3>
-                            <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                              <FaMapMarkerAlt className="text-teal-600" />
-                              {vehicle.pickupPoint || "N/A"} <FaArrowRight className="text-slate-400" />{" "}
-                              {vehicle.dropPoint || "N/A"}
-                            </p>
-                            <p className="mt-0.5 text-xs text-slate-500">
-                              {vehicle.totalSeats || vehicle.capacity || "—"} seats · {formatMoney(vehicle.price)}
-                            </p>
-                          </div>
+                      <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 text-center">
+                        <div>
+                          <p className="text-xs text-slate-500">Capacity</p>
+                          <p className="mt-0.5 text-base font-bold text-slate-800">
+                            {vehicle.totalSeats || vehicle.capacity || "—"} seats
+                          </p>
                         </div>
-                        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                          <span
-                            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                              unavailable
-                                ? "bg-rose-100 text-rose-700"
-                                : "bg-emerald-100 text-emerald-700"
+                        <div>
+                          <p className="text-xs text-slate-500">Status</p>
+                          <p
+                            className={`mt-0.5 text-base font-bold ${
+                              unavailable ? "text-rose-600" : "text-emerald-700"
                             }`}
                           >
                             {unavailable ? "Booked" : "Available"}
-                          </span>
-                          <button
-                            onClick={() => selectVehicle(vehicle)}
-                            disabled={unavailable}
-                            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Select
-                          </button>
+                          </p>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                        <div>
+                          <p className="text-xs text-slate-500">Rental price</p>
+                          <p className="text-sm font-bold text-slate-900">{formatMoney(vehicle.price)}</p>
+                        </div>
+                        <button
+                          onClick={() => selectVehicle(vehicle)}
+                          disabled={unavailable}
+                          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Select
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {fleetEmpty && (
+            <div className="mt-6 rounded-xl border-2 border-dashed border-slate-200 p-10 text-center">
+              <FaBus className="mx-auto text-2xl text-slate-300" />
+              <h3 className="mt-3 text-lg font-semibold text-slate-900">No available transport</h3>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
+                Add a bus or a vehicle from your inventory management before you can book tickets.
+              </p>
+            </div>
+          )}
+        </section>
+      ) : (
+        /* ------------------------------------------------ */
+        /*  Step 2 — booking page (left details + sticky)   */
+        /* ------------------------------------------------ */
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* ================= LEFT ================= */}
+          <div className="space-y-6 lg:col-span-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <button
+                onClick={goToFleet}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
+              >
+                <FaArrowLeft /> Back to available trips
+              </button>
+              <button
+                onClick={goToFleet}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                Change transport
+              </button>
+            </div>
+
+            {/* Selected transport information */}
+            {selectedBus && (
+              <section className="rounded-2xl bg-white p-5 shadow-card sm:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <img
+                      src={imageUrlFor(selectedBus.image)}
+                      alt={selectedBus.name}
+                      className="h-14 w-14 shrink-0 rounded-xl object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/default-bus-image.jpg";
+                      }}
+                    />
+                    <div className="min-w-0">
+                      <h3 className="flex items-center gap-2 truncate font-bold text-slate-900">
+                        <FaBus className="shrink-0 text-indigo-600" /> {selectedBus.name || "Bus"}
+                      </h3>
+                      <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-500">
+                        <FaMapMarkerAlt className="text-teal-600" />
+                        {selectedBus.pickupPoint} <FaArrowRight className="text-slate-400" />{" "}
+                        {selectedBus.dropPoint}
+                        <span className="inline-flex items-center gap-1 text-indigo-600">
+                          <FaCalendarAlt /> {departureLabel(selectedBus.takeOffDate)}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                      {busFreeSeats(selectedBus)} of {selectedBus.totalSeats} seats free
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {formatMoney(selectedBus.pricePerSeat)} / seat
+                    </span>
+                  </div>
                 </div>
               </section>
             )}
 
-            {resultsEmpty && (
-              <div className="rounded-2xl bg-white p-10 text-center shadow-card">
-                <h3 className="text-lg font-semibold text-slate-900">No matching trips</h3>
-                <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
-                  Try clearing the filters, reducing the passenger count, or check that your transport has been added.
-                </p>
-                <button
-                  onClick={() => {
-                    setForm({ pickup: "", drop: "", date: "" });
-                    setPassengerCount(1);
-                  }}
-                  className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
-                >
-                  Clear filters
-                </button>
-              </div>
+            {selectedVehicle && (
+              <section className="rounded-2xl bg-white p-5 shadow-card sm:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <img
+                      src={imageUrlFor(selectedVehicle.image, "/default-vehicle.jpg")}
+                      alt={selectedVehicle.name}
+                      className="h-14 w-14 shrink-0 rounded-xl object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/default-vehicle.jpg";
+                      }}
+                    />
+                    <div className="min-w-0">
+                      <h3 className="flex items-center gap-2 truncate font-bold text-slate-900">
+                        <FaCar className="shrink-0 text-indigo-600" /> {selectedVehicle.name}
+                      </h3>
+                      <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-500">
+                        <FaMapMarkerAlt className="text-teal-600" />
+                        {selectedVehicle.pickupPoint || "N/A"} <FaArrowRight className="text-slate-400" />{" "}
+                        {selectedVehicle.dropPoint || "N/A"}
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                            vehicleBlocked(selectedVehicle)
+                              ? "bg-rose-100 text-rose-700"
+                              : "bg-emerald-100 text-emerald-700"
+                          }`}
+                        >
+                          {vehicleBlocked(selectedVehicle) ? "Booked" : "Available"}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-sm font-bold text-slate-900">{formatMoney(selectedVehicle.price)}</span>
+                    <span className="text-xs text-slate-500">
+                      {selectedVehicle.totalSeats || selectedVehicle.capacity || "—"} seats
+                    </span>
+                  </div>
+                </div>
+              </section>
             )}
 
             {/* 3 — Seats / Reservation */}
@@ -762,36 +775,6 @@ const BookTicket = () => {
 
               {selectedBus ? (
                 <div className="space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-900">{selectedBus.name || "Bus"}</h3>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                        <span className="flex items-center gap-1.5">
-                          <FaMapMarkerAlt className="text-teal-600" />
-                          {selectedBus.pickupPoint}
-                        </span>
-                        <FaArrowRight className="text-slate-400" />
-                        <span className="flex items-center gap-1.5">
-                          <FaMapMarkerAlt className="text-rose-500" />
-                          {selectedBus.dropPoint}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <FaCalendarAlt className="text-indigo-500" />
-                          {selectedBus.takeOffDate
-                            ? new Date(selectedBus.takeOffDate).toLocaleDateString("en-US", {
-                                weekday: "short",
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              })
-                            : "TBD"}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
-                      {formatMoney(selectedBus.pricePerSeat)} / seat
-                    </span>
-                  </div>
                   {loadingDetails && (
                     <p className="text-sm font-medium text-amber-600">Refreshing seat availability…</p>
                   )}
@@ -806,12 +789,21 @@ const BookTicket = () => {
                   <div className="rounded-xl bg-teal-50/60 p-3">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <h3 className="text-sm font-bold text-slate-800">Selected Seats</h3>
-                      <button
-                        onClick={autoPickSeats}
-                        className="inline-flex items-center gap-2 rounded-lg border border-teal-600 px-3 py-1.5 text-xs font-semibold text-teal-700 transition-colors hover:bg-teal-50"
-                      >
-                        <FaBolt /> Quick-pick {passengerCount} seat{passengerCount > 1 ? "s" : ""}
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Stepper
+                          label="Seats to pick"
+                          value={passengerCount}
+                          min={1}
+                          max={selectedBus.totalSeats || 30}
+                          onChange={setPassengerCount}
+                        />
+                        <button
+                          onClick={autoPickSeats}
+                          className="inline-flex items-center gap-2 rounded-lg border border-teal-600 px-3 py-1.5 text-xs font-semibold text-teal-700 transition-colors hover:bg-teal-50"
+                        >
+                          <FaBolt /> Quick-pick {passengerCount} seat{passengerCount > 1 ? "s" : ""}
+                        </button>
+                      </div>
                     </div>
                     {selectedSeats.length === 0 ? (
                       <p className="rounded-xl border-2 border-dashed border-slate-200 p-4 text-center text-sm text-slate-400">
@@ -844,46 +836,6 @@ const BookTicket = () => {
                 </div>
               ) : selectedVehicle ? (
                 <div className="space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <h3 className="flex items-center gap-2 text-xl font-bold text-slate-900">
-                        <FaCar className="text-indigo-600" /> {selectedVehicle.name}
-                      </h3>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
-                        <span className="flex items-center gap-1.5">
-                          <FaMapMarkerAlt className="text-teal-600" />
-                          {selectedVehicle.pickupPoint || "N/A"}
-                        </span>
-                        <FaArrowRight className="text-slate-400" />
-                        <span className="flex items-center gap-1.5">
-                          <FaMapMarkerAlt className="text-rose-500" />
-                          {selectedVehicle.dropPoint || "N/A"}
-                        </span>
-                        <span className="ml-2">
-                          <span
-                            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                              vehicleBlocked(selectedVehicle)
-                                ? "bg-rose-100 text-rose-700"
-                                : "bg-emerald-100 text-emerald-700"
-                            }`}
-                          >
-                            {vehicleBlocked(selectedVehicle) ? "Booked" : "Available"}
-                          </span>
-                        </span>
-                      </div>
-                    </div>
-                    {selectedVehicle.totalSeats || selectedVehicle.capacity ? (
-                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
-                        {selectedVehicle.totalSeats || selectedVehicle.capacity} seats ·{" "}
-                        {formatMoney(selectedVehicle.price)}
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
-                        {formatMoney(selectedVehicle.price)}
-                      </span>
-                    )}
-                  </div>
-
                   <img
                     src={imageUrlFor(selectedVehicle.image, "/default-vehicle.jpg")}
                     alt={selectedVehicle.name}
@@ -892,6 +844,17 @@ const BookTicket = () => {
                       (e.target as HTMLImageElement).src = "/default-vehicle.jpg";
                     }}
                   />
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 p-3">
+                    <Stepper
+                      label="Passengers"
+                      value={passengerCount}
+                      onChange={setPassengerCount}
+                    />
+                    <span className="text-xs text-slate-500">
+                      Whole vehicle · {selectedVehicle.totalSeats || selectedVehicle.capacity || "—"} seats
+                    </span>
+                  </div>
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div>
@@ -939,8 +902,14 @@ const BookTicket = () => {
                 <div className="rounded-xl border-2 border-dashed border-slate-200 p-8 text-center">
                   <FaUsers className="mx-auto text-2xl text-slate-300" />
                   <p className="mt-3 text-sm font-medium text-slate-500">
-                    Pick a bus above to choose seats, or a vehicle to set the reservation.
+                    The selected transport became unavailable. Pick another one from your fleet.
                   </p>
+                  <button
+                    onClick={goToFleet}
+                    className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+                  >
+                    Back to available trips
+                  </button>
                 </div>
               )}
             </section>
@@ -954,11 +923,7 @@ const BookTicket = () => {
                 </p>
               )}
               <div className={`space-y-4 ${tripReady ? "" : "pointer-events-none opacity-60"}`}>
-                <ContactPanel
-                  customer={customer}
-                  setCustomer={setCustomer}
-                  paymentMethod={paymentMethod}
-                />
+                <ContactPanel customer={customer} setCustomer={setCustomer} />
                 <PassengerPanel
                   rows={passengerRows}
                   onChange={setPassengerRows}
@@ -1018,8 +983,8 @@ const BookTicket = () => {
         </div>
       )}
 
-      {/* Sticky mobile checkout bar */}
-      {!createdBooking && (
+      {/* Sticky mobile checkout bar (booking step only) */}
+      {!createdBooking && stage === "book" && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -1071,13 +1036,45 @@ const TripSummaryCard = ({ title, lines }: { title: string; lines: { label: stri
 const inputCls =
   "w-full rounded-xl border border-gray-300 p-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30";
 
+interface StepperProps {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+}
+
+const Stepper = ({ label, value, onChange, min = 1, max = 30 }: StepperProps) => (
+  <div className="flex items-center gap-2">
+    <span className="text-xs font-medium text-slate-500">{label}</span>
+    <div className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white p-0.5">
+      <button
+        type="button"
+        aria-label={`Decrease ${label}`}
+        onClick={() => onChange(Math.max(min, value - 1))}
+        className="flex h-7 w-7 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-slate-100"
+      >
+        <FaMinus />
+      </button>
+      <span className="flex w-8 items-center justify-center text-sm font-bold text-slate-800">{value}</span>
+      <button
+        type="button"
+        aria-label={`Increase ${label}`}
+        onClick={() => onChange(Math.min(max, value + 1))}
+        className="flex h-7 w-7 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-slate-100"
+      >
+        <FaPlus />
+      </button>
+    </div>
+  </div>
+);
+
 interface ContactPanelProps {
   customer: Customer;
   setCustomer: (c: Customer) => void;
-  paymentMethod: "Online" | "CashOnVisit";
 }
 
-const ContactPanel = ({ customer, setCustomer, paymentMethod }: ContactPanelProps) => (
+const ContactPanel = ({ customer, setCustomer }: ContactPanelProps) => (
   <section className="rounded-2xl bg-white p-5 shadow-card sm:p-6">
     <h2 className="mb-4 text-lg font-bold text-slate-900">Booking Contact</h2>
     <p className="mb-3 rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
@@ -1112,7 +1109,7 @@ const ContactPanel = ({ customer, setCustomer, paymentMethod }: ContactPanelProp
       </div>
       <div>
         <label htmlFor="custEmail" className="mb-1.5 block text-sm font-medium text-slate-700">
-          Email {paymentMethod === "Online" ? "*" : ""}
+          Email *
         </label>
         <input
           id="custEmail"
@@ -1122,6 +1119,9 @@ const ContactPanel = ({ customer, setCustomer, paymentMethod }: ContactPanelProp
           value={customer.email}
           onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
         />
+        <p className="mt-1 text-xs text-slate-400">
+          The ticket PDF is emailed to this address after the booking is created.
+        </p>
       </div>
     </div>
   </section>
@@ -1335,7 +1335,7 @@ const PaymentPanel = ({
           </div>
           <div className="flex justify-between">
             <span>Platform commission (10%)</span>
-            <span className="font-semibold text-slate-700">-{formatMoney(commissionAmount)}</span>
+            <span className="font-semibold text-slate-700">({formatMoney(commissionAmount)})</span>
           </div>
           <div className="flex items-center justify-between border-t border-slate-100 pt-2">
             <span>Vendor earnings</span>

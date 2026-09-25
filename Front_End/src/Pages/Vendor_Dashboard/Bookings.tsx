@@ -12,6 +12,7 @@ import { getPageRange } from "../../utils/pagination";
 import { earningsOf, formatMoney } from "../../utils/format";
 import ConfirmDialog from "../../Component/ConfirmDialog";
 import AdminPageHeader from "../../Component/Admin Component/AdminPageHeader";
+import EmailStatusBadge from "../../Component/EmailStatusBadge";
 import { bookingsApi, type Booking, type BookingRef } from "../../api";
 
 interface OutletContext {
@@ -44,6 +45,7 @@ const Bookings = () => {
   const [page, setPage] = useState(1);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<Booking | null>(null);
+  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
 
   useEffect(() => {
     setPage(1);
@@ -148,6 +150,20 @@ const Bookings = () => {
   };
 
   const handleConfirmRequest = (booking: Booking) => setPendingConfirm(booking);
+
+  const handleResend = async (id: string) => {
+    setSendingEmailId(id);
+    try {
+      await bookingsApi.sendTicket(id);
+      toast.success("Ticket emailed to the customer.");
+      fetchData();
+    } catch (err) {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(axiosErr.response?.data?.message || axiosErr.message || "Failed to email the ticket.");
+    } finally {
+      setSendingEmailId(null);
+    }
+  };
 
   const handleConfirm = async () => {
     const id = pendingConfirm?._id;
@@ -341,6 +357,9 @@ const Bookings = () => {
                     Status
                   </th>
                   <th scope="col" className="px-4 py-3 text-left font-semibold">
+                    Email
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left font-semibold">
                     Date
                   </th>
                 </tr>
@@ -397,6 +416,23 @@ const Bookings = () => {
                               className="mt-0.5 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {confirmingId === booking._id ? "Confirming..." : "Confirm Payment"}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col items-start gap-1.5">
+                          <EmailStatusBadge
+                            status={booking.emailStatus}
+                            error={booking.emailError}
+                          />
+                          {booking.customerEmail && booking.status !== "Cancelled" && (
+                            <button
+                              onClick={() => handleResend(booking._id)}
+                              disabled={sendingEmailId === booking._id}
+                              className="rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {sendingEmailId === booking._id ? "Sending…" : "Resend Ticket"}
                             </button>
                           )}
                         </div>

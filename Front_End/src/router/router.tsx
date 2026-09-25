@@ -47,6 +47,7 @@ const DashboardChildren = {
   VendorBuses: lazy(() => import("../Pages/Vendor_Dashboard/Buses")),
   VendorBookings: lazy(() => import("../Pages/Vendor_Dashboard/Bookings")),
   VendorBookTicket: lazy(() => import("../Pages/Vendor_Dashboard/BookTicket")),
+  AdminBookTicket: lazy(() => import("../Pages/Vendor_Dashboard/BookTicket")),
 };
 
 const PageFallback = () => (
@@ -150,6 +151,7 @@ const router = createBrowserRouter([
       { path: "buses", element: <DashboardChildren.Buses /> },
       { path: "vehicles", element: <DashboardChildren.Vehicles /> },
       { path: "bookings", element: <DashboardChildren.Bookings /> },
+      { path: "book-ticket", element: <DashboardChildren.AdminBookTicket /> },
       { path: "admins", element: <DashboardChildren.Admins /> },
       { path: "refunds", element: <DashboardChildren.Refunds /> },
     ],
