@@ -7,6 +7,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import Home from "../home/Home";
 import AboutUs from "../Component/About";
 import Tourist_Areas from "../Pages/Tourist_Areas";
+import TouristBlog from "../blogs/TouristBlog";
 import Registration from "../Component/Registration";
 import Login from "../Component/Login";
 import Vehicle_Booking from "../Pages/Vehicle_Booking";
@@ -63,6 +64,7 @@ const router = createBrowserRouter([
       { path: "/tickets", element: <Tickets /> },
       { path: "/about-us", element: <AboutUs /> },
       { path: "/tourist-areas", element: <Tourist_Areas /> },
+      { path: "/blogs/:slug", element: <TouristBlog /> },
       { path: "/sign-in", element: <Login /> },
       { path: "/signup", element: <Registration /> },
       { path: "/vehicle-bookings", element: <Vehicle_Booking /> },

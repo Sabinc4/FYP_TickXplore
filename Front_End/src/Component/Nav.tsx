@@ -37,6 +37,7 @@ const Nav = () => {
   const [userInitials, setUserInitials] = useState("");
   const [userRole, setUserRole] = useState("");
   const [profileImage, setProfileImage] = useState("");
+  const [profileImageError, setProfileImageError] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [bookingType, setBookingType] = useState("");
@@ -48,6 +49,9 @@ const Nav = () => {
   const dropRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const notifRefMobile = useRef<HTMLDivElement>(null);
+
+  const resolvePhoto = (photo?: string) =>
+    photo ? (photo.startsWith("http") ? photo : `${API_BASE_URL}${photo}`) : "";
 
   /* ---- auth state ---- */
   const updateNav = useCallback(async () => {
@@ -72,6 +76,12 @@ const Nav = () => {
       setUserInitials(firstInitial + lastInitial);
     }
 
+    // Instant avatar from cached photo (e.g. set at login) so it renders
+    // before the profile fetch below resolves.
+    const cachedPhoto = resolvePhoto(localStorage.getItem("userProfilePhoto") || "");
+    setProfileImage(cachedPhoto);
+    setProfileImageError(false);
+
     if (isLoggedIn && id && token) {
       const endpoint = role === "admin" ? "admin" : role === "vendor" ? "vendor" : "users";
       try {
@@ -80,18 +90,17 @@ const Nav = () => {
         });
         const data = await res.json();
         const profile = data.admin || data.vendor || data.user;
-        if (profile?.profilePhoto) {
-          setProfileImage(
-            profile.profilePhoto.startsWith("http")
-              ? profile.profilePhoto
-              : `${API_BASE_URL}${profile.profilePhoto}`
-          );
+        const resolved = resolvePhoto(profile?.profilePhoto);
+        if (resolved) {
+          setProfileImage(resolved);
+          setProfileImageError(false);
+          localStorage.setItem("userProfilePhoto", resolved);
         } else {
-          setProfileImage("");
+          setProfileImage(cachedPhoto);
         }
       } catch (err) {
         console.error("Error fetching profile photo:", err);
-        setProfileImage("");
+        setProfileImage(cachedPhoto);
       }
     }
   }, []);
@@ -363,8 +372,13 @@ const Nav = () => {
                     aria-expanded={dropdownOpen}
                     aria-label="Toggle profile menu"
                   >
-                    {profileImage ? (
-                      <img src={profileImage} alt="Profile" className="h-full w-full rounded-full object-cover" />
+                    {profileImage && !profileImageError ? (
+                      <img
+                        src={profileImage}
+                        alt="Profile"
+                        className="h-full w-full rounded-full object-cover"
+                        onError={() => setProfileImageError(true)}
+                      />
                     ) : (
                       <span className="text-sm font-bold text-white">{userInitials || <FiUser className="text-lg" />}</span>
                     )}
