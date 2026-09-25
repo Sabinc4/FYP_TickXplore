@@ -8,6 +8,7 @@ const Vehicle = require("../models/Vehicle");
 const Reservation = require("../models/Reservation");
 const Vendor = require("../models/Vendor");
 const { sendEmail } = require("../utils/sendEmail");
+const ticketService = require("../utils/ticketService");
 const Notification = require("../models/Notification");
 const User = require("../models/User");
 const Admin = require("../models/Admin");
@@ -130,26 +131,9 @@ async function tryLockBusSeats(busId, seats) {
   return Boolean(result);
 }
 
-// Same 4-per-row layout as the seat map (A1…J4, etc.) used by the ticket card.
-function formatSeatLabel(seat) {
-  const n = Number(seat);
-  if (!Number.isFinite(n) || n <= 0) return String(seat);
-  const row = Math.floor((n - 1) / 4);
-  const col = ((n - 1) % 4) + 1;
-  return `${String.fromCharCode(65 + row)}${col}`;
-}
+// Email + PDF ticket delivery is handled in utils/ticketService.js.
 
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (c) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  }[c]));
-}
-
-// Emails a formatted ticket to the booking's customer. Used to re-deliver a
+// Emails the PDF ticket to the booking's customer. Used to re-deliver a
 // ticket for a walk-in / vendor-assisted booking at any time.
 router.post("/resend-ticket", async (req, res) => {
   try {
@@ -166,66 +150,15 @@ router.post("/resend-ticket", async (req, res) => {
       return res.status(400).json({ message: "Booking has no customer email on file" });
     }
 
-    const isBus = !!booking.busId;
-    const item = isBus ? booking.busId : booking.vehicleId;
-    const itemName = item?.name || "TickXplore trip";
-    const route = isBus
-      ? `${item?.pickupPoint || booking.pickupPoint || "N/A"} → ${item?.dropPoint || booking.dropPoint || "N/A"}`
-      : `${booking.pickupPoint || "N/A"} → ${booking.dropPoint || "N/A"}`;
-    const depart = booking.takeOffDate || booking.reservationDate;
-    const seatsLabel = isBus
-      ? (booking.selectedSeats || []).map(formatSeatLabel).join(", ")
-      : "Whole vehicle";
-    const commaRate = 10;
-    const commission = Math.round((commaRate / 100) * (booking.totalPrice || 0) * 100) / 100;
-    const cashOnVisit =
-      booking.paymentMethod === "CashOnVisit" || booking.paymentStatus === "CashOnVisit";
-
-    const passengersRows = (booking.passengers || [])
-      .filter((p) => p && p.name)
-      .map(
-        (p) =>
-          `<tr><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.phone || "-")}</td></tr>`
-      )
-      .join("");
-
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-        <div style="background: #2563eb; color: #fff; padding: 16px 20px;">
-          <h2 style="margin: 0;">Your Ticket — TickXplore</h2>
-        </div>
-        <div style="padding: 20px;">
-          <p>Dear <strong>${escapeHtml(
-            booking.customerName || userObj?.name || "Customer"
-          )}</strong>, here is your ticket:</p>
-          <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-            <tr><td style="padding: 8px 0; color: #6b7280;">Booking ID</td><td style="padding: 8px 0;"><strong>${booking._id}</strong></td></tr>
-            <tr><td style="padding: 8px 0; color: #6b7280;">Transport</td><td style="padding: 8px 0;"><strong>${escapeHtml(itemName)}</strong></td></tr>
-            <tr><td style="padding: 8px 0; color: #6b7280;">Route</td><td style="padding: 8px 0;"><strong>${escapeHtml(route)}</strong></td></tr>
-            <tr><td style="padding: 8px 0; color: #6b7280;">Departure</td><td style="padding: 8px 0;"><strong>${depart ? new Date(depart).toLocaleString() : "N/A"}</strong></td></tr>
-            <tr><td style="padding: 8px 0; color: #6b7280;">Seats</td><td style="padding: 8px 0;"><strong>${escapeHtml(seatsLabel)}</strong></td></tr>
-            <tr><td style="padding: 8px 0; color: #6b7280;">Total Paid</td><td style="padding: 8px 0;"><strong>Rs. ${booking.totalPrice || 0}</strong></td></tr>
-            <tr><td style="padding: 8px 0; color: #6b7280;">Payment</td><td style="padding: 8px 0;"><strong>${cashOnVisit ? "Cash on Visit" : "Online (Khalti)"}</strong></td></tr>
-            <tr><td style="padding: 8px 0; color: #6b7280;">Commission</td><td style="padding: 8px 0;">Rs. ${commission}</td></tr>
-          </table>
-          ${
-            passengersRows
-              ? `<p style="color: #6b7280; margin-bottom: 4px;">Passengers:</p>
-                 <table style="width: 100%; border-collapse: collapse;">
-                   <tr style="background: #f3f4f6; text-align: left;">
-                     <th style="padding: 8px;">Name</th><th style="padding: 8px;">Phone</th>
-                   </tr>${passengersRows}
-                 </table>`
-              : ""
-          }
-          <p style="font-size: 12px; color: #9ca3af; margin-top: 20px;">
-            For any changes please contact TickXplore support.
-          </p>
-        </div>
-      </div>`;
-
-    await sendEmail(to, `Your Ticket - ${itemName}`, html);
-    return res.status(200).json({ message: "Ticket emailed successfully" });
+    const result = await ticketService.sendTicketEmail(booking);
+    if (result.status === "Sent") {
+      return res.status(200).json({ message: "Ticket emailed successfully", emailStatus: "Sent" });
+    }
+    return res.status(500).json({
+      message: "Failed to email ticket",
+      emailStatus: result.status,
+      error: result.error,
+    });
   } catch (err) {
     console.error("Resend ticket error:", err.message || err);
     return res.status(500).json({ message: "Failed to email ticket" });
@@ -383,18 +316,9 @@ async function completeBooking(booking, pidx) {
     }
   });
 
-  // Customer confirmation
-  await safeRun("customer confirmation", async () => {
+  // Customer notification
+  await safeRun("customer notification", async () => {
     const user = booking.userId ? await User.findById(booking.userId) : null;
-    const email = user?.email || booking.customerEmail;
-    if (email) {
-      await sendEmail(
-        email,
-        "Your Booking is Confirmed - TickXplore",
-        `<p>Hi ${user?.name || booking.customerName || "Customer"}, your booking was successful.</p><p>Total Paid: Rs. ${totalPrice}</p>`
-      );
-    }
-
     if (user) {
       await Notification.create({
         userId: user._id,
@@ -412,6 +336,11 @@ async function completeBooking(booking, pidx) {
   booking.transactionId = pidx;
   booking.settlementDone = true;
   await booking.save();
+
+  // Email the PDF ticket (non-blocking; the booking is already successful).
+  await safeRun("customer ticket email", async () => {
+    await ticketService.sendTicketEmail(booking);
+  });
 }
 
 // Best-effort recovery for payments initiated before the pending-booking
@@ -594,6 +523,13 @@ router.post("/initiate", async (req, res) => {
     const commissionAmount = Math.round((commissionRate / 100) * totalPrice * 100) / 100;
     const vendorEarnings = Math.round((totalPrice - commissionAmount) * 100) / 100;
 
+    // Human-friendly ticket reference, e.g. "Mountain Express-2B".
+    const bookingNumber = ticketService.bookingNumberFor(
+      type === "bus"
+        ? { busId: { name: bus.name }, selectedSeats: seats }
+        : { vehicleId: { name: vehicle.name }, reservationDate: takeOffDate || new Date() }
+    );
+
     // Persist a PENDING booking BEFORE calling Khalti so the charge can never be
     // lost if the callback restarts or fails. `/callback` and `/verify` complete it.
     const bookingFields = {
@@ -609,6 +545,7 @@ router.post("/initiate", async (req, res) => {
       purchaseOrderId: orderId,
       commissionAmount,
       vendorEarnings,
+      bookingNumber,
     };
 
     if (type === "bus") {
@@ -819,11 +756,16 @@ router.post("/cash-on-visit", async (req, res) => {
 
   if (
     !itemId ||
-    (!userId && !customerName)
+    (!userId && !(customerName && customerEmail))
   ) {
     return res.status(400).json({
-      message: "Missing required fields. Provide itemId and either userId or customer name.",
+      message: "Missing required fields. Provide itemId and either userId or customer name + email.",
     });
+  }
+
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!userId && !EMAIL_RE.test((customerEmail || "").trim())) {
+    return res.status(400).json({ message: "A valid customer email is required so the ticket can be emailed." });
   }
 
   try {
@@ -869,6 +811,7 @@ router.post("/cash-on-visit", async (req, res) => {
         takeOffDate: takeOffDate || bus.takeOffDate || bus.tripDate,
         commissionAmount,
         vendorEarnings,
+        bookingNumber: ticketService.bookingNumberFor({ busId: { name: bus.name }, selectedSeats: seats }),
       });
 
       const locked = await tryLockBusSeats(itemId, seats);
@@ -923,6 +866,7 @@ router.post("/cash-on-visit", async (req, res) => {
         dropPoint,
         commissionAmount,
         vendorEarnings,
+        bookingNumber: ticketService.bookingNumberFor({ vehicleId: { name: vehicle.name }, reservationDate: takeOffDate || new Date() }),
       });
 
       // Date-scoped reservation (mirrors the online flow) so the vehicle can be
@@ -978,22 +922,11 @@ router.post("/cash-on-visit", async (req, res) => {
       await admin.save();
     }
 
-    // ✅ Customer email + notification (walk-in welcome too)
-    if (customer.customerEmail) {
-      await sendEmail(
-        customer.customerEmail,
-        "Cash on Visit Booking - TickXplore",
-        `
-        <p>Dear ${customer.customerName || "Customer"},</p>
-        <p>Your booking has been created with <strong>Cash on Visit</strong>.</p>
-        <p><strong>Total to Pay:</strong> Rs. ${totalPrice}</p>
-        <p>Please complete your payment in person and confirm via our Gmail:</p>
-        <p><strong>📧 tickxplore@gmail.com</strong></p>
-        <hr />
-        <p>Booking ID: ${booking._id}</p>
-        `
-      );
-    }
+    // ✅ Customer PDF ticket email (non-blocking; booking stays successful even if it fails)
+    let emailStatus = "Pending";
+    await safeRun("customer ticket email", async () => {
+      emailStatus = (await ticketService.sendTicketEmail(booking)).status;
+    });
 
     if (customer.userId) {
       await Notification.create({
@@ -1032,6 +965,8 @@ router.post("/cash-on-visit", async (req, res) => {
     return res.status(201).json({
       message: "Booking created with Cash on Visit. Notifications and emails sent.",
       bookingId: booking._id,
+      bookingNumber: booking.bookingNumber,
+      emailStatus,
     });
 
   } catch (err) {

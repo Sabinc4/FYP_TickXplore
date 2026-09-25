@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
+import { toast } from "react-toastify";
 import {
   FaMoneyBillWave,
   FaHandHoldingUsd,
@@ -9,12 +10,14 @@ import {
 } from "react-icons/fa";
 import { getPageRange } from "../../utils/pagination";
 import AdminPageHeader from "../../Component/Admin Component/AdminPageHeader";
-import type { Booking } from "../../api";
+import EmailStatusBadge from "../../Component/EmailStatusBadge";
+import { bookingsApi, type Booking } from "../../api";
 
 interface OutletContext {
   bookings: Booking[];
   loading: boolean;
   error: string;
+  fetchData: () => void;
 }
 
 const PAGE_SIZE = 10;
@@ -30,11 +33,26 @@ const statusPill = (status: string) =>
     : "border-rose-500/30 bg-rose-500/10 text-rose-600";
 
 const Bookings = () => {
-  const { bookings, loading, error } = useOutletContext<OutletContext>();
+  const { bookings, loading, error, fetchData } = useOutletContext<OutletContext>();
   const [bookingType, setBookingType] = useState<"bus" | "vehicle">("bus");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [page, setPage] = useState(1);
+  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+
+  const handleResend = async (id: string) => {
+    setSendingEmailId(id);
+    try {
+      await bookingsApi.sendTicket(id);
+      toast.success("Ticket emailed to the customer.");
+      fetchData();
+    } catch (err) {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(axiosErr.response?.data?.message || axiosErr.message || "Failed to email the ticket.");
+    } finally {
+      setSendingEmailId(null);
+    }
+  };
 
   const filteredBookings = bookings
     .filter((booking) => (bookingType === "bus" ? booking.bus : booking.vehicle))
@@ -224,6 +242,7 @@ const Bookings = () => {
                 <th className="px-4 py-3 text-right font-semibold">Commission</th>
                 <th className="px-4 py-3 text-right font-semibold">Vendor Earnings</th>
                 <th className="px-4 py-3 text-left font-semibold">Status</th>
+                <th className="px-4 py-3 text-left font-semibold">Email</th>
                 <th className="px-4 py-3 text-left font-semibold">Date</th>
               </tr>
             </thead>
@@ -276,6 +295,20 @@ const Bookings = () => {
                         <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
                           Cash on Visit
                         </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col items-start gap-1.5">
+                      <EmailStatusBadge status={booking.emailStatus} error={booking.emailError} />
+                      {booking.customerEmail && booking.status !== "Cancelled" && (
+                        <button
+                          onClick={() => handleResend(booking._id)}
+                          disabled={sendingEmailId === booking._id}
+                          className="rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {sendingEmailId === booking._id ? "Sending…" : "Resend Ticket"}
+                        </button>
                       )}
                     </div>
                   </td>

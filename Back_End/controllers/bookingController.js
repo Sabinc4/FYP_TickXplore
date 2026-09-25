@@ -4,6 +4,7 @@ const Bus = require("../models/Bus");
 const Vehicle = require("../models/Vehicle");
 const User = require("../models/User");
 const Notification = require("../models/Notification"); 
+const ticketService = require("../utils/ticketService"); 
 
 
 // ✅ Get all bookings for a user
@@ -148,6 +149,16 @@ exports.confirmCoDBooking = async (req, res) => {
     booking.status = "Booked";
     booking.paymentStatus = "Paid";
     await booking.save();
+
+    // Deliver the finalized PDF ticket (never blocks the confirmation response).
+    try {
+      const result = await ticketService.sendTicketEmail(booking);
+      if (result.status !== "Sent") {
+        console.error("Confirm CoD ticket email issue:", result.error);
+      }
+    } catch (err) {
+      console.error("Confirm CoD ticket email error:", err.message);
+    }
 
     // Notify the user
     const user = await User.findById(booking.userId);

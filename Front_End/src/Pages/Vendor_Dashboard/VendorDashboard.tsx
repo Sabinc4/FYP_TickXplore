@@ -47,6 +47,7 @@ import {
 } from "../../api";
 import { earningsOf, formatMoney } from "../../utils/format";
 import LogoutConfirmModal from "../../Component/LogoutConfirmModal";
+import ScrollToTopButton from "../../Component/ScrollToTopButton";
 
 interface VendorData {
   vehicles: Vehicle[];
@@ -143,6 +144,7 @@ const VendorDashboard = () => {
   const navigate = useNavigate();
   const notifRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -527,7 +529,7 @@ const VendorDashboard = () => {
           </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           {data.loading ? (
             <div className="space-y-8">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-4">
@@ -955,6 +957,8 @@ const VendorDashboard = () => {
             </>
           )}
         </main>
+
+      <ScrollToTopButton scrollTarget={mainRef} />
       </div>
 
       <LogoutConfirmModal

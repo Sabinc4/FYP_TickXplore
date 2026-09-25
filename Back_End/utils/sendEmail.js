@@ -12,12 +12,13 @@ const transporter = nodemailer.createTransport({
 });
 
 // Function to send a general email
-const sendEmail = async (to, subject, html) => {
+const sendEmail = async (to, subject, html, attachments) => {
   const mailOptions = {
     from: `"TickXplore" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     html,
+    ...(Array.isArray(attachments) && attachments.length > 0 ? { attachments } : {}),
   };
 
   try {

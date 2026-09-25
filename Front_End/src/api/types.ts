@@ -86,6 +86,10 @@ export interface Booking {
   customerName?: string;
   customerPhone?: string;
   customerEmail?: string;
+  bookingNumber?: string;
+  emailStatus?: "Sent" | "Pending" | "Failed" | "None" | string;
+  emailSentAt?: string;
+  emailError?: string;
   passengers?: Passenger[];
   seats?: number[];
   selectedSeats?: Array<number | string>;

@@ -7,6 +7,16 @@ const BookingSchema = new mongoose.Schema(
     customerName: { type: String, trim: true },
     customerPhone: { type: String, trim: true },
     customerEmail: { type: String, trim: true },
+    /* Human-friendly ticket reference, e.g. "Mountain Express-2B" */
+    bookingNumber: { type: String, trim: true },
+    /* Email + PDF ticket delivery tracking */
+    emailStatus: {
+      type: String,
+      enum: ["Sent", "Pending", "Failed", "None"],
+      default: "Pending",
+    },
+    emailSentAt: { type: Date },
+    emailError: { type: String, trim: true },
     /* Per-seat passenger details for vendor-assisted bookings */
     passengers: [
       {

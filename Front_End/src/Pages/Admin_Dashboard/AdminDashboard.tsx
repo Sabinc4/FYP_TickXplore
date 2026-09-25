@@ -1,9 +1,10 @@
-import { useState, type ReactElement } from "react";
+import { useState, useRef, type ReactElement } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { FiMenu, FiX, FiGrid, FiUsers, FiBriefcase, FiList, FiTruck, FiBookOpen, FiRefreshCw, FiUserPlus, FiUserCheck, FiLogOut } from "react-icons/fi";
+import { FiMenu, FiX, FiGrid, FiUsers, FiBriefcase, FiList, FiTruck, FiBookOpen, FiRefreshCw, FiUserPlus, FiUserCheck, FiLogOut, FiPlusCircle } from "react-icons/fi";
 import useAdminData from "../../hooks/useAdminData";
 import LogoutConfirmModal from "../../Component/LogoutConfirmModal";
+import ScrollToTopButton from "../../Component/ScrollToTopButton";
 import type { Bus, Booking, RefundRequest, User, Vendor, Vehicle } from "../../api";
 
 export interface AdminOutletContext {
@@ -36,6 +37,7 @@ const SECTIONS: { label: string; path: string; icon: ReactElement }[] = [
   { label: "Buses", path: "buses", icon: <FiList /> },
   { label: "Vehicles", path: "vehicles", icon: <FiTruck /> },
   { label: "Bookings", path: "bookings", icon: <FiBookOpen /> },
+  { label: "Book Ticket", path: "book-ticket", icon: <FiPlusCircle /> },
   { label: "Refunds", path: "refunds", icon: <FiRefreshCw /> },
 ];
 
@@ -44,6 +46,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
   const userName = localStorage.getItem("userName") || "Admin";
 
   const confirmLogout = () => {
@@ -159,9 +162,11 @@ const AdminDashboard = () => {
           </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           <Outlet context={context} />
         </main>
+
+      <ScrollToTopButton scrollTarget={mainRef} />
       </div>
 
       <LogoutConfirmModal
