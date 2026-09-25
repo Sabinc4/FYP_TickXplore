@@ -1,6 +1,6 @@
 import { useState } from "react";
-import BusCards from "../../Component/Admin_BusCards";
-import AdminPageHeader from "../../Component/AdminPageHeader";
+import BusCards from "../../Component/Admin Component/Admin_BusCards";
+import AdminPageHeader from "../../Component/Admin Component/AdminPageHeader";
 import { useOutletContext } from "react-router-dom";
 import { toast } from "react-toastify";
 import { busesApi, type Bus } from "../../api";

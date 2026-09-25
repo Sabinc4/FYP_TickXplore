@@ -2,7 +2,7 @@ import { useOutletContext } from "react-router-dom";
 import { FiUsers, FiMapPin, FiMail, FiPhone, FiClock } from "react-icons/fi";
 import type { Vendor } from "../../api";
 import { API_BASE_URL } from "../../api";
-import AdminPageHeader from "../../Component/AdminPageHeader";
+import AdminPageHeader from "../../Component/Admin Component/AdminPageHeader";
 
 interface OutletContext {
   vendorApplications: Vendor[];

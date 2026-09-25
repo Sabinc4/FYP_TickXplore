@@ -1,7 +1,9 @@
 import { useState, type ReactElement } from "react";
-import { Outlet, Link, useLocation } from "react-router-dom";
-import { FiMenu, FiX, FiGrid, FiUsers, FiBriefcase, FiList, FiTruck, FiBookOpen, FiRefreshCw, FiUserPlus, FiUserCheck } from "react-icons/fi";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { FiMenu, FiX, FiGrid, FiUsers, FiBriefcase, FiList, FiTruck, FiBookOpen, FiRefreshCw, FiUserPlus, FiUserCheck, FiLogOut } from "react-icons/fi";
 import useAdminData from "../../hooks/useAdminData";
+import LogoutConfirmModal from "../../Component/LogoutConfirmModal";
 import type { Bus, Booking, RefundRequest, User, Vendor, Vehicle } from "../../api";
 
 export interface AdminOutletContext {
@@ -39,7 +41,18 @@ const SECTIONS: { label: string; path: string; icon: ReactElement }[] = [
 
 const AdminDashboard = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const userName = localStorage.getItem("userName") || "Admin";
+
+  const confirmLogout = () => {
+    toast.dismiss();
+    localStorage.clear();
+    toast.success("Logged out successfully!");
+    navigate("/sign-in");
+    window.dispatchEvent(new Event("storageUpdate"));
+  };
   const {
     users,
     vendors,
@@ -88,18 +101,24 @@ const AdminDashboard = () => {
 
   return (
     <div className="flex h-screen flex-col bg-slate-200">
-      <header className="relative flex h-16 shrink-0 items-center border-b-2 border-indigo-600 bg-white px-4 text-slate-900 shadow-sm">
-        <button
-          onClick={() => setSidebarOpen((open) => !open)}
-          className="rounded-md bg-slate-100 p-2 text-slate-700 hover:bg-slate-200 lg:hidden"
-          aria-label="Toggle menu"
-        >
-          {sidebarOpen ? <FiX size={22} /> : <FiMenu size={22} />}
-        </button>
+      <header className="relative flex h-16 shrink-0 items-center justify-between gap-3 border-b-2 border-indigo-600 bg-white px-4 text-slate-900 shadow-sm">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen((open) => !open)}
+            className="rounded-md bg-slate-100 p-2 text-slate-700 hover:bg-slate-200 lg:hidden"
+            aria-label="Toggle menu"
+          >
+            {sidebarOpen ? <FiX size={22} /> : <FiMenu size={22} />}
+          </button>
 
-        <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold tracking-wide md:text-xl">
-          Admin Dashboard
-        </h1>
+          <h1 className="truncate text-lg font-semibold tracking-wide md:text-xl">
+            Admin Dashboard
+          </h1>
+        </div>
+
+        <span className="min-w-0 truncate text-sm text-slate-600">
+          Welcome, <span className="font-medium text-indigo-600">{userName}</span>
+        </span>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -128,12 +147,28 @@ const AdminDashboard = () => {
               ))}
             </ul>
           </nav>
+
+          <div className="mt-auto w-full border-t border-indigo-100 p-4">
+            <button
+              onClick={() => setShowLogoutModal(true)}
+              className="flex w-full items-center gap-3 rounded-lg border-l-4 border-transparent px-4 py-2.5 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700"
+            >
+              <FiLogOut size={18} />
+              Logout
+            </button>
+          </div>
         </aside>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           <Outlet context={context} />
         </main>
       </div>
+
+      <LogoutConfirmModal
+        open={showLogoutModal}
+        onCancel={() => setShowLogoutModal(false)}
+        onConfirm={confirmLogout}
+      />
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { FaTicketAlt } from "react-icons/fa";
 import BusTickets from "/Pictures/Bus_Tickets.jpg";
-import Reveal from "./Reveal";
+import Reveal from "../../Component/Reveal";
 
 const TouristCTA = () => {
   const navigate = useNavigate();

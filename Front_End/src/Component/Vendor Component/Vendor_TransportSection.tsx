@@ -1,6 +1,6 @@
 import TransportCard from "./Vendor_TransportCard";
 import type { Reservation } from "./Vendor_TransportCard";
-import type { Bus, Vehicle } from "../api";
+import type { Bus, Vehicle } from "../../api";
 
 export type { Reservation };
 

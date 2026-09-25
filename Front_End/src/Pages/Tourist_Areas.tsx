@@ -1,11 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { FaTicketAlt, FaMountain, FaArrowDown } from "react-icons/fa";
 import Reveal from "../Component/Reveal";
-import TouristVisit from "../Component/TouristVisit";
+import TouristVisit from "./Home Pages/TouristVisit";
 import DestinationShowcase from "../Component/DestinationShowcase";
 import TravelExperiences from "../Component/TravelExperiences";
 import TravelTips from "../Component/TravelTips";
-import TouristCTA from "../Component/TouristCTA";
+import TouristCTA from "./Home Pages/TouristCTA";
 import Mustang from "/Pictures/Mustang.jpg";
 
 const Tourist_Areas = () => {

@@ -1,5 +1,5 @@
-import DataTable from "../../Component/Admin_DataTable";
-import AdminPageHeader from "../../Component/AdminPageHeader";
+import DataTable from "../../Component/Admin Component/Admin_DataTable";
+import AdminPageHeader from "../../Component/Admin Component/AdminPageHeader";
 import { useOutletContext } from "react-router-dom";
 import type { User } from "../../api";
 

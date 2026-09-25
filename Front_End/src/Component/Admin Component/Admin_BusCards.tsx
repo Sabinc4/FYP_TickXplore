@@ -1,6 +1,6 @@
 import SkeletonLoader from "./Admin_SkeletonLoader";
 import { X } from "lucide-react";
-import { API_BASE_URL, type Bus } from "../api";
+import { API_BASE_URL, type Bus } from "../../api";
 
 interface BusCardProps {
   bus: Bus;

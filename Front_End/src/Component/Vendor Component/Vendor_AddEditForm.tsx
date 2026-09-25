@@ -1,7 +1,7 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { toast } from "react-toastify";
 import FormInput from "./Vendor_FormInput";
-import { type Bus, type Vehicle } from "../api";
+import { type Bus, type Vehicle } from "../../api";
 
 interface SubmitResult {
   success?: boolean;

@@ -8,7 +8,7 @@ import {
   FaTicketAlt,
 } from "react-icons/fa";
 import { getPageRange } from "../../utils/pagination";
-import AdminPageHeader from "../../Component/AdminPageHeader";
+import AdminPageHeader from "../../Component/Admin Component/AdminPageHeader";
 import { bookingsApi, type Booking, type BookingRef } from "../../api";
 
 interface OutletContext {

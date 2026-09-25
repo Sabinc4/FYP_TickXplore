@@ -1,7 +1,7 @@
 import { useOutletContext } from "react-router-dom";
 import { toast } from "react-toastify";
 import { FiRefreshCw } from "react-icons/fi";
-import AdminPageHeader from "../../Component/AdminPageHeader";
+import AdminPageHeader from "../../Component/Admin Component/AdminPageHeader";
 import { refundsApi, type RefundRequest, type BookingRef, type User } from "../../api";
 
 interface OutletContext {

@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, type FormEvent } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   FaTimes,
   FaHome,
+  FaSearch,
   FaMapMarkedAlt,
   FaInfoCircle,
   FaQuestionCircle,
   FaSignInAlt,
   FaTicketAlt,
 } from "react-icons/fa";
+import { IoBed } from "react-icons/io5";
 import { CiMenuBurger } from "react-icons/ci";
 import { IoMdNotificationsOutline } from "react-icons/io";
 import { FiLogOut, FiUser, FiRefreshCw, FiCreditCard } from "react-icons/fi";
@@ -24,6 +26,7 @@ interface NavLinkItem {
 
 const USER_LINKS: NavLinkItem[] = [
   { label: "Home", path: "/", icon: FaHome },
+  { label: "Stay", path: "/stay", icon: IoBed },
   { label: "Tourist Areas", path: "/tourist-areas", icon: FaMapMarkedAlt },
   { label: "About Us", path: "/about-us", icon: FaInfoCircle },
   { label: "FAQs", path: "/faqs", icon: FaQuestionCircle },
@@ -41,6 +44,7 @@ const Nav = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [bookingType, setBookingType] = useState("");
   const [bookingId, setBookingId] = useState("");
+  const [navSearch, setNavSearch] = useState("");
 
   const locationHook = useLocation();
   const navigate = useNavigate();
@@ -230,6 +234,14 @@ const Nav = () => {
     else navigate("/");
   };
 
+  const handleNavSearch = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const q = navSearch.trim();
+    if (!q) return;
+    navigate(`/stay?q=${encodeURIComponent(q)}`);
+    setClick(false);
+  };
+
   const markNotificationAsRead = async (notifId: string) => {
     try {
       await fetch(`http://localhost:3001/api/notifications/${notifId}/read`, {
@@ -326,6 +338,28 @@ const Nav = () => {
                 Dashboard
               </Link>
             )}
+
+            <form
+              onSubmit={handleNavSearch}
+              className="ml-1 flex items-center gap-1 rounded-full border border-white/10 bg-white/10 pl-3 pr-1 transition focus-within:border-blue-400"
+            >
+              <FaSearch className="text-sm text-slate-400" />
+              <input
+                type="text"
+                value={navSearch}
+                onChange={(e) => setNavSearch(e.target.value)}
+                placeholder="Search stays…"
+                aria-label="Search accommodations"
+                className="w-32 bg-transparent py-1.5 text-sm text-white placeholder:text-slate-400 focus:outline-none xl:w-44"
+              />
+              <button
+                type="submit"
+                aria-label="Submit stay search"
+                className="rounded-full bg-blue-600 p-1.5 text-white transition hover:bg-blue-700"
+              >
+                <FaSearch className="text-xs" />
+              </button>
+            </form>
 
             {userLoggedIn ? (
               <div className="flex items-center gap-2 pl-2">
@@ -471,6 +505,20 @@ const Nav = () => {
         {/* Mobile menu */}
         {click && (
           <div className="lg:hidden animate-fade-in border-t border-white/10 py-4">
+            <form
+              onSubmit={handleNavSearch}
+              className="mb-3 flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3 transition focus-within:border-blue-400"
+            >
+              <FaSearch className="text-sm text-slate-400" />
+              <input
+                type="text"
+                value={navSearch}
+                onChange={(e) => setNavSearch(e.target.value)}
+                placeholder="Search stays…"
+                aria-label="Search accommodations"
+                className="w-full bg-transparent py-2.5 text-sm text-white placeholder:text-slate-400 focus:outline-none"
+              />
+            </form>
             <div className="grid gap-1">
               {USER_LINKS.map(({ label, path, icon: Icon }) => (
                   <Link
